@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #f6f2ea;
+  --card: #fffdf8;
+  --ink: #1d1a16;
+  --muted: #6c6458;
+  --line: #e4dccd;
+  --accent: #b9400e;
+  --accent-ink: #ffffff;
+  --accent-soft: #f8e4d6;
+  --ok: #17803d;
+  --warn: #a5560a;
+  --warn-soft: #fbefd9;
+  --bad: #b42318;
+  --bad-soft: #fde8e6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #13110e;
+    --card: #1b1814;
+    --ink: #f2ede4;
+    --muted: #a29887;
+    --line: #2e2922;
+    --accent: #f0743a;
+    --accent-ink: #1b1006;
+    --accent-soft: #3b2216;
+    --ok: #4ade80;
+    --warn: #f5b84a;
+    --warn-soft: #34270f;
+    --bad: #f87171;
+    --bad-soft: #3a1714;
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  /* System stacks: no font download, so the demo renders the same offline. */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+@keyframes indeterminate {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}

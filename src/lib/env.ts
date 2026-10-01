@@ -11,6 +11,14 @@ const schema = z.object({
   /** Ceiling on one generation, queue included. */
   TRYON_TIMEOUT_MS: z.coerce.number().int().positive().default(240_000),
   DATA_DIR: z.string().default("data"),
+  /**
+   * Whether the studio offers "Feature on the home page". There is no login
+   * yet, so on a deployed copy anyone could curate; default it off there.
+   */
+  CURATION: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.enum(["on", "off"]).default(process.env.NODE_ENV === "production" ? "off" : "on"),
+  ),
 });
 
 export type Env = z.infer<typeof schema>;

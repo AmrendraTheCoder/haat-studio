@@ -15,13 +15,15 @@ export interface Preset {
   /** Under public/presets/. */
   file: string;
   sourceUrl: string;
+  /** What this pose is good and bad for — shown when choosing. */
+  note: string;
 }
 
-/** Standing, front-facing, nothing in front of the torso — the poses try-on handles best. */
+/** Front-facing and full body — what try-on handles best. Each notes its own limits. */
 export const PRESETS: Preset[] = [
-  { id: "standing-men", label: "Standing · men's", file: "standing-men.jpg", sourceUrl: `${FASHN_EXAMPLES}/person2.png` },
-  { id: "standing-women", label: "Standing · women's", file: "standing-women.jpg", sourceUrl: `${FASHN_EXAMPLES}/person6.png` },
-  { id: "casual-women", label: "Casual · women's", file: "casual-women.jpg", sourceUrl: `${FASHN_EXAMPLES}/person5.png` },
+  { id: "standing-men", label: "Standing · men's", file: "standing-men.jpg", sourceUrl: `${FASHN_EXAMPLES}/person2.png`, note: "Full body, arms clear of the torso. Tops and bottoms." },
+  { id: "standing-women", label: "Standing · women's", file: "standing-women.jpg", sourceUrl: `${FASHN_EXAMPLES}/person6.png`, note: "Full body, outdoors. Tops, bottoms and dresses." },
+  { id: "casual-women", label: "Casual · women's", file: "casual-women.jpg", sourceUrl: `${FASHN_EXAMPLES}/person5.png`, note: "Mirror selfie — the phone may hide part of a top." },
 ];
 
 export interface SampleGarment {

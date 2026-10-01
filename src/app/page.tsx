@@ -1,41 +1,321 @@
-import { access } from "node:fs/promises";
-import path from "node:path";
+import Link from "next/link";
 import { connection } from "next/server";
-import { Studio, type Setup } from "@/components/Studio";
+import { BeforeAfter } from "@/components/shared/BeforeAfter";
+import { Placeholder } from "@/components/shared/Placeholder";
+import { ScrollingStrip, SiteFooter, SiteNav, WaveBorder } from "@/components/site/site";
+import { resultUrl } from "@/lib/client/check";
 import { PRESETS, SAMPLE_GARMENTS } from "@/lib/presets";
-import { enginesFromEnv, store } from "@/lib/tryon";
+import { readFeatured, readSetup, type Setup } from "@/lib/site";
+import type { ResultMeta } from "@/lib/tryon/types";
 
-const exists = (p: string) => access(p).then(
-  () => true,
-  () => false,
-);
+const TICKER = ["Upload", "Pick a model", "Compare", "Download for Instagram", "₹0 to run", "Saved, never re-generated"];
 
-/** Reads setup state from disk and env on every request, so fixing setup only needs a reload. */
-export default async function Page() {
+export default async function Landing() {
   await connection();
-  const pub = path.join(process.cwd(), "public");
-
-  let engine: Setup["engine"];
-  try {
-    const engines = enginesFromEnv();
-    const ready = engines.find((e) => e.configured);
-    engine = ready
-      ? { label: ready.label, configured: true }
-      : { label: engines[0]?.label ?? "none", configured: false, missing: engines[0]?.missing ?? "TRYON_ENGINES is empty" };
-  } catch (err) {
-    engine = { label: "misconfigured", configured: false, missing: (err as Error).message };
-  }
-
-  const [presets, samples, results] = await Promise.all([
-    Promise.all(PRESETS.map(async (p) => ((await exists(path.join(pub, "presets", p.file))) ? p.id : null))),
-    Promise.all(SAMPLE_GARMENTS.map(async (s) => ((await exists(path.join(pub, "samples", s.file))) ? s.id : null))),
-    store().list(30),
-  ]);
+  const [setup, featured] = await Promise.all([readSetup(), readFeatured()]);
+  const hero = featured[0];
 
   return (
-    <Studio
-      setup={{ engine, presets: presets.filter((id) => id !== null), samples: samples.filter((id) => id !== null) }}
-      initialResults={results}
-    />
+    <main className="overflow-x-clip">
+      <SiteNav />
+
+      {/* ── Hero ── */}
+      <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pt-14 pb-20 sm:px-6 md:pt-20 lg:grid-cols-[1.15fr_1fr]">
+        <div className="rise">
+          <p className="kicker">Haat Studio · for Instagram sellers in India</p>
+          <h1 className="mt-5 font-extrabold leading-[0.88] tracking-[-0.07em]" style={{ fontSize: "var(--text-mega)" }}>
+            <span className="block">your product,</span>
+            <span className="block text-ink-2">on a model.</span>
+          </h1>
+          <p className="mt-7 max-w-lg text-lg text-ink-2">
+            Photograph your shirt, top or dress laid flat. Haat Studio puts it on a model and gives it back sized for your
+            Instagram post, square or story. No photoshoot, no model fees.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href="/studio" className="btn-primary !px-6 !py-3 !text-base">
+              Try it free <span aria-hidden>→</span>
+            </Link>
+            <Link href="/#how" className="btn-ghost !px-6 !py-3 !text-base">
+              See how it works
+            </Link>
+          </div>
+          <p className="mt-5 text-xs text-ink-3">Free to run · no card · runs on Hugging Face&rsquo;s free GPUs</p>
+        </div>
+
+        <HeroShowcase hero={hero} setup={setup} />
+      </section>
+
+      <WaveBorder />
+      <section className="border-y border-line bg-paper-2 py-5">
+        <ScrollingStrip items={TICKER} className="font-display text-2xl font-bold tracking-tight sm:text-3xl" />
+      </section>
+      <WaveBorder flip />
+
+      {/* ── How it works ── */}
+      <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:px-6">
+        <p className="kicker">How it works</p>
+        <h2 className="mt-3 font-extrabold tracking-[-0.05em]" style={{ fontSize: "var(--text-giant)" }}>
+          three steps, one photo.
+        </h2>
+        <div className="mt-12 grid gap-5 md:grid-cols-3">
+          <StepCard n="01" title="Upload your product" body="One photo of the garment, laid flat or on a hanger, on a plain background. Phone photos are fine — they're straightened and resized for you.">
+            <SampleThumb setup={setup} />
+          </StepCard>
+          <StepCard n="02" title="Pick a model" body="Choose one of the studio's models, or upload your own photo of a person standing front-on.">
+            <div className="grid h-full grid-cols-3 gap-2 p-3">
+              {PRESETS.map((p) =>
+                setup.presets.includes(p.id) ? (
+                  <img key={p.id} src={`/presets/${p.file}`} alt={p.label} className="size-full rounded-lg object-cover" />
+                ) : (
+                  <Placeholder key={p.id} title="model" className="size-full !p-2" />
+                ),
+              )}
+            </div>
+          </StepCard>
+          <StepCard n="03" title="Get your photo" body="Drag to compare before and after, then download it sized for an Instagram post, a square post or a story.">
+            <SizesDiagram />
+          </StepCard>
+        </div>
+      </section>
+
+      {/* ── Examples ── */}
+      <section id="examples" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-12 sm:px-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="kicker">Examples</p>
+            <h2 className="mt-3 font-extrabold tracking-[-0.05em]" style={{ fontSize: "var(--text-giant)" }}>
+              real results only.
+            </h2>
+          </div>
+          <p className="max-w-sm text-sm text-ink-3">
+            Every example here was generated by this studio and picked by hand. Opening one costs no GPU time.
+          </p>
+        </div>
+        <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3">
+          {featured.length > 0
+            ? featured.slice(0, 6).map((r) => <ExampleCard key={r.key} r={r} />)
+            : [0, 1, 2].map((i) => (
+                <Placeholder key={i} title={`Example ${i + 1}`} className="aspect-[4/3]">
+                  Filled from real results. Generate a photo in the studio, then choose “Feature on home page”.
+                </Placeholder>
+              ))}
+        </div>
+      </section>
+
+      {/* ── Under the hood ── */}
+      <section id="under-the-hood" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:px-6">
+        <p className="kicker">Under the hood</p>
+        <h2 className="mt-3 font-extrabold tracking-[-0.05em]" style={{ fontSize: "var(--text-giant)" }}>
+          what happens when you press create.
+        </h2>
+        <div className="mt-12 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+          <ol className="card divide-y divide-line">
+            {PIPELINE.map((s, i) => (
+              <li key={s.title} className="flex gap-4 p-5">
+                <span className="font-mono text-xs text-ink-3">{String(i + 1).padStart(2, "0")}</span>
+                <div>
+                  <p className="font-semibold">{s.title}</p>
+                  <p className="mt-1 text-sm text-ink-2">{s.body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <CostCard setup={setup} />
+        </div>
+      </section>
+
+      {/* ── What's next ── */}
+      <section id="next" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-12 sm:px-6">
+        <p className="kicker">What&rsquo;s next</p>
+        <h2 className="mt-3 font-extrabold tracking-[-0.05em]" style={{ fontSize: "var(--text-giant)" }}>
+          one part at a time.
+        </h2>
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {ROADMAP.map((p) => (
+            <div key={p.n} className={`card p-5 ${p.status === "now" ? "!border-ink !bg-paper-glow" : ""}`}>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xs text-ink-3">Phase {p.n}</span>
+                <span className={`chip ${p.status === "now" ? "!border-ink !text-ink" : ""}`}>{STATUS[p.status]}</span>
+              </div>
+              <p className="mt-3 text-lg font-bold tracking-tight">{p.title}</p>
+              <p className="mt-1.5 text-sm text-ink-2">{p.body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Close ── */}
+      <section className="mx-auto max-w-6xl px-4 pt-12 sm:px-6">
+        <div className="rounded-3xl border border-line bg-paper-3 px-6 py-16 text-center">
+          <h2 className="font-extrabold tracking-[-0.05em]" style={{ fontSize: "var(--text-giant)" }}>
+            your next post is
+            <br />
+            one photo away.
+          </h2>
+          <Link href="/studio" className="btn-primary mt-8 !px-6 !py-3 !text-base">
+            Open the studio <span aria-hidden>→</span>
+          </Link>
+        </div>
+      </section>
+
+      <SiteFooter />
+    </main>
   );
 }
+
+function HeroShowcase({ hero, setup }: { hero: ResultMeta | undefined; setup: Setup }) {
+  if (hero) {
+    return (
+      <figure className="rise mx-auto w-full max-w-sm">
+        <div className="relative">
+          <BeforeAfter
+            before={resultUrl(hero.key, "person.jpg")}
+            after={resultUrl(hero.key, "result.png")}
+            className="aspect-[2/3] rounded-3xl border border-line shadow-xl"
+          />
+          <div className="pointer-events-none absolute -bottom-5 -left-5 w-28 rotate-[-4deg] rounded-2xl border border-line bg-paper-glow p-2 shadow-lg">
+            <img src={resultUrl(hero.key, "garment.jpg")} alt="The product photo" className="aspect-square w-full rounded-lg object-contain" />
+            <p className="mt-1 text-center font-mono text-[10px] text-ink-3">product photo</p>
+          </div>
+        </div>
+        <figcaption className="mt-8 text-center text-xs text-ink-3">A real result from this studio · drag to compare</figcaption>
+      </figure>
+    );
+  }
+
+  // No result yet: show the real inputs and say plainly that the output is pending.
+  const sample = SAMPLE_GARMENTS.find((s) => setup.samples.includes(s.id));
+  const preset = PRESETS.find((p) => p.id === sample?.preset && setup.presets.includes(p.id)) ?? PRESETS.find((p) => setup.presets.includes(p.id));
+  return (
+    <div className="rise mx-auto grid w-full max-w-md grid-cols-[minmax(0,0.7fr)_auto_minmax(0,1.3fr)] items-center gap-3">
+      <div className="space-y-3">
+        {sample ? (
+          <img src={`/samples/${sample.file}`} alt={sample.label} className="aspect-square w-full rounded-2xl border border-line bg-white object-contain p-2" />
+        ) : (
+          <Placeholder title="product" className="aspect-square" />
+        )}
+        <p className="text-center font-mono text-[10px] text-ink-3">your product</p>
+        {preset ? (
+          <img src={`/presets/${preset.file}`} alt={preset.label} className="aspect-[3/4] w-full rounded-2xl border border-line object-cover" />
+        ) : (
+          <Placeholder title="model" className="aspect-[3/4]" />
+        )}
+        <p className="text-center font-mono text-[10px] text-ink-3">a model</p>
+      </div>
+      <span className="font-display text-3xl font-bold text-ink-3" aria-hidden>
+        →
+      </span>
+      <Placeholder title="Result" className="aspect-[2/3]">
+        {setup.engine.configured
+          ? "The first real result will appear here once one is featured from the studio."
+          : "Appears after the first real generation. Nothing on this page is mocked."}
+      </Placeholder>
+    </div>
+  );
+}
+
+function StepCard({ n, title, body, children }: { n: string; title: string; body: string; children: React.ReactNode }) {
+  return (
+    <div className="card overflow-hidden">
+      <div className="aspect-[4/3] border-b border-line bg-paper">{children}</div>
+      <div className="p-5">
+        <span className="font-mono text-xs text-ink-3">{n}</span>
+        <h3 className="mt-1.5 text-2xl font-bold">{title}</h3>
+        <p className="mt-2 text-sm text-ink-2">{body}</p>
+      </div>
+    </div>
+  );
+}
+
+function SampleThumb({ setup }: { setup: Setup }) {
+  const samples = SAMPLE_GARMENTS.filter((s) => setup.samples.includes(s.id));
+  if (samples.length === 0) return <Placeholder title="product photo" className="m-3 h-[calc(100%-1.5rem)]" />;
+  return (
+    <div className="grid h-full grid-cols-3 gap-2 p-3">
+      {samples.map((s) => (
+        <img key={s.id} src={`/samples/${s.file}`} alt={s.label} className="size-full rounded-lg bg-white object-contain p-1" />
+      ))}
+    </div>
+  );
+}
+
+/** A diagram of the three export frames — outlines, not a picture of a result. */
+function SizesDiagram() {
+  const frames = [
+    { label: "4:5 post", w: 64, h: 80 },
+    { label: "1:1 square", w: 72, h: 72 },
+    { label: "9:16 story", w: 54, h: 96 },
+  ];
+  return (
+    <div className="flex h-full items-end justify-center gap-5 p-5">
+      {frames.map((f) => (
+        <div key={f.label} className="flex flex-col items-center gap-2">
+          <div className="grid place-items-center rounded-lg border-2 border-ink bg-paper-glow" style={{ width: f.w, height: f.h }}>
+            <div className="h-3/5 w-2/5 rounded-full bg-paper-3" />
+          </div>
+          <span className="font-mono text-[10px] text-ink-3">{f.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ExampleCard({ r }: { r: ResultMeta }) {
+  return (
+    <Link href={`/studio?r=${r.key}`} className="group block">
+      <div className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-line bg-paper-2">
+        <img src={resultUrl(r.key, "result.png")} alt="Try-on result" loading="lazy" className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+        <img
+          src={resultUrl(r.key, "garment.jpg")}
+          alt="Product photo"
+          loading="lazy"
+          className="absolute right-2 bottom-2 size-14 rounded-xl border border-line bg-white object-contain p-1 shadow"
+        />
+      </div>
+    </Link>
+  );
+}
+
+const PIPELINE = [
+  { title: "Prepare the photos", body: "Turn phone photos upright, put a white background behind transparent cut-outs, and shrink anything over 1536 px. Nothing reaches the GPU sideways or oversized." },
+  { title: "Check saved results", body: "The same product, model and settings always give the same key. If it was made before, it's returned instantly and no GPU is used." },
+  { title: "Wait for a free GPU", body: "Hugging Face's ZeroGPU runs a shared queue. The studio sends one job at a time and shows your place in line." },
+  { title: "Generate", body: "FASHN VTON 1.5, an open-source try-on model, dresses the model photo in your garment — 20, 30 or 50 refinement steps." },
+  { title: "Save", body: "The result is stored by its key. Close the tab mid-way and it still finishes and appears in your recent photos." },
+];
+
+function CostCard({ setup }: { setup: Setup }) {
+  return (
+    <div className="card flex flex-col p-6">
+      <p className="kicker">What it costs to run</p>
+      <p className="mt-3 font-display text-7xl font-extrabold tracking-[-0.05em]">₹0</p>
+      <dl className="mt-5 space-y-3 text-sm">
+        {[
+          ["Hugging Face account", "Free"],
+          ["Access token", "Free · no card needed"],
+          ["GPU time", "Free daily quota — a handful of photos a day"],
+          ["When the quota runs out", "Generation pauses until it refills. Nothing is ever charged."],
+          ["Paid alternative (not used)", "FASHN's API, $0.075 per image"],
+        ].map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-4 border-b border-line pb-2.5 last:border-0">
+            <dt className="text-ink-3">{k}</dt>
+            <dd className="text-right font-medium">{v}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className={`mt-auto pt-5 text-xs ${setup.engine.configured ? "text-good" : "text-ink-3"}`}>
+        ● This server: {setup.engine.configured ? "ready to generate" : "demo mode — no Hugging Face token set yet"}
+      </p>
+    </div>
+  );
+}
+
+const STATUS = { now: "Now", token: "Needs HF token", planned: "Planned" } as const;
+const ROADMAP: { n: number; title: string; body: string; status: keyof typeof STATUS }[] = [
+  { n: 1, title: "Studio + demo mode", body: "This site: the guided studio, before/after, Instagram sizes, live pipeline view.", status: "now" },
+  { n: 2, title: "First real results", body: "Connect the free token, generate the sample set, and score each result as a baseline.", status: "token" },
+  { n: 3, title: "Quality", body: "Photo checks before generating, background cleanup, sharper output, Indian models, kurta tests.", status: "planned" },
+  { n: 4, title: "Social posts", body: "Your shop name, ₹ price and offer on the photo, with a caption and hashtags — text set as real text.", status: "planned" },
+  { n: 5, title: "Market research", body: "A short questionnaire, then sourced research on trends, prices and timing that shapes your posts.", status: "planned" },
+  { n: 6, title: "Launch-ready", body: "Accounts, cloud storage, hosting, and a paid engine option for sellers who need more.", status: "planned" },
+];

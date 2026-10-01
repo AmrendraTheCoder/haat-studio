@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { readPreset, studio } from "@/lib/tryon";
 import { InputError, prepareImage } from "@/lib/tryon/image";
-import { settingsSchema, type StreamEvent } from "@/lib/tryon/types";
+import { streamJob } from "@/lib/tryon/stream";
+import { settingsSchema } from "@/lib/tryon/types";
 
 // A cold Space plus a queue can take minutes. Honoured by hosts that read it.
 export const maxDuration = 300;
@@ -17,7 +18,8 @@ const fileBytes = async (value: FormDataEntryValue | null) =>
  *
  * Responds with NDJSON — one StreamEvent per line, ending with `done` or
  * `error`. Problems with the request itself come back as a plain 4xx JSON
- * body before any streaming starts.
+ * body before any streaming starts, so the browser can tell "fix your
+ * input" from "the engine failed".
  */
 export async function POST(request: Request) {
   let form: FormData;
@@ -49,8 +51,7 @@ export async function POST(request: Request) {
     if (!personRaw) return bad(`The "${presetId}" model photo isn't installed. Run npm run setup.`, 409);
   }
 
-  let garment: Buffer;
-  let person: Buffer;
+  let garment, person;
   try {
     [garment, person] = await Promise.all([prepareImage(garmentRaw, "garment"), prepareImage(personRaw, "model")]);
   } catch (err) {
@@ -59,40 +60,15 @@ export async function POST(request: Request) {
   }
 
   const personId = uploadedPerson
-    ? `upload:${createHash("sha256").update(person).digest("hex").slice(0, 8)}`
+    ? `upload:${createHash("sha256").update(person.bytes).digest("hex").slice(0, 8)}`
     : (presetId as string);
 
-  const job = studio().start({ garment, person, personId, settings: settings.data });
-
-  const encoder = new TextEncoder();
-  let unsubscribe = () => {};
-  let closed = false;
-
-  const body = new ReadableStream<Uint8Array>({
-    start(controller) {
-      const send = (e: StreamEvent) => {
-        if (closed) return;
-        controller.enqueue(encoder.encode(`${JSON.stringify(e)}\n`));
-        if (e.type === "done" || e.type === "error") {
-          closed = true;
-          controller.close();
-          queueMicrotask(() => unsubscribe());
-        }
-      };
-      unsubscribe = job.subscribe(send);
-    },
-    // The browser went away. The job keeps running and its result is cached.
-    cancel() {
-      closed = true;
-      unsubscribe();
-    },
+  const job = studio().start({
+    garment: garment.bytes,
+    person: person.bytes,
+    personId,
+    settings: settings.data,
+    prep: { garment: garment.info, person: person.info },
   });
-
-  return new Response(body, {
-    headers: {
-      "Content-Type": "application/x-ndjson; charset=utf-8",
-      "Cache-Control": "no-store",
-      "X-Accel-Buffering": "no",
-    },
-  });
+  return streamJob(job);
 }

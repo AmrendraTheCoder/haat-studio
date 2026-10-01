@@ -1,65 +1,160 @@
 @import "tailwindcss";
 
-:root {
-  --paper: #f6f2ea;
-  --card: #fffdf8;
-  --ink: #1d1a16;
-  --muted: #6c6458;
-  --line: #e4dccd;
-  --accent: #b9400e;
-  --accent-ink: #ffffff;
-  --accent-soft: #f8e4d6;
-  --ok: #17803d;
-  --warn: #a5560a;
-  --warn-soft: #fbefd9;
-  --bad: #b42318;
-  --bad-soft: #fde8e6;
+/* ── Haat's design system, ported from stiche-v2 (itself from Marquee). ──
+   Cream risograph paper, warm inks, one magenta splash. Fixed light theme:
+   the demo is shown on projectors and phones, and must look the same on
+   both regardless of the viewer's OS setting. Fonts are bundled (see
+   layout.tsx) so nothing depends on a network at presentation time. */
+@theme {
+  --color-ink: oklch(15% 0.012 60);
+  --color-ink-2: oklch(30% 0.018 60);
+  --color-ink-3: oklch(52% 0.024 70);
+  --color-paper: oklch(92% 0.028 88);
+  --color-paper-2: oklch(88% 0.032 86);
+  --color-paper-3: oklch(84% 0.036 84);
+  --color-paper-glow: oklch(95% 0.045 88);
+  --color-accent: oklch(70% 0.18 12);
+  --color-accent-strong: oklch(58% 0.22 8);
+  --color-accent-wash: oklch(87% 0.05 12);
+  --color-marigold: oklch(72% 0.14 70);
+  --color-good: oklch(55% 0.14 145);
+  --color-good-wash: oklch(90% 0.05 145);
+  --color-danger: oklch(55% 0.2 30);
+  --color-danger-wash: oklch(90% 0.05 30);
+  --color-line: oklch(76% 0.038 80);
+  --color-line-strong: oklch(50% 0.05 70);
+
+  --font-display: "Inter Variable", "Inter", system-ui, sans-serif;
+  --font-sans: "Inter Variable", "Inter", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --text-mega: clamp(2.75rem, 12vw, 6rem);
+  --text-giant: clamp(2.5rem, 7vw, 5.5rem);
+
+  --radius-pill: 999px;
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #13110e;
-    --card: #1b1814;
-    --ink: #f2ede4;
-    --muted: #a29887;
-    --line: #2e2922;
-    --accent: #f0743a;
-    --accent-ink: #1b1006;
-    --accent-soft: #3b2216;
-    --ok: #4ade80;
-    --warn: #f5b84a;
-    --warn-soft: #34270f;
-    --bad: #f87171;
-    --bad-soft: #3a1714;
-  }
-}
-
-@theme inline {
-  --color-paper: var(--paper);
-  --color-card: var(--card);
-  --color-ink: var(--ink);
-  --color-muted: var(--muted);
-  --color-line: var(--line);
-  --color-accent: var(--accent);
-  --color-accent-ink: var(--accent-ink);
-  --color-accent-soft: var(--accent-soft);
-  --color-ok: var(--ok);
-  --color-warn: var(--warn);
-  --color-warn-soft: var(--warn-soft);
-  --color-bad: var(--bad);
-  --color-bad-soft: var(--bad-soft);
-  /* System stacks: no font download, so the demo renders the same offline. */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-}
-
+html,
 body {
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+body {
   font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
+}
+::selection {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+  line-height: 1.05;
+}
+p {
+  text-wrap: pretty;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.strip {
+  animation: marquee 32s linear infinite;
+  will-change: transform;
+}
+.strip:hover { animation-play-state: paused; }
+
+@keyframes scallop-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(-80px); }
+}
+.scallop { animation: scallop-drift 6s linear infinite; }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.rise { animation: rise 0.45s var(--ease-spring) both; }
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--color-paper-3) 25%, var(--color-paper-2) 50%, var(--color-paper-3) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes scan {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(100%); }
+}
+.scan::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, oklch(95% 0.045 88 / 0.55) 50%, transparent 60%);
+  animation: scan 2.2s ease-in-out infinite;
 }
 
 @keyframes indeterminate {
   from { transform: translateX(-100%); }
   to { transform: translateX(250%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-colors
+      disabled:pointer-events-none disabled:opacity-40;
+    background: var(--color-ink);
+    color: var(--color-paper);
+  }
+  .btn-primary:hover { background: var(--color-ink-2); }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border px-5 py-2.5 text-sm font-medium transition-colors
+      disabled:pointer-events-none disabled:opacity-40;
+    border-color: var(--color-line-strong);
+    color: var(--color-ink);
+  }
+  .btn-ghost:hover { background: var(--color-paper-2); }
+
+  .card {
+    @apply rounded-2xl border;
+    background: var(--color-paper-2);
+    border-color: var(--color-line);
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[11px] tracking-[0.02em];
+    border-color: var(--color-line);
+    color: var(--color-ink-2);
+  }
+
+  .kicker {
+    @apply font-mono text-xs tracking-[0.06em] uppercase;
+    color: var(--color-ink-3);
+  }
 }

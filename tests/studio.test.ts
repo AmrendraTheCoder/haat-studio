@@ -58,12 +58,30 @@ describe("studio", () => {
 
     const first = collect(studio, request());
     const end = await first.job.done;
-    expect(first.events.map((e) => e.type)).toEqual(["accepted", "queued", "running", "done"]);
+    expect(first.events.map((e) => e.type)).toEqual(["accepted", "checked", "queued", "running", "done"]);
     expect(end).toMatchObject({ type: "done", cached: false, result: { engine: "fashn", personId: "standing-men" } });
 
     const again = await studio.start(request()).done;
     expect(again).toMatchObject({ type: "done", cached: true });
     expect(fashn.calls).toBe(1);
+  });
+
+  it("replays preparation details and lets a reconnecting client find the running job", async () => {
+    let finish!: (b: Buffer) => void;
+    const slow = engine("slow", () => new Promise<Buffer>((resolve) => (finish = resolve)));
+    const studio = createStudio({ engines: () => [slow], store: memoryStore(), timeoutMs: 1000 });
+    const info = { width: 10, height: 10, outWidth: 10, outHeight: 10, rotated: true, flattened: false, resized: false, stripped: false };
+    const job = studio.start(request({ prep: { garment: info, person: info } }));
+
+    await new Promise((r) => setTimeout(r, 5));
+    const late: StreamEvent[] = [];
+    studio.get(job.key)?.subscribe((e) => late.push(e));
+    expect(late.map((e) => e.type)).toEqual(["accepted", "prepared", "checked"]);
+
+    finish(png);
+    const end = await job.done;
+    expect(end).toMatchObject({ type: "done", result: { prep: { garment: { rotated: true } } } });
+    expect(studio.get(job.key)).toBeUndefined();
   });
 
   it("treats a new seed as a new request", async () => {
@@ -166,6 +184,17 @@ describe("studio", () => {
     });
     const end = await studio.start(request()).done;
     expect(end).toMatchObject({ type: "error", attempts: [{ kind: "unknown" }] });
+  });
+});
+
+describe("featured results", () => {
+  it("never lets output from the echo test engine reach the home page", async () => {
+    const store = memoryStore();
+    const studio = createStudio({ engines: () => [engine("echo", succeed)], store, timeoutMs: 1000 });
+    const end = await studio.start(request()).done;
+    if (end.type !== "done") throw new Error("expected done");
+    await expect(store.setFeatured(end.result.key, true)).rejects.toThrow(/test-engine/);
+    expect(await store.featured()).toEqual([]);
   });
 });
 

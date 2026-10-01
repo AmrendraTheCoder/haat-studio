@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { TEST_ENGINES } from "@/lib/engines";
 import type { ResultMeta, TryOnSettings } from "./types";
 
 export const RESULT_FILES = ["result.png", "garment.jpg", "person.jpg"] as const;
@@ -11,7 +12,13 @@ export interface ResultStore {
   save(meta: ResultMeta, files: Record<ResultFile, Buffer>): Promise<void>;
   list(limit: number): Promise<ResultMeta[]>;
   read(key: string, file: ResultFile): Promise<Buffer | null>;
+  /** Keys picked to show on the landing page, first = hero. Only keys whose result still exists. */
+  featured(): Promise<string[]>;
+  setFeatured(key: string, on: boolean): Promise<string[]>;
 }
+
+const nextFeatured = (current: string[], key: string, on: boolean) =>
+  on ? [key, ...current.filter((k) => k !== key)] : current.filter((k) => k !== key);
 
 const sha256 = (data: Buffer | string) => createHash("sha256").update(data).digest("hex");
 
@@ -32,6 +39,7 @@ const KEY = /^[0-9a-f]{32}$/;
 
 /** One directory per result under `root`. Writes land in a temp dir and are renamed into place. */
 export function diskStore(root: string): ResultStore {
+  const featuredFile = path.join(root, "featured.json");
   const dir = (key: string) => {
     // Keys arrive in URLs; anything that isn't a key never touches the filesystem.
     if (!KEY.test(key)) throw new Error(`invalid result key: ${key}`);
@@ -45,6 +53,17 @@ export function diskStore(root: string): ResultStore {
     } catch {
       return null;
     }
+  }
+
+  async function readFeatured(): Promise<string[]> {
+    let keys: string[];
+    try {
+      keys = JSON.parse(await readFile(featuredFile, "utf8")) as string[];
+    } catch {
+      return [];
+    }
+    const present = await Promise.all(keys.filter((k) => KEY.test(k)).map(async (k) => ((await readMeta(k)) ? k : null)));
+    return present.filter((k): k is string => k !== null);
   }
 
   return {
@@ -84,11 +103,26 @@ export function diskStore(root: string): ResultStore {
         return null;
       }
     },
+
+    featured: readFeatured,
+
+    async setFeatured(key, on) {
+      const meta = await readMeta(key);
+      if (on && !meta) throw new Error(`no result ${key}`);
+      if (on && TEST_ENGINES.has(meta!.engine)) throw new Error("test-engine results can't be featured");
+      const keys = nextFeatured(await readFeatured(), key, on);
+      await mkdir(root, { recursive: true });
+      const tmp = `${featuredFile}.${process.pid}.tmp`;
+      await writeFile(tmp, JSON.stringify(keys, null, 2));
+      await rename(tmp, featuredFile);
+      return keys;
+    },
   };
 }
 
 export function memoryStore(): ResultStore {
   const rows = new Map<string, { meta: ResultMeta; files: Record<ResultFile, Buffer> }>();
+  let featured: string[] = [];
   return {
     async find(key) {
       return rows.get(key)?.meta ?? null;
@@ -101,6 +135,15 @@ export function memoryStore(): ResultStore {
     },
     async read(key, file) {
       return rows.get(key)?.files[file] ?? null;
+    },
+    async featured() {
+      return featured.filter((k) => rows.has(k));
+    },
+    async setFeatured(key, on) {
+      if (on && !rows.has(key)) throw new Error(`no result ${key}`);
+      if (on && TEST_ENGINES.has(rows.get(key)!.meta.engine)) throw new Error("test-engine results can't be featured");
+      featured = nextFeatured(featured, key, on);
+      return featured;
     },
   };
 }

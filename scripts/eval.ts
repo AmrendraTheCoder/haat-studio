@@ -40,11 +40,14 @@ for (const sample of SAMPLE_GARMENTS) {
   }
 
   const settings = { category: sample.category, photoType: sample.photoType, quality, seed };
+  const garment = await prepareImage(garmentRaw, "garment");
+  const person = await prepareImage(personRaw, "model");
   const job = studio().start({
-    garment: await prepareImage(garmentRaw, "garment"),
-    person: await prepareImage(personRaw, "model"),
+    garment: garment.bytes,
+    person: person.bytes,
     personId: sample.preset,
     settings,
+    prep: { garment: garment.info, person: person.info },
   });
   process.stdout.write(`${sample.id.padEnd(18)} `);
   job.subscribe((e: StreamEvent) => {

@@ -12,14 +12,25 @@ time: make it work, measure it, optimise it, then move on. Free services only.
 src/lib/tryon/
   studio.ts       createStudio(): cache → in-flight sharing → GPU lock → engine chain
   fashn-space.ts  FASHN VTON 1.5 adapter over the Gradio client; classify() for ZeroGPU errors
-  image.ts        prepareImage(): EXIF orient, flatten alpha onto white, ≤1536px, JPEG
+  image.ts        prepareImage(): orient, flatten alpha, ≤1536px, strip metadata; exportFor() Instagram sizes
   store.ts        cacheKey(), diskStore() (data/results/<key>/), memoryStore() for tests
   types.ts        settings schema, Engine interface, StreamEvent
   index.ts        engine registry, studio() singleton, readPreset()
+  stream.ts       streamJob(): NDJSON response for a live or finished job
+  echo.ts         test engine — returns the model photo, no try-on
 src/lib/presets.ts  preset models + sample garments (pure data, client-safe)
-src/app/api/tryon   POST multipart → NDJSON stream
-src/app/api/results list + serve stored images
-src/components/     Studio (state), Output, Gallery, ModelPicker, controls
+src/lib/limits.ts   upload rules + export sizes shared by browser and server
+src/lib/engines.ts  engine display names; TEST_ENGINES (labelled, never featured)
+src/lib/site.ts     readSetup / readFeatured / readRecent for the pages
+src/app/page.tsx              landing
+src/app/studio/page.tsx       studio (?r=<key> re-attaches)
+src/app/api/tryon             POST multipart → NDJSON stream
+src/app/api/tryon/[key]       GET: re-attach to a running job, or its saved result
+src/app/api/results/[key]/[file]  result.png garment.jpg person.jpg + post/square/story.jpg exports
+src/app/api/featured          GET list, POST {key,on} (CURATION=on only)
+src/components/site/          wordmark, nav, footer, scallop, ticker (Haat look from stiche-v2)
+src/components/shared/        BeforeAfter slider, Placeholder
+src/components/studio/        StudioApp (state machine), Steps, ResultStep, Pipeline, parts
 scripts/            setup, engine-check, eval
 tests/              vitest, no network
 ```
@@ -43,6 +54,13 @@ tests/              vitest, no network
   `env()` re-parses on each call so a new token works after a reload.
 - **Don't commit photos.** `public/presets`, `public/samples`, `data/` and
   `eval/reports` are gitignored; `npm run setup` recreates the first two.
+- **Never show an invented result.** Landing slots without a real featured photo
+  are labelled placeholders. Echo-engine output is labelled "test engine" and
+  `setFeatured` refuses it.
+- **The live panel is derived, not animated.** `Pipeline` computes each stage from
+  the events the server sent (server-timestamped via `at`). Don't add timers that
+  advance stages on their own.
+- **Every disabled button shows why.** Steps pass a `reason` to `ActionBar`.
 - **Text on images is a layout problem.** When posts arrive (stage 4), render
   captions, prices and shop names as real text, not with an image model.
 
@@ -65,15 +83,24 @@ npm run eval           # real generations; spends quota
 3. **Port 3000 is often taken on this machine.** `.claude/launch.json` uses 3100.
 4. **The studio is a `globalThis` singleton** so `next dev` reloads don't create a
    second GPU lock. Changing `createStudio` options needs a server restart.
-5. **Next 16:** route handlers use Web `Request`/`Response`; `connection()` marks a
+5. **`DATA_DIR` must go through `path.resolve`.** `path.join(cwd, "/abs/dir")`
+   nests the absolute path inside the project — test output once landed in
+   `./private/tmp/...` that way.
+6. **Re-encoding a JPEG changes its bytes**, which changes the cache key.
+   `prepareImage` passes clean JPEGs through untouched for that reason; keep it.
+7. **Testing the UI without a token:** `TRYON_ENGINES=echo DATA_DIR=<tmp> next dev`
+   (`ECHO_FAIL=quota|error` for failure screens). Stop the preview server first —
+   two `next dev` processes can't share the project.
+8. **Next 16:** route handlers use Web `Request`/`Response`; `connection()` marks a
    page as per-request. Read `node_modules/next/dist/docs/` before using a Next API.
 
 ## State
 
 | Stage | Status |
 |---|---|
-| 1. Prove free generation | Space reached, upload + queue verified; refused without token. First tokened generation pending |
-| 2. Demo app | Built; unit tests, typecheck, lint pass; error paths verified against the dev server |
+| 0. Prove free generation from code | Space reached, upload + queue verified; refused without token |
+| 1. Proper UI + demo mode | Done. Landing, studio, reconnect, cache hit, quota/missing/input errors, exports, lightbox, phone layout all exercised in the browser with the echo engine |
+| 2. First real results + baseline | Waiting on HF_TOKEN |
 | 3. Quality (eval scores, Indian presets, more categories) | Not started |
 | 4. Social posts | Not started |
 | 5. Research questionnaire | Not started |

@@ -1,6 +1,6 @@
 import { toPng } from "./image";
 import { cacheKey, type ResultStore } from "./store";
-import { EngineError, type Attempt, type Engine, type ResultMeta, type StreamEvent, type TryOnSettings } from "./types";
+import { EngineError, type Attempt, type Engine, type Prep, type ResultMeta, type StreamEvent, type TryOnSettings } from "./types";
 
 export interface TryOnRequest {
   /** Both already through `prepareImage`. */
@@ -8,6 +8,8 @@ export interface TryOnRequest {
   person: Buffer;
   personId: string;
   settings: TryOnSettings;
+  /** What preprocessing changed; replayed to anyone who reconnects. */
+  prep?: Prep;
 }
 
 export interface Job {
@@ -28,6 +30,8 @@ export interface StudioOptions {
 
 export interface Studio {
   start(req: TryOnRequest): Job;
+  /** The running job for `key`, if any — lets a reloaded page pick the stream back up. */
+  get(key: string): Job | undefined;
 }
 
 /**
@@ -100,6 +104,7 @@ export function createStudio(opts: StudioOptions): Studio {
           createdAt: new Date(finished).toISOString(),
           totalMs: finished - submitted,
           queueMs: (started ?? submitted) - submitted,
+          ...(req.prep && { prep: req.prep }),
         };
         await opts.store.save(meta, { "result.png": result, "garment.jpg": req.garment, "person.jpg": req.person });
         const done: StreamEvent = { type: "done", result: meta, cached: false };
@@ -119,6 +124,7 @@ export function createStudio(opts: StudioOptions): Studio {
 
   async function run(req: TryOnRequest, key: string, emit: (e: StreamEvent) => void): Promise<StreamEvent> {
     const hit = await opts.store.find(key);
+    emit({ type: "checked", hit: hit !== null });
     if (hit) {
       const done: StreamEvent = { type: "done", result: hit, cached: true };
       emit(done);
@@ -128,6 +134,8 @@ export function createStudio(opts: StudioOptions): Studio {
   }
 
   return {
+    get: (key) => inflight.get(key),
+
     start(req) {
       const key = cacheKey(req.garment, req.person, req.settings);
       const existing = inflight.get(key);
@@ -135,12 +143,14 @@ export function createStudio(opts: StudioOptions): Studio {
 
       const events: StreamEvent[] = [];
       const listeners = new Set<(e: StreamEvent) => void>();
-      const emit = (e: StreamEvent) => {
+      const emit = (event: StreamEvent) => {
+        const e = { ...event, at: now() };
         events.push(e);
         for (const listener of listeners) listener(e);
       };
 
       emit({ type: "accepted", key });
+      if (req.prep) emit({ type: "prepared", prep: req.prep });
       const done = run(req, key, emit)
         .catch((err: unknown) => {
           const failed: StreamEvent = { type: "error", message: `Unexpected failure: ${(err as Error).message}`, attempts: [] };
@@ -182,7 +192,7 @@ export function explain(attempts: Attempt[]): string {
   if (tried.every((a) => a.kind === "quota")) {
     const wait = Math.min(...tried.map((a) => a.retryAfterSeconds ?? Infinity));
     const when = Number.isFinite(wait) ? ` It refills in about ${formatWait(wait)}.` : "";
-    return `Today's free GPU quota is used up.${when} Earlier results are still in the gallery.`;
+    return `Today's free GPU quota is used up.${when} Photos made earlier are still saved and open instantly.`;
   }
   if (tried.every((a) => a.kind === "timeout")) {
     return "The GPU queue is too long right now. Try again in a few minutes.";

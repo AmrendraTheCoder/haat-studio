@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { env } from "@/lib/env";
 import { PRESETS } from "@/lib/presets";
+import { echo } from "./echo";
 import { fashnSpace } from "./fashn-space";
 import { diskStore } from "./store";
 import { createStudio, type Studio } from "./studio";
@@ -10,6 +11,7 @@ import type { Engine } from "./types";
 /** Adding an engine is one entry here plus its adapter file. */
 const ENGINES: Record<string, () => Engine> = {
   "fashn-space": () => fashnSpace(),
+  echo: () => echo(),
 };
 
 export function enginesFromEnv(): Engine[] {
@@ -24,7 +26,8 @@ export function enginesFromEnv(): Engine[] {
     });
 }
 
-export const resultsDir = () => path.join(process.cwd(), env().DATA_DIR, "results");
+// resolve, not join: an absolute DATA_DIR must stay absolute rather than nest under the project.
+export const resultsDir = () => path.resolve(process.cwd(), env().DATA_DIR, "results");
 export const store = () => diskStore(resultsDir());
 
 // One studio per process. On globalThis because `next dev` re-evaluates

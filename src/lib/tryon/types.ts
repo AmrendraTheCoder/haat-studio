@@ -65,6 +65,26 @@ export interface Attempt {
   retryAfterSeconds?: number;
 }
 
+/** What `prepareImage` did to one photo — shown in the studio's live panel. */
+export interface PrepInfo {
+  /** Upright size of the upload. */
+  width: number;
+  height: number;
+  /** Size sent to the engine. */
+  outWidth: number;
+  outHeight: number;
+  rotated: boolean;
+  flattened: boolean;
+  resized: boolean;
+  /** Camera metadata (EXIF/XMP/IPTC — often GPS location) was removed before upload. */
+  stripped: boolean;
+}
+
+export interface Prep {
+  garment: PrepInfo;
+  person: PrepInfo;
+}
+
 export interface ResultMeta {
   key: string;
   engine: string;
@@ -75,13 +95,22 @@ export interface ResultMeta {
   totalMs: number;
   /** Time spent waiting in the Space's queue before the GPU picked it up. */
   queueMs: number;
+  prep?: Prep;
 }
 
-/** What `/api/tryon` streams to the browser, one JSON object per line. */
-export type StreamEvent =
+/**
+ * What `/api/tryon` streams to the browser, one JSON object per line.
+ * `at` is the server's clock when the event happened, so a page that
+ * reconnects later still sees real stage durations, not replay time.
+ */
+export type StreamEvent = { at?: number } & (
   | { type: "accepted"; key: string }
+  | { type: "prepared"; prep: Prep }
+  /** The result cache was consulted. A hit is followed directly by `done`. */
+  | { type: "checked"; hit: boolean }
   | { type: "waiting" }
   | { type: "queued"; engine: string; position: number | null; etaSeconds: number | null }
   | { type: "running"; engine: string; etaSeconds: number | null }
   | { type: "done"; result: ResultMeta; cached: boolean }
-  | { type: "error"; message: string; attempts: Attempt[] };
+  | { type: "error"; message: string; attempts: Attempt[] }
+);

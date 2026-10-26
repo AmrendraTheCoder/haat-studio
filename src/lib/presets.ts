@@ -17,13 +17,21 @@ export interface Preset {
   sourceUrl: string;
   /** What this pose is good and bad for — shown when choosing. */
   note: string;
+  /**
+   * What the model already has on. A bottom can only replace a bottom: on a
+   * model in a dress there is nothing separate to swap, and in the first real
+   * eval (2026-10-26) a tiered skirt blended into the dress instead.
+   */
+  wearing: "separates" | "one-piece";
+  /** Garment categories this preset has handled well, or is expected to. */
+  suits: TryOnSettings["category"][];
 }
 
 /** Front-facing and full body — what try-on handles best. Each notes its own limits. */
 export const PRESETS: Preset[] = [
-  { id: "standing-men", label: "Standing · men's", file: "standing-men.jpg", sourceUrl: `${FASHN_EXAMPLES}/person2.png`, note: "Full body, arms clear of the torso. Tops and bottoms." },
-  { id: "standing-women", label: "Standing · women's", file: "standing-women.jpg", sourceUrl: `${FASHN_EXAMPLES}/person6.png`, note: "Full body, outdoors. Tops, bottoms and dresses." },
-  { id: "casual-women", label: "Casual · women's", file: "casual-women.jpg", sourceUrl: `${FASHN_EXAMPLES}/person5.png`, note: "Mirror selfie — the phone may hide part of a top." },
+  { id: "standing-men", label: "Standing · men's", file: "standing-men.jpg", sourceUrl: `${FASHN_EXAMPLES}/person2.png`, note: "Full body, arms clear of the torso. Tops and bottoms.", wearing: "separates", suits: ["tops", "bottoms"] },
+  { id: "standing-women", label: "Standing · women's", file: "standing-women.jpg", sourceUrl: `${FASHN_EXAMPLES}/person6.png`, note: "Wearing a dress: good for tops and dresses, not for skirts or trousers.", wearing: "one-piece", suits: ["tops", "one-pieces"] },
+  { id: "casual-women", label: "Casual · women's", file: "casual-women.jpg", sourceUrl: `${FASHN_EXAMPLES}/person5.png`, note: "Tee and shorts: good for bottoms. The phone may hide part of a top.", wearing: "separates", suits: ["bottoms", "tops"] },
 ];
 
 export interface SampleGarment {
@@ -42,5 +50,5 @@ export interface SampleGarment {
 export const SAMPLE_GARMENTS: SampleGarment[] = [
   { id: "black-tee", label: "Black logo tee", file: "black-tee.jpg", sourceUrl: `${FASHN_EXAMPLES}/garment7.jpg`, category: "tops", photoType: "flat-lay", preset: "standing-men" },
   { id: "eyelet-crop-top", label: "Navy eyelet crop top", file: "eyelet-crop-top.jpg", sourceUrl: `${FASHN_EXAMPLES}/garment3.jpeg`, category: "tops", photoType: "flat-lay", preset: "standing-women" },
-  { id: "tiered-skirt", label: "White tiered skirt", file: "tiered-skirt.jpg", sourceUrl: `${FASHN_EXAMPLES}/garment5.jpeg`, category: "bottoms", photoType: "flat-lay", preset: "standing-women" },
+  { id: "tiered-skirt", label: "White tiered skirt", file: "tiered-skirt.jpg", sourceUrl: `${FASHN_EXAMPLES}/garment5.jpeg`, category: "bottoms", photoType: "flat-lay", preset: "casual-women" },
 ];

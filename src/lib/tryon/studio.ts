@@ -1,3 +1,4 @@
+import { TEST_ENGINES } from "@/lib/engines";
 import { toPng } from "./image";
 import { cacheKey, type ResultStore } from "./store";
 import { EngineError, type Attempt, type Engine, type Prep, type ResultMeta, type StreamEvent, type TryOnSettings } from "./types";
@@ -137,7 +138,8 @@ export function createStudio(opts: StudioOptions): Studio {
     get: (key) => inflight.get(key),
 
     start(req) {
-      const key = cacheKey(req.garment, req.person, req.settings);
+      const testEngines = opts.engines().filter((e) => TEST_ENGINES.has(e.id)).map((e) => e.id);
+      const key = cacheKey(req.garment, req.person, req.settings, testEngines.length ? `test:${testEngines.join(",")}` : "");
       const existing = inflight.get(key);
       if (existing) return existing;
 

@@ -310,11 +310,11 @@ function CostCard({ setup }: { setup: Setup }) {
   );
 }
 
-const STATUS = { now: "Now", token: "Needs HF token", planned: "Planned" } as const;
+const STATUS = { done: "Done", now: "Next", planned: "Planned" } as const;
 const ROADMAP: { n: number; title: string; body: string; status: keyof typeof STATUS }[] = [
-  { n: 1, title: "Studio + demo mode", body: "This site: the guided studio, before/after, Instagram sizes, live pipeline view.", status: "now" },
-  { n: 2, title: "First real results", body: "Connect the free token, generate the sample set, and score each result as a baseline.", status: "token" },
-  { n: 3, title: "Quality", body: "Photo checks before generating, background cleanup, sharper output, Indian models, kurta tests.", status: "planned" },
+  { n: 1, title: "Studio + demo mode", body: "This site: the guided studio, before/after, Instagram sizes, live pipeline view.", status: "done" },
+  { n: 2, title: "First real results", body: "Free generation proven and scored: tops 29–30 out of 30. Bottoms need a model wearing separates.", status: "done" },
+  { n: 3, title: "Quality", body: "Photo checks before generating, background cleanup, sharper output, Indian models, kurta tests.", status: "now" },
   { n: 4, title: "Social posts", body: "Your shop name, ₹ price and offer on the photo, with a caption and hashtags — text set as real text.", status: "planned" },
   { n: 5, title: "Market research", body: "A short questionnaire, then sourced research on trends, prices and timing that shapes your posts.", status: "planned" },
   { n: 6, title: "Launch-ready", body: "Accounts, cloud storage, hosting, and a paid engine option for sellers who need more.", status: "planned" },

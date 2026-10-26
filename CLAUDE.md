@@ -91,7 +91,12 @@ npm run eval           # real generations; spends quota
 7. **Testing the UI without a token:** `TRYON_ENGINES=echo DATA_DIR=<tmp> next dev`
    (`ECHO_FAIL=quota|error` for failure screens). Stop the preview server first —
    two `next dev` processes can't share the project.
-8. **Next 16:** route handlers use Web `Request`/`Response`; `connection()` marks a
+8. **Result URLs are cached as immutable.** Anything that could put different
+   bytes under the same key (like a test engine) must get its own key space —
+   `cacheKey(..., namespace)`; studio passes `test:<ids>` for test engines.
+9. **Bottoms need a model wearing separates.** On a model in a dress, a skirt
+   blends into the dress. Presets carry `wearing` and `suits`; keep them honest.
+10. **Next 16:** route handlers use Web `Request`/`Response`; `connection()` marks a
    page as per-request. Read `node_modules/next/dist/docs/` before using a Next API.
 
 ## State
@@ -100,9 +105,9 @@ npm run eval           # real generations; spends quota
 |---|---|
 | 0. Prove free generation from code | Space reached, upload + queue verified; refused without token |
 | 1. Proper UI + demo mode | Done. Landing, studio, reconnect, cache hit, quota/missing/input errors, exports, lightbox, phone layout all exercised in the browser with the echo engine |
-| 2. First real results + baseline | Waiting on HF_TOKEN |
+| 2. First real results + baseline | Done 2026-10-26 — see docs/eval-2026-10-26-baseline.md. 4/4 generated; tops 29–30/30; bottoms need a model in separates (fixed in presets) |
 | 3. Quality (eval scores, Indian presets, more categories) | Not started |
 | 4. Social posts | Not started |
 | 5. Research questionnaire | Not started |
 
-Do not call generation "working" until a real result has come back through the UI.
+Real generation verified end to end through `/api/tryon` and the studio UI on 2026-10-26.

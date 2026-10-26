@@ -134,7 +134,7 @@ pairs. Change a setting or the preprocessing and you get fresh, comparable outpu
 |---|---|
 | EXIF orientation applied | Phone photos stored sideways reached the model sideways |
 | Transparency flattened onto white | FASHN's RGB conversion turns transparent product cut-outs black |
-| Uploads bounded to 1536 px | The model works at 576×864; larger photos only add upload time |
+| Uploads bounded to 1536 px | The model outputs ~576 px wide; larger photos only add upload time |
 | Camera metadata stripped | Phone EXIF (often GPS location) never reaches the GPU host |
 | Clean JPEGs pass through untouched | Re-using a saved photo hits the cache instead of re-encoding into new bytes |
 | Content-addressed result cache | Repeats cost no GPU quota |
@@ -158,7 +158,7 @@ pairs. Change a setting or the preprocessing and you get fresh, comparable outpu
 | Stage | Scope | Status |
 |---|---|---|
 | 1 | Proper UI + demo mode: landing page, guided studio, before/after, Instagram sizes, live pipeline, featured examples | Done — every screen exercised with the echo test engine |
-| 2 | First real results: connect the free token, generate the sample set, score a baseline | Waiting on `HF_TOKEN` |
+| 2 | First real results: connect the free token, generate the sample set, score a baseline | Done — [baseline](docs/eval-2026-10-26-baseline.md): tops 29–30/30, ~13 s warm / ~30 s cold; bottoms need a model in separates |
 | 3 | Quality: photo checks before generating, background cleanup, upscaling, Indian model presets, kurta tests | Next |
 | 4 | Social posts: caption, shop name, price, layout rendered as text (not by an image model) | |
 | 5 | Business research questionnaire with sourced findings | |

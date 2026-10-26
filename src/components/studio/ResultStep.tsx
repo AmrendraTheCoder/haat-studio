@@ -244,7 +244,7 @@ function Done({
             </a>
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-ink-3">
-            Instagram sizes fit the whole photo on a blurred backdrop — nothing is cropped off. The model generates at 576×864, so large sizes are
+            Instagram sizes fit the whole photo on a blurred backdrop — nothing is cropped off. The model generates about 576 px wide, so large sizes are
             enlarged; sharper output is planned.
           </p>
         </div>

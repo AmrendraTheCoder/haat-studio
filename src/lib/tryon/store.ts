@@ -30,9 +30,14 @@ const sha256 = (data: Buffer | string) => createHash("sha256").update(data).dige
  * Keyed on the normalised bytes, not on file names: two uploads of the same
  * photo under different names are the same request.
  */
-export function cacheKey(garment: Buffer, person: Buffer, settings: TryOnSettings): string {
+export function cacheKey(garment: Buffer, person: Buffer, settings: TryOnSettings, namespace = ""): string {
   const { category, photoType, quality, seed } = settings;
-  return sha256([sha256(garment), sha256(person), category, photoType, quality, seed].join("|")).slice(0, 32);
+  const parts = [sha256(garment), sha256(person), category, photoType, quality, seed];
+  // Real engines share the bare key space, so existing results keep their keys.
+  // Test engines get their own: an echo result must never be served as a cache
+  // hit for a real request, nor sit at a real result's (immutably cached) URL.
+  if (namespace) parts.push(namespace);
+  return sha256(parts.join("|")).slice(0, 32);
 }
 
 const KEY = /^[0-9a-f]{32}$/;

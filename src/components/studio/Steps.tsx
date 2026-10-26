@@ -157,6 +157,14 @@ export function ModelStep({
 }) {
   const [showQuality, setShowQuality] = useState(false);
   const installed = PRESETS.filter((p) => setup.presets.includes(p.id));
+  const category = inputs.category;
+  const chosen = inputs.person?.kind === "preset" ? PRESETS.find((p) => p.id === (inputs.person as { id: string }).id) : undefined;
+  const mismatch = chosen && category && !chosen.suits.includes(category) ? chosen : undefined;
+  // `suits` is ordered best-first, so the preset listing this category earliest is the strongest suggestion.
+  const better =
+    mismatch && category
+      ? installed.filter((p) => p.suits.includes(category)).sort((a, b) => a.suits.indexOf(category) - b.suits.indexOf(category))[0]
+      : undefined;
   const reason = !inputs.person
     ? "Choose a model, or upload a photo of one."
     : !setup.engine.configured
@@ -199,6 +207,11 @@ export function ModelStep({
               <div className={`p-2.5 ${active ? "bg-ink text-paper" : "bg-paper-glow"}`}>
                 <p className="text-sm font-semibold">{p.label}</p>
                 <p className={`mt-0.5 text-[11px] leading-snug ${active ? "text-paper/70" : "text-ink-3"}`}>{ready ? p.note : "Not installed"}</p>
+                {ready && category && (
+                  <p className={`mt-1.5 font-mono text-[10px] ${p.suits.includes(category) ? (active ? "text-paper" : "text-good") : "text-danger"}`}>
+                    {p.suits.includes(category) ? `✓ suits ${CATEGORY_TEXT[category].title.toLowerCase()}s` : `✗ not for ${CATEGORY_TEXT[category].title.toLowerCase()}s`}
+                  </p>
+                )}
               </div>
             </button>
           );
@@ -224,6 +237,26 @@ export function ModelStep({
       {error && (
         <div className="mt-3">
           <Notice tone="error">{error}</Notice>
+        </div>
+      )}
+      {mismatch && category && (
+        <div className="mt-3">
+          <Notice tone="warn">
+            <strong>{mismatch.label} isn&rsquo;t a good match for a {CATEGORY_TEXT[category].title.toLowerCase()}.</strong>{" "}
+            {mismatch.wearing === "one-piece" && category === "bottoms"
+              ? "This model is wearing a dress, so there is no separate bottom to replace. In our tests the garment blended into the dress instead."
+              : "Results with this pose may not show the garment properly."}{" "}
+            {better && (
+              <button type="button" className="font-semibold underline" onClick={() => onPerson({ kind: "preset", id: better.id })}>
+                Use {better.label} instead
+              </button>
+            )}
+          </Notice>
+        </div>
+      )}
+      {inputs.person?.kind === "upload" && category === "bottoms" && (
+        <div className="mt-3">
+          <Notice tone="info">For a bottom, the person should be wearing a separate top and bottom — not a dress or a long kurta.</Notice>
         </div>
       )}
 

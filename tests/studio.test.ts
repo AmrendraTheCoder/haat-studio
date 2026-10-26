@@ -198,6 +198,19 @@ describe("featured results", () => {
   });
 });
 
+describe("test engines", () => {
+  it("never share a cache key with real engines, so test output can't be served as a real result", async () => {
+    const store = memoryStore();
+    const real = createStudio({ engines: () => [engine("fashn-space", succeed)], store, timeoutMs: 1000 });
+    const test = createStudio({ engines: () => [engine("echo", succeed)], store, timeoutMs: 1000 });
+    const a = await test.start(request()).done;
+    const b = await real.start(request()).done;
+    if (a.type !== "done" || b.type !== "done") throw new Error("expected done");
+    expect(a.result.key).not.toBe(b.result.key);
+    expect(b.cached).toBe(false);
+  });
+});
+
 describe("explain", () => {
   it("tells the seller how to switch generation on when nothing is configured", () => {
     expect(explain([{ engine: "fashn-space", kind: "skipped", message: "HF_TOKEN is not set" }])).toMatch(/HF_TOKEN/);
@@ -220,5 +233,6 @@ describe("cacheKey", () => {
     expect(cacheKey(g, p, { ...settings, quality: "best" })).not.toBe(base);
     expect(cacheKey(g, Buffer.from("other person"), settings)).not.toBe(base);
     expect(base).toMatch(/^[0-9a-f]{32}$/);
+    expect(cacheKey(g, p, settings, "test:echo")).not.toBe(base);
   });
 });

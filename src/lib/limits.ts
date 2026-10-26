@@ -4,7 +4,7 @@
  */
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 export const MIN_SIDE = 256;
-/** FASHN generates at 576×864; anything past this only costs upload time. */
+/** FASHN generates about 576 px wide (height follows the model photo); anything past this only costs upload time. */
 export const MAX_SIDE = 1536;
 export const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 export const ACCEPT_ATTR = ACCEPTED_TYPES.join(",");

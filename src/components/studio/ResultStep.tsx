@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { BeforeAfter } from "@/components/shared/BeforeAfter";
 import { resultUrl } from "@/lib/client/check";
@@ -249,8 +250,18 @@ function Done({
           </p>
         </div>
 
+        <Link
+          href={`/studio/post?r=${r.key}`}
+          className="flex items-center justify-between rounded-2xl bg-ink px-5 py-4 text-paper transition-colors hover:bg-ink-2"
+        >
+          <span>
+            <span className="block text-lg font-bold">Make it a post →</span>
+            <span className="text-sm text-paper/70">Add your shop name, price and offer, then get a caption.</span>
+          </span>
+        </Link>
+
         <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn-primary" onClick={() => onVariation(r)} title="Same product and model, a new random seed">
+          <button type="button" className="btn-ghost" onClick={() => onVariation(r)} title="Same product and model, a new random seed">
             Another variation
           </button>
           <button type="button" className="btn-ghost" onClick={() => onAnotherModel(r)}>

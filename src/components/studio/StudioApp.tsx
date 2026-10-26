@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { HaatWord } from "@/components/site/site";
+import { PasscodeField } from "@/components/shared/Passcode";
+import { StudioHeader } from "@/components/site/site";
 import { checkImageFile, fileFrom, resultUrl } from "@/lib/client/check";
-import { TEST_ENGINES } from "@/lib/engines";
+import { passcodeHeaders } from "@/lib/client/passcode";
 import { readEvents } from "@/lib/client/events";
 import { PRESETS, type SampleGarment } from "@/lib/presets";
 import type { Setup } from "@/lib/site";
@@ -208,7 +208,7 @@ export function StudioApp({
 
     let res: Response;
     try {
-      res = await fetch("/api/tryon", { method: "POST", body: form });
+      res = await fetch("/api/tryon", { method: "POST", body: form, headers: passcodeHeaders() });
     } catch {
       setRun((r) => ({ phase: "error", kind: "offline", message: "Couldn't reach the server. Check the connection and try again.", attempts: [], log: logOf(r), startedAt, key: null }));
       return;
@@ -340,7 +340,7 @@ export function StudioApp({
   async function feature(key: string, on: boolean): Promise<string | null> {
     const res = await fetch("/api/featured", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...passcodeHeaders() },
       body: JSON.stringify({ key, on }),
     }).catch(() => null);
     if (!res) return "Couldn't reach the server.";
@@ -368,20 +368,7 @@ export function StudioApp({
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-line/70 bg-paper/85 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <Link href="/" aria-label="Haat Studio — home">
-            <HaatWord className="text-2xl" suffix="studio" />
-          </Link>
-          <span
-            className={`chip ${setup.engine.configured ? "!border-good/40 !text-good" : "!border-marigold/60 !text-ink-2"}`}
-            title={setup.engine.configured ? setup.engine.label : setup.engine.missing}
-          >
-            <span className={`size-1.5 rounded-full ${setup.engine.configured ? "bg-good" : "bg-marigold"}`} />
-            {!setup.engine.configured ? "Demo mode" : TEST_ENGINES.has(setup.engine.id) ? "Test engine · no try-on" : "Free GPU · ready"}
-          </span>
-        </div>
-      </header>
+      <StudioHeader setup={setup} />
 
       <main className="mx-auto max-w-5xl px-4 pt-6 pb-20 sm:px-6">
         {!setup.engine.configured && (
@@ -403,6 +390,10 @@ export function StudioApp({
             </Notice>
           </div>
         )}
+
+        <div className="mb-6 empty:hidden">
+          <PasscodeField required={setup.passcodeRequired} />
+        </div>
 
         <Stepper
           view={view}

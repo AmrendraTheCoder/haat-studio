@@ -2,6 +2,7 @@ import { access } from "node:fs/promises";
 import path from "node:path";
 import { TEST_ENGINES } from "@/lib/engines";
 import { env } from "@/lib/env";
+import { llmConfigured } from "@/lib/llm";
 import { PRESETS, SAMPLE_GARMENTS } from "@/lib/presets";
 import { enginesFromEnv, store } from "@/lib/tryon";
 import type { ResultMeta } from "@/lib/tryon/types";
@@ -13,6 +14,10 @@ export interface Setup {
   presets: string[];
   samples: string[];
   curation: boolean;
+  /** Creating needs STUDIO_PASSCODE (public deployments). */
+  passcodeRequired: boolean;
+  /** A text-AI key is set, so captions and research are AI-written, not templates. */
+  llm: boolean;
 }
 
 const exists = (p: string) =>
@@ -26,8 +31,12 @@ export async function readSetup(): Promise<Setup> {
 
   let engine: Setup["engine"];
   let curation = false;
+  let passcodeRequired = false;
+  let llm = false;
   try {
     curation = env().CURATION === "on";
+    passcodeRequired = Boolean(env().STUDIO_PASSCODE);
+    llm = llmConfigured();
     const engines = enginesFromEnv();
     const ready = engines.find((e) => e.configured);
     engine = ready
@@ -46,6 +55,8 @@ export async function readSetup(): Promise<Setup> {
     presets: presets.filter((id) => id !== null),
     samples: samples.filter((id) => id !== null),
     curation,
+    passcodeRequired,
+    llm,
   };
 }
 

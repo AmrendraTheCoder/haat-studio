@@ -1,8 +1,8 @@
 @AGENTS.md
 
-# Haat Studio — garment photo in, on-model photo out
+# Haat Studio — photo, post, plan for Indian Instagram sellers
 
-Part 1 of Haat (AI assistant for Indian Instagram sellers). Built one part at a
+Try-on studio (Phases 1–3), post maker (4), market research (5), deployment (6). Built one part at a
 time: make it work, measure it, optimise it, then move on. Free services only.
 `../stiche-v2` is the reference architecture; never edit it.
 
@@ -31,7 +31,15 @@ src/app/api/featured          GET list, POST {key,on} (CURATION=on only)
 src/components/site/          wordmark, nav, footer, scallop, ticker (Haat look from stiche-v2)
 src/components/shared/        BeforeAfter slider, Placeholder
 src/components/studio/        StudioApp (state machine), Steps, ResultStep, Pipeline, parts
-scripts/            setup, engine-check, eval
+src/lib/llm/        completeJSON(): the only text-AI call site — provider chain, JSON extraction, zod validation
+src/lib/posts/      spec.ts (shared schema, templates, palettes), render.ts (canvas, browser-only), caption.ts
+src/lib/research/   schema.ts (shared), build.ts (prompt, calculated economics + moments, template fallback, storage)
+src/lib/guard.ts    requirePasscode() for every creating route (STUDIO_PASSCODE)
+src/app/studio/post           post maker (?r=<key>)
+src/app/research, research/[id]  questionnaire and saved report
+src/app/api/caption, api/research  POST, passcode-gated
+scripts/            setup, engine-check, llm-check, eval
+Dockerfile          standalone Next server on :7860 as uid 1000 (Hugging Face Spaces); DATA_DIR=/data
 tests/              vitest, no network
 ```
 
@@ -61,8 +69,12 @@ tests/              vitest, no network
   the events the server sent (server-timestamped via `at`). Don't add timers that
   advance stages on their own.
 - **Every disabled button shows why.** Steps pass a `reason` to `ActionBar`.
-- **Text on images is a layout problem.** When posts arrive (stage 4), render
-  captions, prices and shop names as real text, not with an image model.
+- **Text on images is a layout problem.** Post text is drawn on a canvas by
+  `render.ts`, never by an image model, and never across the garment.
+- **Every text-AI call goes through `completeJSON`,** and every caller has a
+  labelled template fallback. Captions quoting a price the seller didn't give
+  are rejected (`pricesMentioned`). Maths and dates in research are code.
+- **Creating routes call `requirePasscode` first.** Reads stay open.
 
 ## Verifying
 
@@ -96,18 +108,25 @@ npm run eval           # real generations; spends quota
    `cacheKey(..., namespace)`; studio passes `test:<ids>` for test engines.
 9. **Bottoms need a model wearing separates.** On a model in a dress, a skirt
    blends into the dress. Presets carry `wearing` and `suits`; keep them honest.
-10. **Next 16:** route handlers use Web `Request`/`Response`; `connection()` marks a
+10. **`next build` can't bind its CSS worker port from the Bash tool**, sandboxed
+    or not. Build through the `haat-studio-prod` launch config (port 3200).
+11. **Don't redraw the post canvas with requestAnimationFrame** — frames pause in
+    background tabs and embedded previews, leaving it blank. A short timer is used,
+    and download redraws first.
+12. **Browser-storage hydration:** read localStorage in an effect, and don't save
+    on the first pass (it still holds the empty form) — that wiped saved shop details once.
+13. **HF text-AI credit is tiny and silently exhausted**, so `hf/` isn't in the default
+    `LLM_CHAIN`; otherwise the UI says "AI on" while every call falls back.
+14. **Next 16:** route handlers use Web `Request`/`Response`; `connection()` marks a
    page as per-request. Read `node_modules/next/dist/docs/` before using a Next API.
 
 ## State
 
-| Stage | Status |
+| Phase | Status |
 |---|---|
-| 0. Prove free generation from code | Space reached, upload + queue verified; refused without token |
-| 1. Proper UI + demo mode | Done. Landing, studio, reconnect, cache hit, quota/missing/input errors, exports, lightbox, phone layout all exercised in the browser with the echo engine |
-| 2. First real results + baseline | Done 2026-10-26 — see docs/eval-2026-10-26-baseline.md. 4/4 generated; tops 29–30/30; bottoms need a model in separates (fixed in presets) |
-| 3. Quality (eval scores, Indian presets, more categories) | Not started |
-| 4. Social posts | Not started |
-| 5. Research questionnaire | Not started |
-
-Real generation verified end to end through `/api/tryon` and the studio UI on 2026-10-26.
+| 1. Proper UI + demo mode | Done |
+| 2. First real results + baseline | Done 2026-10-26 — docs/eval-2026-10-26-baseline.md |
+| 3. Quality | Partly: preset suitability. Needs real Indian garments from sellers |
+| 4. Post maker | Done. Canvas templates verified in the browser; captions verified on the template path. AI captions unverified live until a GROQ/GEMINI key is set |
+| 5. Market research | Done. Template path verified end to end; AI path covered by tests, unverified live until a key is set |
+| 6. Deployment | Production build + standalone server verified locally (all routes, sharp exports). Docker image not built here (Docker Desktop wasn't running); Space not created (needs the user's write token) |

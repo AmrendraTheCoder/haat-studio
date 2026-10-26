@@ -1,0 +1,12 @@
+node_modules
+.next
+data
+eval/reports
+public/presets
+public/samples
+.env
+.env.*
+!.env.example
+.git
+.claude
+*.log

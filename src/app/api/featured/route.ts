@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { env } from "@/lib/env";
+import { requirePasscode } from "@/lib/guard";
 import { store } from "@/lib/tryon";
 
 /** Results picked for the landing page, in order. */
@@ -13,6 +14,8 @@ const body = z.object({ key: z.string().regex(/^[0-9a-f]{32}$/), on: z.boolean()
 
 /** { key, on } — feature or unfeature a saved result. Off unless CURATION is on. */
 export async function POST(request: Request) {
+  const denied = requirePasscode(request);
+  if (denied) return denied;
   if (env().CURATION !== "on") {
     return Response.json({ error: "Curation is turned off on this server." }, { status: 403 });
   }

@@ -19,6 +19,26 @@ const schema = z.object({
     (v) => (v === "" ? undefined : v),
     z.enum(["on", "off"]).default(process.env.NODE_ENV === "production" ? "off" : "on"),
   ),
+
+  /* ── Text AI (captions, market research). All free tiers; any one is enough. ── */
+  GROQ_API_KEY: optional(z.string()),
+  GEMINI_API_KEY: optional(z.string()),
+  /**
+   * Comma-separated `provider/model`, tried in order. Providers without a key
+   * are skipped. Free model ids get withdrawn without notice — `npm run
+   * llm:check` says which still answer.
+   */
+  // hf/<model> also works, but a free Hugging Face account's text-AI credit is
+  // tiny and runs out silently — so it isn't in the default chain.
+  LLM_CHAIN: z.string().default("groq/llama-3.3-70b-versatile,gemini/gemini-2.5-flash"),
+  LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(45_000),
+
+  /**
+   * When set, creating photos, captions and research — and featuring — needs
+   * this passcode. Set it on any public deployment: there is no login, and
+   * otherwise anyone with the link spends your free quota.
+   */
+  STUDIO_PASSCODE: optional(z.string().min(4)),
 });
 
 export type Env = z.infer<typeof schema>;

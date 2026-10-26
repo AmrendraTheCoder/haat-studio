@@ -28,8 +28,8 @@ export default async function Landing() {
             <span className="block text-ink-2">on a model.</span>
           </h1>
           <p className="mt-7 max-w-lg text-lg text-ink-2">
-            Photograph your shirt, top or dress laid flat. Haat Studio puts it on a model and gives it back sized for your
-            Instagram post, square or story. No photoshoot, no model fees.
+            Photograph your shirt, top or dress laid flat. Haat Studio puts it on a model, turns it into a ready-to-post
+            Instagram post with your price and a caption, and tells you what to post this week. No photoshoot, no model fees.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/studio" className="btn-primary !px-6 !py-3 !text-base">
@@ -75,6 +75,24 @@ export default async function Landing() {
           <StepCard n="03" title="Get your photo" body="Drag to compare before and after, then download it sized for an Instagram post, a square post or a story.">
             <SizesDiagram />
           </StepCard>
+        </div>
+      </section>
+
+      {/* ── Tools ── */}
+      <section id="tools" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-12 sm:px-6">
+        <p className="kicker">Three tools, one shop</p>
+        <h2 className="mt-3 font-extrabold tracking-[-0.05em]" style={{ fontSize: "var(--text-giant)" }}>
+          photo, post, plan.
+        </h2>
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
+          {TOOLS.map((t) => (
+            <Link key={t.title} href={t.href} className="card group flex flex-col p-6 transition-transform hover:-translate-y-1">
+              <span className="font-mono text-xs text-ink-3">{t.kicker}</span>
+              <span className="mt-2 text-2xl font-bold tracking-tight">{t.title}</span>
+              <span className="mt-2 flex-1 text-sm text-ink-2">{t.body}</span>
+              <span className="mt-5 text-sm font-semibold group-hover:underline">{t.cta} →</span>
+            </Link>
+          ))}
         </div>
       </section>
 
@@ -312,10 +330,16 @@ function CostCard({ setup }: { setup: Setup }) {
 
 const STATUS = { done: "Done", now: "Next", planned: "Planned" } as const;
 const ROADMAP: { n: number; title: string; body: string; status: keyof typeof STATUS }[] = [
-  { n: 1, title: "Studio + demo mode", body: "This site: the guided studio, before/after, Instagram sizes, live pipeline view.", status: "done" },
+  { n: 1, title: "Studio + demo mode", body: "The guided studio, before/after, Instagram sizes, live pipeline view.", status: "done" },
   { n: 2, title: "First real results", body: "Free generation proven and scored: tops 29–30 out of 30. Bottoms need a model wearing separates.", status: "done" },
-  { n: 3, title: "Quality", body: "Photo checks before generating, background cleanup, sharper output, Indian models, kurta tests.", status: "now" },
-  { n: 4, title: "Social posts", body: "Your shop name, ₹ price and offer on the photo, with a caption and hashtags — text set as real text.", status: "planned" },
-  { n: 5, title: "Market research", body: "A short questionnaire, then sourced research on trends, prices and timing that shapes your posts.", status: "planned" },
-  { n: 6, title: "Launch-ready", body: "Accounts, cloud storage, hosting, and a paid engine option for sellers who need more.", status: "planned" },
+  { n: 3, title: "Quality", body: "Model suitability done. Next: photo checks before generating, sharper output, Indian models, kurta tests.", status: "now" },
+  { n: 4, title: "Social posts", body: "Shop name, ₹ price, MRP and offer set as real text on the photo, plus a caption and hashtags.", status: "done" },
+  { n: 5, title: "Market research", body: "Ten answers → buyers, trends, pricing, a week of posts, selling days and exact profit maths.", status: "done" },
+  { n: 6, title: "Launch-ready", body: "Docker image and passcode for a free public link. Next: accounts and cloud storage.", status: "done" },
+];
+
+const TOOLS = [
+  { kicker: "Phases 1–3", title: "Try-on studio", body: "Your garment photo on a model, compared before and after, sized for Instagram.", href: "/studio", cta: "Open the studio" },
+  { kicker: "Phase 4", title: "Post maker", body: "Shop name, price, MRP and offer on the photo — spelled exactly — with a caption in English or Hinglish.", href: "/studio", cta: "Start from a photo" },
+  { kicker: "Phase 5", title: "Market research", body: "Who buys, what's working, what to charge, a week of posts and the selling days coming up.", href: "/research", cta: "Answer ten questions" },
 ];

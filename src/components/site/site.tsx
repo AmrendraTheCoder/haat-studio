@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { TEST_ENGINES } from "@/lib/engines";
+import type { Setup } from "@/lib/site";
 
 /** Lowercase display wordmark with the magenta full stop, as in stiche-v2. */
 export function HaatWord({ className = "", suffix }: { className?: string; suffix?: string }) {
@@ -48,9 +50,45 @@ export function WaveBorder({ flip = false, className = "" }: { flip?: boolean; c
 const NAV = [
   { href: "/#how", label: "How it works" },
   { href: "/#examples", label: "Examples" },
+  { href: "/research", label: "Market research" },
   { href: "/#under-the-hood", label: "Under the hood" },
-  { href: "/#next", label: "What's next" },
 ] as const;
+
+/** Header for the working pages: the three tools, and whether generation is on. */
+export function StudioHeader({ setup }: { setup: Setup }) {
+  const ready = setup.engine.configured;
+  const test = TEST_ENGINES.has(setup.engine.id);
+  return (
+    <header className="sticky top-0 z-40 border-b border-line/70 bg-paper/85 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+        <div className="flex items-center gap-5">
+          <Link href="/" aria-label="Haat Studio — home">
+            <HaatWord className="text-2xl" suffix="studio" />
+          </Link>
+          <nav className="hidden items-center gap-4 text-sm sm:flex">
+            <Link href="/studio" className="text-ink-2 hover:text-ink">
+              Try-on
+            </Link>
+            <Link href="/research" className="text-ink-2 hover:text-ink">
+              Research
+            </Link>
+          </nav>
+        </div>
+        <span
+          className={`chip ${ready ? "!border-good/40 !text-good" : "!border-marigold/60 !text-ink-2"}`}
+          title={ready ? setup.engine.label : setup.engine.missing}
+        >
+          <span className={`size-1.5 rounded-full ${ready ? "bg-good" : "bg-marigold"}`} />
+          {!ready ? "Demo mode" : test ? "Test engine · no try-on" : "Free GPU · ready"}
+        </span>
+      </div>
+      <nav className="flex gap-5 border-t border-line/50 px-4 py-2 text-sm sm:hidden">
+        <Link href="/studio">Try-on</Link>
+        <Link href="/research">Research</Link>
+      </nav>
+    </header>
+  );
+}
 
 export function SiteNav({ cta = true }: { cta?: boolean }) {
   return (
@@ -93,7 +131,8 @@ export function SiteFooter() {
           </p>
         </div>
         <nav className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-ink-2">
-          <Link href="/studio">Studio</Link>
+          <Link href="/studio">Try-on studio</Link>
+          <Link href="/research">Market research</Link>
           <Link href="/#under-the-hood">Under the hood</Link>
           <a href="https://github.com/AmrendraTheCoder/haat-studio" target="_blank" rel="noreferrer">
             Source on GitHub

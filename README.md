@@ -1,13 +1,19 @@
 # Haat Studio
 
-**Garment photo in, on-model photo out.** A seller uploads a photo of a piece of
-clothing; the app returns that garment worn by a model.
+**An AI assistant for Indian Instagram sellers: photo, post, plan.**
 
-This is part 1 of Haat, an AI assistant for Indian Instagram sellers. Later
-parts will add a questionnaire-driven market research step and ready-to-post
-social media creatives. It follows the architecture of
-[stiche-v2](https://github.com/AmrendraTheCoder/stiche-v2) without sharing code
-with it.
+1. **Try-on studio** — a seller photographs a garment laid flat; the app returns
+   it worn by a model, sized for Instagram.
+2. **Post maker** — the shop name, ₹ price, MRP and offer are set on that photo as
+   real text, and a caption with hashtags is written in English or Hinglish.
+3. **Market research** — ten answers about the shop give back who buys, what's
+   working, what to charge, a week of posts, the selling days coming up and the
+   exact profit per piece.
+
+Everything runs on free services. It follows the architecture of
+[stiche-v2](https://github.com/AmrendraTheCoder/stiche-v2) without sharing code with it.
+For a plain-language overview to present, see [docs/project-summary.md](docs/project-summary.md);
+to put it online, see [docs/deploy.md](docs/deploy.md).
 
 ## How it works
 
@@ -44,6 +50,24 @@ browser ◀──NDJSON progress── queued → running → done  (saved to da
 | `/` | Landing page: before/after hero, how it works, featured examples, what it costs, roadmap |
 | `/studio` | Three guided steps — **Product → Model → Photo** |
 | `/studio?r=<key>` | Opens one photo. Works while it is still being made: reload or share the link and it reconnects |
+| `/studio/post?r=<key>` | Post maker for that photo: Post 4:5 / Square / Story, three templates, three palettes, caption |
+| `/research` | The ten-question shop questionnaire |
+| `/research/<id>` | The saved report — printable, and used by the post maker for captions |
+
+**Post maker (Phase 4).** Text is drawn by our own layout code on a canvas, never
+by an image model, so the shop name and price are spelled exactly and look the same
+every time. No template puts text across the garment: it goes in a panel, a frame or
+a corner badge. The discount is calculated from the MRP. Shop details are remembered
+in the browser. Captions come from a free text AI when a key is set, and are checked:
+an AI caption that quotes any price the seller didn't give is rejected. Without a key,
+the caption is a template built only from the seller's own words, labelled as such.
+
+**Market research (Phase 5).** The AI writes buyers, trends, pricing, content ideas,
+a seven-day plan and hashtags, validated against a strict format and labelled as
+general knowledge (it has no live web access). The profit per piece, the margin
+warnings and the dated selling days (Diwali, Black Friday, Republic Day sales…) are
+calculated in code, not by the AI, and marked *calculated*. Without a key, the seller
+gets a clearly labelled starter plan instead.
 
 **Studio flow.** Upload a product photo (or pick a sample), say what kind of garment
 it is (required — a wrong category wastes a generation) and how it was photographed.
@@ -76,10 +100,15 @@ Requires Node 22+.
 ```bash
 npm install
 npm run setup          # downloads the preset model photos and sample garments
-cp .env.example .env   # then add HF_TOKEN
+cp .env.example .env   # then add HF_TOKEN (required) and GROQ_API_KEY (recommended)
 npm run engine:check   # token valid? Space up? API unchanged? Uses no GPU quota
+npm run llm:check      # which free text-AI providers answer
 npm run dev            # http://localhost:3000  (add -- --port 3100 if 3000 is busy)
 ```
+
+**`GROQ_API_KEY` is recommended** (free at <https://console.groq.com/keys>, no card).
+It makes captions and research AI-written; `GEMINI_API_KEY` from Google AI Studio
+works too. Without either, both features still work as labelled templates.
 
 **`HF_TOKEN` is required.** Create a free token with *read* access at
 <https://huggingface.co/settings/tokens>. Without one, the Space queues the job and
@@ -100,11 +129,13 @@ for demos. A Hugging Face PRO account raises the daily allowance.
 | Command | What it does |
 |---|---|
 | `npm run dev` | Development server |
-| `npm test` | Unit tests: engine chain, cache, dedupe, timeouts, image prep, error parsing. No network |
+| `npm test` | 41 unit tests: engine chain, cache, dedupe, timeouts, image prep, research maths, caption checks, passcode. No network |
 | `npm run typecheck` / `npm run lint` | Types and lint |
 | `npm run setup` | Downloads preset models and sample garments into `public/` (not committed) |
 | `npm run engine:check` | Verifies the token, the Space's status, and that its API still matches what we send |
 | `npm run eval` | Runs every sample garment through the real engine and writes a report to score |
+| `npm run llm:check` | Says which text-AI providers are configured and still answering |
+| `npm run build` then `npm run start:standalone` | Production build and server — what the Docker image runs |
 
 ### Testing the UI without a token
 
@@ -153,12 +184,13 @@ pairs. Change a setting or the preprocessing and you get fresh, comparable outpu
 - Preset model photos and sample garments come from FASHN's Space examples. `npm run
   setup` downloads them; this repo does not redistribute them.
 
-## Roadmap
+## Phases
 
-| Stage | Scope | Status |
+| Phase | Scope | Status |
 |---|---|---|
-| 1 | Proper UI + demo mode: landing page, guided studio, before/after, Instagram sizes, live pipeline, featured examples | Done — every screen exercised with the echo test engine |
-| 2 | First real results: connect the free token, generate the sample set, score a baseline | Done — [baseline](docs/eval-2026-10-26-baseline.md): tops 29–30/30, ~13 s warm / ~30 s cold; bottoms need a model in separates |
-| 3 | Quality: photo checks before generating, background cleanup, upscaling, Indian model presets, kurta tests | Next |
-| 4 | Social posts: caption, shop name, price, layout rendered as text (not by an image model) | |
-| 5 | Business research questionnaire with sourced findings | |
+| 1 | Proper UI + demo mode: landing page, guided studio, before/after, Instagram sizes, live pipeline, featured examples | Done |
+| 2 | First real results and a scored baseline | Done — [baseline](docs/eval-2026-10-26-baseline.md): tops 29–30/30, ~13 s warm / ~30 s cold |
+| 3 | Quality: model suitability per garment type ✓; next: photo checks before generating, sharper output, Indian models, real kurta/saree tests | In progress — needs real garments from sellers |
+| 4 | Post maker: shop name, price, MRP, offer as real text; three templates × three sizes; checked AI captions | Done |
+| 5 | Market research: questionnaire → buyers, trends, pricing, week plan, hashtags; calculated profit and selling days | Done |
+| 6 | Deployment: production build, Docker image, passcode for public links, [deploy guide](docs/deploy.md) | Done — accounts and cloud storage are the next step |

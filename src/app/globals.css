@@ -153,6 +153,20 @@ p {
     color: var(--color-ink-2);
   }
 
+  .input {
+    @apply w-full rounded-lg border px-3 py-2 text-sm transition-colors;
+    background: var(--color-paper-glow);
+    border-color: var(--color-line);
+    color: var(--color-ink);
+  }
+  .input:focus {
+    border-color: var(--color-ink);
+    outline: none;
+  }
+  .input::placeholder {
+    color: var(--color-ink-3);
+  }
+
   .kicker {
     @apply font-mono text-xs tracking-[0.06em] uppercase;
     color: var(--color-ink-3);

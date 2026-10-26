@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { requirePasscode } from "@/lib/guard";
 import { readPreset, studio } from "@/lib/tryon";
 import { InputError, prepareImage } from "@/lib/tryon/image";
 import { streamJob } from "@/lib/tryon/stream";
@@ -22,6 +23,8 @@ const fileBytes = async (value: FormDataEntryValue | null) =>
  * input" from "the engine failed".
  */
 export async function POST(request: Request) {
+  const denied = requirePasscode(request);
+  if (denied) return denied;
   let form: FormData;
   try {
     form = await request.formData();

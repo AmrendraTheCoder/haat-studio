@@ -9,6 +9,26 @@
  */
 
 const en = {
+  quota: {
+    title: "Free GPU time today",
+    dur: (sec: number) => (sec >= 60 ? `${Math.floor(sec / 60)}m ${String(Math.round(sec % 60)).padStart(2, "0")}s` : `${Math.round(sec)}s`),
+    photosLeft: (n: number) => (n === 0 ? "No photos left today" : n === 1 ? "About 1 photo left" : `About ${n} photos left`),
+    chip: (n: number) => (n === 0 ? "Free GPU · used up" : `Free GPU · ~${n} photo${n === 1 ? "" : "s"} left`),
+    refills: (when: string) => `Refills ${when}`,
+    when: (time: string, day: "today" | "tomorrow" | string) => `${day === "today" || day === "tomorrow" ? day : `on ${day}`} at ${time}`,
+    fresh: "Full quota — the 24-hour clock starts with your next photo.",
+    rule: (request: number, per: number) => `Each photo needs ${request}s free to start and uses about ${per}s.`,
+    estimate: "Counted from the photos made here. Hugging Face doesn't show the exact balance, and using the same token in other apps counts too.",
+    reported: (left: string, when: string) => `Hugging Face reported ${left} left (${when}).`,
+    refused: (request: number) => `Hugging Face refused the last photo: less than ${request}s is left.`,
+    likelyRefused: "A new photo will probably be refused until it refills — trying costs nothing.",
+    timeRow: (used: string, limit: string) => `GPU time: ${used} of ${limit}`,
+    runsRow: (used: number, limit: number | null) => (limit ? `Photos: ${used} of ${limit}` : `Photos made: ${used}`),
+    runsLearned: (limit: number) => `Free accounts also have a daily limit on how many photos can run. Hugging Face doesn't publish it; it stopped this account after ${limit}, so that's the limit used here.`,
+    runsUnknown: "Free accounts also have a daily limit on how many photos can run. Hugging Face doesn't publish it — the studio learns it the first time it's reached.",
+    refusedRuns: "Hugging Face refused the last photo: today's run limit is reached.",
+    refillsAbout: (when: string) => `Refills around ${when} — 24 hours after today's first photo`,
+  },
   meta: {
     home: "Haat Studio — your product, on a model",
     description: "Upload a photo of your garment and get it back worn by a model, sized for Instagram. Free, for Indian sellers.",
@@ -506,6 +526,26 @@ const en = {
 export type Messages = typeof en;
 
 const hi: Messages = {
+  quota: {
+    title: "आज का मुफ़्त GPU समय",
+    dur: (sec: number) => (sec >= 60 ? `${Math.floor(sec / 60)} मिनट${Math.round(sec % 60) ? ` ${Math.round(sec % 60)} सेकंड` : ""}` : `${Math.round(sec)} सेकंड`),
+    photosLeft: (n: number) => (n === 0 ? "आज और फ़ोटो नहीं बनेंगी" : `लगभग ${n} फ़ोटो और बन सकती हैं`),
+    chip: (n: number) => (n === 0 ? "मुफ़्त GPU · ख़त्म" : `मुफ़्त GPU · ~${n} फ़ोटो बाकी`),
+    refills: (when: string) => `${when} फिर से भर जाएगा`,
+    when: (time: string, day: "today" | "tomorrow" | string) => `${day === "today" ? "आज" : day === "tomorrow" ? "कल" : day} ${time} बजे`,
+    fresh: "पूरा कोटा बाकी है — 24 घंटे की गिनती आपकी अगली फ़ोटो से शुरू होगी।",
+    rule: (request: number, per: number) => `हर फ़ोटो शुरू करने के लिए ${request} सेकंड बाकी होने चाहिए; एक फ़ोटो में लगभग ${per} सेकंड लगते हैं।`,
+    estimate: "यह यहाँ बनी फ़ोटो से गिना गया है। Hugging Face सही बाकी समय नहीं दिखाता, और यही टोकन दूसरी ऐप में इस्तेमाल हो तो वह भी गिना जाता है।",
+    reported: (left: string, when: string) => `Hugging Face ने बताया: ${left} बाकी (${when})।`,
+    refused: (request: number) => `Hugging Face ने पिछली फ़ोटो मना कर दी: ${request} सेकंड से कम बाकी है।`,
+    likelyRefused: "भरने तक नई फ़ोटो शायद मना हो जाएगी — कोशिश करने में कुछ ख़र्च नहीं होता।",
+    timeRow: (used: string, limit: string) => `GPU समय: ${limit} में से ${used}`,
+    runsRow: (used: number, limit: number | null) => (limit ? `फ़ोटो: ${limit} में से ${used}` : `बनी फ़ोटो: ${used}`),
+    runsLearned: (limit: number) => `मुफ़्त अकाउंट में रोज़ कितनी फ़ोटो बन सकती हैं, इसकी भी सीमा है। Hugging Face इसे नहीं बताता; इस अकाउंट को ${limit} फ़ोटो के बाद रोका गया, इसलिए यहाँ वही सीमा मानी गई है।`,
+    runsUnknown: "मुफ़्त अकाउंट में रोज़ कितनी फ़ोटो बन सकती हैं, इसकी भी सीमा है। Hugging Face इसे नहीं बताता — पहली बार सीमा पूरी होने पर स्टूडियो इसे सीख लेता है।",
+    refusedRuns: "Hugging Face ने पिछली फ़ोटो मना कर दी: आज की फ़ोटो की सीमा पूरी हो गई है।",
+    refillsAbout: (when: string) => `लगभग ${when} फिर से भरेगा — आज की पहली फ़ोटो के 24 घंटे बाद`,
+  },
   meta: {
     home: "हाट स्टूडियो — आपका प्रोडक्ट, मॉडल पर",
     description: "अपने कपड़े की फ़ोटो डालें और उसे मॉडल पर पहना हुआ पाएँ, Instagram के साइज़ में। भारतीय विक्रेताओं के लिए, मुफ़्त।",

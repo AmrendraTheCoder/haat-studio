@@ -4,7 +4,8 @@ import { TEST_ENGINES } from "@/lib/engines";
 import { env } from "@/lib/env";
 import { llmConfigured } from "@/lib/llm";
 import { PRESETS, SAMPLE_GARMENTS } from "@/lib/presets";
-import { enginesFromEnv, store } from "@/lib/tryon";
+import type { QuotaStatus } from "@/lib/quota";
+import { enginesFromEnv, readQuota, store } from "@/lib/tryon";
 import type { ResultMeta } from "@/lib/tryon/types";
 
 /** Everything the pages need to know about this installation. Pure data, passed to client components. */
@@ -18,6 +19,8 @@ export interface Setup {
   passcodeRequired: boolean;
   /** A text-AI key is set, so captions and research are AI-written, not templates. */
   llm: boolean;
+  /** Free GPU time left today; null in demo mode or on a test engine. */
+  quota: QuotaStatus | null;
 }
 
 const exists = (p: string) =>
@@ -46,9 +49,10 @@ export async function readSetup(): Promise<Setup> {
     engine = { id: "none", label: "misconfigured", configured: false, missing: (err as Error).message };
   }
 
-  const [presets, samples] = await Promise.all([
+  const [presets, samples, quota] = await Promise.all([
     Promise.all(PRESETS.map(async (p) => ((await exists(path.join(pub, "presets", p.file))) ? p.id : null))),
     Promise.all(SAMPLE_GARMENTS.map(async (s) => ((await exists(path.join(pub, "samples", s.file))) ? s.id : null))),
+    engine.configured ? readQuota().catch(() => null) : null,
   ]);
   return {
     engine,
@@ -57,6 +61,7 @@ export async function readSetup(): Promise<Setup> {
     curation,
     passcodeRequired,
     llm,
+    quota,
   };
 }
 

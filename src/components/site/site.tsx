@@ -64,6 +64,10 @@ export function StudioHeader({ setup }: { setup: Setup }) {
   const { t } = useI18n();
   const ready = setup.engine.configured;
   const test = TEST_ENGINES.has(setup.engine.id);
+  const quota = setup.quota;
+  const label = !ready ? t.nav.engine.demo : test ? t.nav.engine.test : quota ? t.quota.chip(quota.photosLeft) : t.nav.engine.ready;
+  // Green while photos remain, amber when generation is off or today's quota is spent.
+  const ok = ready && (!quota || quota.photosLeft > 0);
   return (
     <header className="sticky top-0 z-40 border-b border-line/70 bg-paper/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
@@ -82,11 +86,11 @@ export function StudioHeader({ setup }: { setup: Setup }) {
         </div>
         <div className="flex items-center gap-2">
           <span
-            className={`chip hidden sm:inline-flex ${ready ? "!border-good/40 !text-good" : "!border-marigold/60 !text-ink-2"}`}
+            className={`chip hidden sm:inline-flex ${ok ? "!border-good/40 !text-good" : "!border-marigold/60 !text-ink-2"}`}
             title={ready ? setup.engine.label : setup.engine.missing}
           >
-            <span className={`size-1.5 rounded-full ${ready ? "bg-good" : "bg-marigold"}`} />
-            {!ready ? t.nav.engine.demo : test ? t.nav.engine.test : t.nav.engine.ready}
+            <span className={`size-1.5 rounded-full ${ok ? "bg-good" : "bg-marigold"}`} />
+            {label}
           </span>
           <LanguageToggle />
         </div>
@@ -98,9 +102,9 @@ export function StudioHeader({ setup }: { setup: Setup }) {
         <Link href="/research" className="inline-flex min-h-11 items-center px-2">
           {t.nav.research}
         </Link>
-        <span className={`chip ml-auto ${ready ? "!border-good/40 !text-good" : "!border-marigold/60 !text-ink-2"}`}>
-          <span className={`size-1.5 rounded-full ${ready ? "bg-good" : "bg-marigold"}`} />
-          {!ready ? t.nav.engine.demo : test ? t.nav.engine.test : t.nav.engine.ready}
+        <span className={`chip ml-auto ${ok ? "!border-good/40 !text-good" : "!border-marigold/60 !text-ink-2"}`}>
+          <span className={`size-1.5 rounded-full ${ok ? "bg-good" : "bg-marigold"}`} />
+          {label}
         </span>
       </nav>
     </header>

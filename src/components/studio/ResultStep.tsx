@@ -8,8 +8,9 @@ import { canShareFiles, shareImage } from "@/lib/client/share";
 import { TEST_ENGINES } from "@/lib/engines";
 import { useI18n } from "@/lib/i18n/client";
 import { EXPORT_SIZES, type ExportSize } from "@/lib/limits";
+import type { QuotaStatus } from "@/lib/quota";
 import type { ResultMeta } from "@/lib/tryon/types";
-import { Lightbox, Notice } from "./parts";
+import { Lightbox, Notice, QuotaMeter } from "./parts";
 import { MadeWith, Pipeline } from "./Pipeline";
 import type { Run, View } from "./types";
 
@@ -24,8 +25,11 @@ export function ResultStep({
   onRetry,
   onReconnect,
   onGo,
+  quota,
 }: {
   run: Exclude<Run, { phase: "idle" }>;
+  /** Free GPU time left; shown after a quota refusal and under a finished photo. */
+  quota: QuotaStatus | null;
   curation: boolean;
   featured: string[];
   onFeature: (key: string, on: boolean) => Promise<string | null>;
@@ -103,6 +107,7 @@ export function ResultStep({
               {r.startNew}
             </button>
           </div>
+          {run.kind === "quota" && quota && <QuotaMeter quota={quota} />}
           {run.log.length > 0 && (
             <div className="card p-5">
               <Pipeline log={run.log} startedAt={run.startedAt} settings={null} live={false} failed />
@@ -134,6 +139,7 @@ export function ResultStep({
       onVariation={onVariation}
       onAnotherModel={onAnotherModel}
       onNewProduct={onNewProduct}
+      quota={quota}
     />
   );
 }
@@ -165,8 +171,10 @@ function Done({
   onVariation,
   onAnotherModel,
   onNewProduct,
+  quota,
 }: {
   run: Extract<Run, { phase: "done" }>;
+  quota: QuotaStatus | null;
   curation: boolean;
   featured: boolean;
   onFeature: (key: string, on: boolean) => Promise<string | null>;
@@ -281,8 +289,6 @@ function Done({
           <p className="mt-2 text-2xs leading-relaxed text-ink-3">{x.sizesNote}</p>
         </div>
 
-
-
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-ghost" onClick={() => onVariation(r)} title={x.variationTitle}>
             {x.variation}
@@ -294,6 +300,8 @@ function Done({
             {x.newProduct}
           </button>
         </div>
+        {/* Before "another variation": does today's free GPU time still cover one? */}
+        {quota && !TEST_ENGINES.has(r.engine) && <QuotaMeter quota={quota} />}
 
         {curation && !TEST_ENGINES.has(r.engine) && (
           <div className="rounded-xl border border-line p-3">

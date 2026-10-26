@@ -73,6 +73,9 @@ export function StudioApp({
   );
   const [recent, setRecent] = useState(initialRecent);
   const [featured, setFeatured] = useState(initialFeatured);
+  const [quota, setQuota] = useState(setup.quota);
+  // The header, model step and result all read the live quota, not the page-load one.
+  const live: Setup = { ...setup, quota };
   const [productError, setProductError] = useState<string | null>(null);
   const [productNote, setProductNote] = useState<string | null>(badLink ? t.studio.badLink : null);
   const [modelError, setModelError] = useState<string | null>(null);
@@ -101,9 +104,10 @@ export function StudioApp({
 
   const refreshLists = useCallback(async () => {
     const get = (url: string) => fetch(url, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-    const [r, f] = (await Promise.all([get("/api/results"), get("/api/featured")])) as [ResultMeta[] | null, ResultMeta[] | null];
+    const [r, f, q] = (await Promise.all([get("/api/results"), get("/api/featured"), get("/api/quota")])) as [ResultMeta[] | null, ResultMeta[] | null, Setup["quota"]];
     if (r) setRecent(r);
     if (f) setFeatured(f.map((m) => m.key));
+    if (q) setQuota(q);
   }, []);
 
   /** Feeds a job's NDJSON stream into `run`. Ends in done, error, or — if the stream breaks — offline. */
@@ -122,6 +126,7 @@ export function StudioApp({
           } else if (e.type === "error") {
             terminal = true;
             setUrl(null); // failures aren't saved, so the link would lead nowhere
+            void refreshLists(); // a refusal tells us the real quota balance
             const kind = errorKind(e);
             setRun((r) => ({
               phase: "error",
@@ -379,7 +384,7 @@ export function StudioApp({
 
   return (
     <>
-      <StudioHeader setup={setup} />
+      <StudioHeader setup={live} />
 
       <main className="mx-auto max-w-5xl px-4 pt-6 pb-20 sm:px-6">
         {!setup.engine.configured && (
@@ -436,7 +441,7 @@ export function StudioApp({
           {view === "model" && (
             <ModelStep
               inputs={inputs}
-              setup={setup}
+              setup={live}
               error={modelError}
               onPerson={(person) => {
                 setModelError(null);
@@ -455,6 +460,7 @@ export function StudioApp({
           {view === "result" && run.phase !== "idle" && (
             <ResultStep
               run={run}
+              quota={quota}
               curation={setup.curation}
               featured={featured}
               onFeature={feature}

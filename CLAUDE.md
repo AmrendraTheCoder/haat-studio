@@ -37,6 +37,8 @@ src/lib/research/   schema.ts (shared), build.ts (prompt, calculated economics +
 src/lib/guard.ts    requirePasscode() for every creating route (STUDIO_PASSCODE)
 src/lib/client/roving.ts  radioKeyDown/rovingTabIndex — every role="radio" group uses them
 src/lib/client/share.ts   Web Share (files) for phones; feature-detected
+src/lib/quota.ts    free GPU quota maths (pure): 24 h window, 60 s per-call reservation, learned run limit
+src/lib/tryon/quota-ledger.ts  DATA_DIR/gpu-quota.json: runs + last refusal, fed by studio's `usage` hook; GET /api/quota
 src/lib/i18n/       messages.ts (en + hi dictionaries), server.ts getMessages(), client.tsx useI18n()/LanguageToggle
 src/app/design            "How it's designed" page; docs/ux/ is the long form
 src/app/studio/post           post maker (?r=<key>)
@@ -145,6 +147,12 @@ npm run eval           # real generations; spends quota
 18. **Gemini writes Devanagari hashtags for a Hindi caption** unless the system prompt
     itself says Roman letters (`caption.ts` SYSTEM + HASHTAG_RULE). A rule only in the
     user prompt was ignored.
+19. **Free ZeroGPU accounts have two daily limits, and neither is queryable:** 5 min of
+    GPU time *and* an unpublished number of runs. On 2026-10-26 this account was
+    refused after its 8th photo with ~3 min used: "You have exceeded your ZeroGPU
+    runs limit". Each call also reserves 60 s up front (FASHN's Space declares no
+    duration), so <60 s left means refused. The quota meter learns the run limit
+    from that refusal; `ZEROGPU_DAILY_RUNS` overrides it.
 
 ## State
 

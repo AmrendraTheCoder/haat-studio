@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { BeforeAfter } from "@/components/shared/BeforeAfter";
 import { resultUrl } from "@/lib/client/check";
 import { TEST_ENGINES } from "@/lib/engines";
@@ -8,6 +8,7 @@ import { ACCEPT_ATTR } from "@/lib/limits";
 import { radioKeyDown, rovingTabIndex } from "@/lib/client/roving";
 import { useI18n } from "@/lib/i18n/client";
 import type { Messages } from "@/lib/i18n/messages";
+import type { QuotaStatus } from "@/lib/quota";
 import type { ResultMeta } from "@/lib/tryon/types";
 import type { View } from "./types";
 
@@ -242,6 +243,91 @@ export function Notice({ tone, children }: { tone: "warn" | "error" | "info"; ch
 }
 
 /* ── Lightbox ────────────────────────────────────────────────────────── */
+
+/* ── Free GPU quota ──────────────────────────────────────────────────── */
+
+const noop = () => () => {};
+/** False on the server and during hydration: clock times are written in the viewer's own time zone, after mount. */
+const useMounted = () => useSyncExternalStore(noop, () => true, () => false);
+
+/** "today at 1:17 pm" / "कल 1:17 pm बजे" for an ISO time, relative to now. */
+function useWhen(iso: string | null): string | null {
+  const { t, locale } = useI18n();
+  const mounted = useMounted();
+  if (!iso || !mounted) return null;
+  const at = new Date(iso);
+  const loc = locale === "hi" ? "hi-IN" : "en-IN";
+  const time = at.toLocaleTimeString(loc, { hour: "numeric", minute: "2-digit" });
+  const today = new Date();
+  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+  const day = same(at, today) ? "today" : same(at, tomorrow) ? "tomorrow" : at.toLocaleDateString(loc, { day: "numeric", month: "short" });
+  return t.quota.when(time, day);
+}
+
+/**
+ * How much of today's free GPU time is left, and when it refills. Honest
+ * about where the number comes from: Hugging Face's own refusal message when
+ * there is one, otherwise this studio's count of its own photos.
+ */
+export function QuotaMeter({ quota }: { quota: QuotaStatus }) {
+  const { t } = useI18n();
+  const Q = t.quota;
+  const refills = useWhen(quota.resetsAt);
+  const reportedAt = useWhen(quota.reportedAt);
+  const empty = quota.photosLeft === 0;
+  const low = quota.photosLeft <= 2;
+  // A refusal fills the bar of the limit that was hit, whatever our own count says.
+  const hit = (which: "time" | "runs") => quota.refused && quota.limitedBy === which;
+  return (
+    <section aria-label={Q.title} className="rounded-2xl border border-line bg-paper-glow p-4 text-sm">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <h2 className="font-semibold">{Q.title}</h2>
+        <p className={`font-semibold ${empty ? "text-danger" : low ? "text-ink" : "text-good"}`}>{Q.photosLeft(quota.photosLeft)}</p>
+      </div>
+      <div className="mt-3 grid gap-2.5 sm:grid-cols-2 sm:gap-4">
+        <Bar
+          label={Q.timeRow(Q.dur(quota.usedSeconds), Q.dur(quota.limitSeconds))}
+          value={hit("time") ? quota.limitSeconds : quota.usedSeconds}
+          max={quota.limitSeconds}
+        />
+        {/* Unknown run limit: a count, no bar to fill. */}
+        <Bar label={Q.runsRow(quota.runsUsed, quota.runsLimit)} value={hit("runs") ? (quota.runsLimit ?? 1) : quota.runsUsed} max={quota.runsLimit} />
+      </div>
+      <p className="mt-2.5 text-xs text-ink-2">
+        {quota.resetsAt ? refills && (quota.resetsExact ? Q.refills(refills) : Q.refillsAbout(refills)) : Q.fresh}
+      </p>
+      {quota.refused && <p className="mt-1.5 text-xs text-ink-2">{quota.limitedBy === "runs" ? Q.refusedRuns : Q.refused(quota.requestSeconds)}</p>}
+      {empty && !quota.refused && <p className="mt-1.5 text-xs text-ink-2">{Q.likelyRefused}</p>}
+      <p className="mt-1.5 text-xs text-ink-3">
+        {Q.rule(quota.requestSeconds, quota.perPhotoSeconds)} {quota.runsLimit ? Q.runsLearned(quota.runsLimit) : Q.runsUnknown}{" "}
+        {quota.source === "huggingface" && reportedAt ? Q.reported(Q.dur(quota.leftSeconds), reportedAt) : Q.estimate}
+      </p>
+    </section>
+  );
+}
+
+function Bar({ label, value, max }: { label: string; value: number; max: number | null }) {
+  const pct = max ? Math.min(100, (value / max) * 100) : 0;
+  const tone = pct >= 100 ? "bg-danger" : pct >= 75 ? "bg-marigold" : "bg-good";
+  return (
+    <div>
+      <p className="text-xs text-ink-2">{label}</p>
+      {max !== null && (
+        <div
+          role="meter"
+          aria-label={label}
+          aria-valuemin={0}
+          aria-valuemax={max}
+          aria-valuenow={Math.min(value, max)}
+          className="mt-1 h-2 overflow-hidden rounded-full bg-paper-3"
+        >
+          <div className={`h-full rounded-full ${tone}`} style={{ width: `${Math.max(pct, 2)}%` }} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Lightbox({ result, onClose }: { result: ResultMeta; onClose: () => void }) {
   const { t } = useI18n();

@@ -28,6 +28,11 @@ export interface StudioOptions {
   store: ResultStore;
   timeoutMs: number;
   now?: () => number;
+  /** Told about GPU time spent and quota refusals, so the studio can show what's left. */
+  usage?: {
+    run(engine: string, at: number, ms: number): unknown;
+    refused(engine: string, message: string): unknown;
+  };
 }
 
 export interface Studio {
@@ -98,6 +103,7 @@ export function createStudio(opts: StudioOptions): Studio {
           throw new EngineError("the engine returned something that isn't an image", "unknown");
         });
         const finished = now();
+        if (started !== null) void opts.usage?.run(engine.id, started, finished - started);
         const meta: ResultMeta = {
           key,
           engine: engine.id,
@@ -114,6 +120,9 @@ export function createStudio(opts: StudioOptions): Studio {
         return done;
       } catch (err) {
         const e = asEngineError(err, signal, opts.timeoutMs);
+        // A refusal spends nothing; a run that failed on the GPU still spent its time.
+        if (e.kind === "quota") void opts.usage?.refused(engine.id, e.message);
+        else if (started !== null) void opts.usage?.run(engine.id, started, now() - started);
         attempts.push({ engine: engine.id, kind: e.kind, message: e.message, retryAfterSeconds: e.retryAfterSeconds });
         if (e.kind === "input") break;
       }

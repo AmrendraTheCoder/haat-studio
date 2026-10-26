@@ -44,6 +44,7 @@ For each screen: its one job, what's on it, and why.
 | "Your own model" upload with guidance | Sellers who have a person photo can use it; the tip says what kind works. |
 | Quality hidden behind "Change" | Most people should never think about it; the default is right. |
 | "Takes about 15–30 seconds and uses a little of today's free GPU time" | States the cost before the click. |
+| "Free GPU time today" meter: GPU time *and* photos, each against its limit, "about N photos left", refill time | Hugging Face shows no balance anywhere. A seller who can see "8 of 8" before pressing Create doesn't waste a try or think the app is broken. Says where each number comes from: Hugging Face's own refusal, or the studio's count. |
 
 ## Studio · Step 3 — Working
 

@@ -12,6 +12,18 @@ const schema = z.object({
   TRYON_TIMEOUT_MS: z.coerce.number().int().positive().default(240_000),
   DATA_DIR: z.string().default("data"),
   /**
+   * The Hugging Face account's daily ZeroGPU allowance, in seconds: 300 for a
+   * free account, 2400 for PRO. Only used to show what's left — Hugging Face
+   * itself enforces the real limit.
+   */
+  ZEROGPU_DAILY_SECONDS: z.coerce.number().int().positive().default(300),
+  /**
+   * Free accounts also have an unpublished daily limit on the number of runs.
+   * Unset, the studio learns it the first time Hugging Face refuses with
+   * "runs limit"; set it if you know your account's number.
+   */
+  ZEROGPU_DAILY_RUNS: optional(z.coerce.number().int().positive()),
+  /**
    * Whether the studio offers "Feature on the home page". There is no login
    * yet, so on a deployed copy anyone could curate; default it off there.
    */

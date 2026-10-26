@@ -5,7 +5,7 @@ import { radioKeyDown, rovingTabIndex } from "@/lib/client/roving";
 import { useI18n } from "@/lib/i18n/client";
 import { PRESETS, SAMPLE_GARMENTS, type SampleGarment } from "@/lib/presets";
 import type { Setup } from "@/lib/site";
-import { ActionBar, Choices, Dropzone, ICONS, Notice } from "./parts";
+import { ActionBar, Choices, Dropzone, ICONS, Notice, QuotaMeter } from "./parts";
 import type { Category, Inputs, PersonChoice, PhotoType, Quality } from "./types";
 
 const CATEGORIES: Category[] = ["tops", "bottoms", "one-pieces"];
@@ -274,8 +274,14 @@ export function ModelStep({
         )}
       </div>
 
+      {setup.quota && (
+        <div className="mt-4">
+          <QuotaMeter quota={setup.quota} />
+        </div>
+      )}
+
       {/* Say what pressing Create costs before it's pressed: time, and free quota. */}
-      <ActionBar reason={reason ?? m.expectation}>
+      <ActionBar reason={reason ?? (setup.quota?.photosLeft === 0 ? t.quota.likelyRefused : m.expectation)}>
         <button type="button" className="btn-ghost" onClick={onBack}>
           <span aria-hidden>←</span> {t.common.back}
         </button>

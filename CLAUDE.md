@@ -117,7 +117,14 @@ npm run eval           # real generations; spends quota
     on the first pass (it still holds the empty form) — that wiped saved shop details once.
 13. **HF text-AI credit is tiny and silently exhausted**, so `hf/` isn't in the default
     `LLM_CHAIN`; otherwise the UI says "AI on" while every call falls back.
-14. **Next 16:** route handlers use Web `Request`/`Response`; `connection()` marks a
+14. **Gemini 2.5 Flash spends max_tokens on hidden "thinking"** and returns an
+    empty answer for short requests. The llm layer sends `reasoning_effort: "none"`
+    for Gemini Flash only (Groq rejects the field).
+15. **The standalone server chdirs into `.next/standalone`.** A relative DATA_DIR
+    then points at a build-time copy that the next build wipes. `start:standalone`
+    passes an absolute DATA_DIR and loads the real `.env`; `outputFileTracingExcludes`
+    keeps `data/` out of the build. Docker uses `/data`, unaffected.
+16. **Next 16:** route handlers use Web `Request`/`Response`; `connection()` marks a
    page as per-request. Read `node_modules/next/dist/docs/` before using a Next API.
 
 ## State
@@ -127,6 +134,6 @@ npm run eval           # real generations; spends quota
 | 1. Proper UI + demo mode | Done |
 | 2. First real results + baseline | Done 2026-10-26 — docs/eval-2026-10-26-baseline.md |
 | 3. Quality | Partly: preset suitability. Needs real Indian garments from sellers |
-| 4. Post maker | Done. Canvas templates verified in the browser; captions verified on the template path. AI captions unverified live until a GROQ/GEMINI key is set |
-| 5. Market research | Done. Template path verified end to end; AI path covered by tests, unverified live until a key is set |
+| 4. Post maker | Done. Templates verified in the browser; AI captions verified live with Gemini 2.5 Flash (exact prices, Hinglish) |
+| 5. Market research | Done. Verified live with Gemini 2.5 Flash (~9 s per report) and on the template path |
 | 6. Deployment | Production build + standalone server verified locally (all routes, sharp exports). Docker image not built here (Docker Desktop wasn't running); Space not created (needs the user's write token) |

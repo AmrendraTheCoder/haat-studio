@@ -78,6 +78,10 @@ export function candidate(id: string, fetchImpl: typeof fetch = fetch): Candidat
           max_tokens: req.maxTokens,
           temperature: req.temperature,
           response_format: { type: "json_object" },
+          // Gemini 2.5 Flash "thinks" by default, and the thinking is billed
+          // against max_tokens — a short answer comes back empty. Captions and
+          // research don't need it. (Other providers reject this field.)
+          ...(providerName === "gemini" && /flash/.test(model) && { reasoning_effort: "none" }),
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text().catch(() => "")).slice(0, 200)}`);

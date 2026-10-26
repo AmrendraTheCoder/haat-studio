@@ -12,7 +12,7 @@
     "setup": "tsx scripts/setup.ts",
     "engine:check": "tsx --env-file-if-exists=.env scripts/engine-check.ts",
     "eval": "tsx --env-file-if-exists=.env scripts/eval.ts",
-    "start:standalone": "cp -R public .next/standalone/ && cp -R .next/static .next/standalone/.next/ && node .next/standalone/server.js",
+    "start:standalone": "cp -R public .next/standalone/ && cp -R .next/static .next/standalone/.next/ && DATA_DIR=\"${DATA_DIR:-$PWD/data}\" node --env-file-if-exists=.env .next/standalone/server.js",
     "llm:check": "tsx --env-file-if-exists=.env scripts/llm-check.ts"
   },
   "dependencies": {

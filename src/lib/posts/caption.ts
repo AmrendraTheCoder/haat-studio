@@ -4,8 +4,9 @@ import { CTAS, captionSchema, discountPct, inr, type Caption, type CaptionReques
 
 const SYSTEM = `You write Instagram captions for small Indian clothing sellers.
 Answer ONLY with one JSON object: {"caption": "...", "hashtags": ["#...", ...]}.
-Use the exact product name, prices and call to action you are given — never change a number or invent an offer, a material, a size or a delivery promise.
-Caption: 2-5 short lines, a hook first, emojis sparingly. 8-15 hashtags, mixing broad and specific.`;
+Use the exact product name, prices and call to action you are given — never change a number or invent an offer, a material, a size, stock levels or a delivery promise.
+Caption: 2-5 short lines, a hook first, emojis sparingly.
+Hashtags: 8-15, mixing broad and specific. They must describe only this product, the occasion or the city given — no fabric, size, scarcity ("limited stock") or other products.`;
 
 const CATEGORY = { tops: "top", bottoms: "bottom wear", "one-pieces": "outfit" } as const;
 
@@ -17,12 +18,16 @@ Price: ${inr(p.price)}${p.mrp ? ` (MRP ${inr(p.mrp)}, ${off}% off)` : ""}
 Offer line: ${p.offer || "none"}
 Shop: ${p.shopName || "(not given)"}${p.handle ? ` @${p.handle}` : ""}
 Call to action: ${CTAS[p.cta]}
-Tone: ${r.tone}. Language: ${r.language === "hinglish" ? "Hinglish (Hindi in Roman script mixed with English, as Indian shoppers write on Instagram)" : "simple English"}.
+Tone: ${r.tone}. Language: ${
+    r.language === "hinglish"
+      ? "Hinglish — mostly Hindi written in Roman script, with English words where natural, as Indian shoppers write on Instagram (e.g. “Naya stock aa gaya”, “abhi DM karein”, “festive look ke liye perfect”)"
+      : "simple English"
+  }.
 ${
   research
     ? `Audience (from the seller's research): ${research.findings.audience.persona}
 They value: ${research.findings.audience.whatTheyValue.join(", ")}
-Hashtags they can draw on: ${[...research.findings.hashtags.niche, ...research.findings.hashtags.local].join(" ")}`
+Local hashtags for their city: ${research.findings.hashtags.local.join(" ") || "none"}`
     : ""
 }`;
 }

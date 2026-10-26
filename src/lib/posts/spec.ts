@@ -67,7 +67,7 @@ export const discountPct = (p: Pick<PostData, "price" | "mrp">) => (p.mrp ? Math
 /* ── Captions ── */
 
 export const TONES = { friendly: "Friendly", premium: "Premium", festive: "Festive" } as const;
-export const LANGUAGES = { english: "English", hinglish: "Hinglish" } as const;
+export const LANGUAGES = { english: "English", hinglish: "Hinglish", hindi: "Hindi" } as const;
 
 export const captionRequestSchema = z.object({
   post: postSchema,

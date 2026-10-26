@@ -6,18 +6,30 @@ import { CopyButton, PrintButton, UseForPosts } from "@/components/research/Repo
 import { StudioHeader } from "@/components/site/site";
 import { inr } from "@/lib/posts/spec";
 import { readReport } from "@/lib/research/build";
-import { CATEGORIES, CHANNELS, GOALS } from "@/lib/research/schema";
+import { getMessages } from "@/lib/i18n/server";
+import type { Messages } from "@/lib/i18n/messages";
+import type { EconomicsWarning } from "@/lib/research/schema";
 import { readSetup } from "@/lib/site";
 
-export const metadata: Metadata = { title: "Market research" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getMessages()).t.meta.research };
+}
 
 const FORMAT_ICON = { reel: "▶", carousel: "▦", post: "▢", story: "◷" } as const;
+
+function warningText(w: EconomicsWarning | string, R: Messages["report"]): string {
+  if (typeof w === "string") return w; // saved before warnings became codes
+  return w.code === "noCost" ? R.warnNoCost : w.code === "loss" ? R.warnLoss : R.warnThin(w.pct);
+}
 
 export default async function ReportPage({ params }: PageProps<"/research/[id]">) {
   await connection();
   const { id } = await params;
-  const [report, setup] = await Promise.all([readReport(id), readSetup()]);
+  const [report, setup, { t, locale }] = await Promise.all([readReport(id), readSetup(), getMessages()]);
   if (!report) notFound();
+  const R = t.report;
+  const Q = t.research;
+  const dateLocale = locale === "hi" ? "hi-IN" : "en-IN";
 
   const { answers: a, findings: f, economics: money, moments } = report;
   const ai = report.via !== "template";
@@ -31,30 +43,28 @@ export default async function ReportPage({ params }: PageProps<"/research/[id]">
       <main className="mx-auto max-w-4xl px-4 pt-8 pb-24 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
           <Link href="/research" className="inline-flex min-h-11 items-center text-sm text-ink-2 hover:text-ink">
-            ← Edit answers
+            {R.edit}
           </Link>
           <PrintButton />
         </div>
 
-        <p className="kicker mt-6">Market research · {new Date(report.createdAt).toLocaleDateString("en-IN", { dateStyle: "long" })}</p>
+        <p className="kicker mt-6">{R.kicker(new Date(report.createdAt).toLocaleDateString(dateLocale, { dateStyle: "long" }))}</p>
         <h1 className="mt-2 text-4xl font-extrabold tracking-[-0.05em] sm:text-5xl">
           {a.shopName || a.product}
           <span className="text-ink-3">, {a.city}.</span>
         </h1>
         <p className="mt-2 text-ink-2">
-          {a.product} · {CATEGORIES[a.category]} · ₹{a.priceMin.toLocaleString("en-IN")}–{a.priceMax.toLocaleString("en-IN")} · {a.channels.map((c) => CHANNELS[c]).join(", ")} · Goal: {GOALS[a.goal].toLowerCase()}
+          {a.product} · {Q.categories[a.category]} · ₹{a.priceMin.toLocaleString("en-IN")}–{a.priceMax.toLocaleString("en-IN")} · {a.channels.map((c) => Q.channelNames[c]).join(", ")} · {R.goal}: {Q.goals[a.goal].toLowerCase()}
         </p>
 
         <div className={`mt-5 rounded-xl border px-4 py-3 text-sm ${ai ? "border-line bg-paper-glow" : "border-marigold/50 bg-marigold-wash"}`}>
           {ai ? (
             <>
-              <strong>Written by AI ({report.via})</strong> from general knowledge — it has no live internet access. Treat it as informed suggestions and
-              check prices and trends against what you see in your market. The numbers and dates marked <em>calculated</em> are exact.
+              <strong>{R.aiTitle(report.via)}</strong> {R.aiBody}
             </>
           ) : (
             <>
-              <strong>Starter plan — no AI was available,</strong> so nothing below is market research. It&rsquo;s a week of posts and basics built from
-              your answers. Add a free <code className="font-mono">GROQ_API_KEY</code> and run it again for tailored research.
+              <strong>{R.starterTitle}</strong> {R.starterBody}
             </>
           )}
         </div>
@@ -66,49 +76,50 @@ export default async function ReportPage({ params }: PageProps<"/research/[id]">
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           <section className="card p-5">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-lg font-bold">Your numbers</h2>
-              <span className="chip">calculated</span>
+              <h2 className="text-lg font-bold">{R.numbers}</h2>
+              <span className="chip">{R.calculated}</span>
             </div>
             {money.perPiece ? (
               <dl className="mt-4 grid grid-cols-2 gap-3">
-                <Stat label={`Profit at ${inr(a.priceMin)}`} value={inr(money.perPiece.atMin)} sub={`${money.perPiece.marginMinPct}% margin`} bad={money.perPiece.atMin <= 0} />
-                <Stat label={`Profit at ${inr(a.priceMax)}`} value={inr(money.perPiece.atMax)} sub={`${money.perPiece.marginMaxPct}% margin`} bad={money.perPiece.atMax <= 0} />
+                <Stat label={R.profitAt(inr(a.priceMin))} value={inr(money.perPiece.atMin)} sub={R.margin(money.perPiece.marginMinPct)} bad={money.perPiece.atMin <= 0} />
+                <Stat label={R.profitAt(inr(a.priceMax))} value={inr(money.perPiece.atMax)} sub={R.margin(money.perPiece.marginMaxPct)} bad={money.perPiece.atMax <= 0} />
               </dl>
             ) : null}
             {money.warnings.map((w) => (
-              <p key={w} className="mt-3 text-sm text-ink-2">
-                ⚠ {w}
+              <p key={typeof w === "string" ? w : w.code} className="mt-3 text-sm text-ink-2">
+                ⚠ {warningText(w, R)}
               </p>
             ))}
           </section>
 
           <section className="card p-5">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-lg font-bold">Selling days coming up</h2>
-              <span className="chip">calculated</span>
+              <h2 className="text-lg font-bold">{R.moments}</h2>
+              <span className="chip">{R.calculated}</span>
             </div>
             {moments.length ? (
               <ul className="mt-3 space-y-2.5">
                 {moments.map((m) => (
                   <li key={m.date} className="flex gap-3 text-sm">
-                    <span className="w-16 shrink-0 font-mono text-xs text-ink-3">{m.daysAway === 0 ? "today" : `in ${m.daysAway}d`}</span>
+                    <span className="w-16 shrink-0 font-mono text-xs text-ink-3">{m.daysAway === 0 ? R.today : R.inDays(m.daysAway)}</span>
                     <span>
-                      <strong>{m.name}</strong> — {new Date(`${m.date}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}. {m.note}
+                      <strong>{(locale === "hi" && m.nameHi) || m.name}</strong> — {new Date(`${m.date}T00:00:00`).toLocaleDateString(dateLocale, { day: "numeric", month: "short" })}.{" "}
+                      {(locale === "hi" && m.noteHi) || m.note}
                     </span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="mt-3 text-sm text-ink-2">No fixed-date selling days in the next ten weeks.</p>
+              <p className="mt-3 text-sm text-ink-2">{R.noMoments}</p>
             )}
           </section>
         </div>
 
         <section className="card mt-4 p-5">
-          <h2 className="text-lg font-bold">Who buys</h2>
+          <h2 className="text-lg font-bold">{R.whoBuys}</h2>
           <p className="mt-2">{f.audience.persona}</p>
           <p className="mt-2 text-sm text-ink-2">
-            <strong className="text-ink">Where they find products:</strong> {f.audience.whereTheyAre}
+            <strong className="text-ink">{R.whereFind}</strong> {f.audience.whereTheyAre}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {f.audience.whatTheyValue.map((v) => (
@@ -120,14 +131,14 @@ export default async function ReportPage({ params }: PageProps<"/research/[id]">
         </section>
 
         <section className="mt-8">
-          <h2 className="text-2xl font-extrabold tracking-tight">{ai ? "What's working now" : "Two things to start with"}</h2>
+          <h2 className="text-2xl font-extrabold tracking-tight">{ai ? R.working : R.startWith}</h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            {f.trends.map((t) => (
-              <div key={t.name} className="card p-5">
-                <p className="font-bold">{t.name}</p>
-                <p className="mt-1 text-sm text-ink-2">{t.why}</p>
+            {f.trends.map((tr) => (
+              <div key={tr.name} className="card p-5">
+                <p className="font-bold">{tr.name}</p>
+                <p className="mt-1 text-sm text-ink-2">{tr.why}</p>
                 <p className="mt-3 text-sm">
-                  <strong>This week:</strong> {t.action}
+                  <strong>{R.thisWeek}</strong> {tr.action}
                 </p>
               </div>
             ))}
@@ -135,22 +146,22 @@ export default async function ReportPage({ params }: PageProps<"/research/[id]">
         </section>
 
         <section className="card mt-8 p-5">
-          <h2 className="text-lg font-bold">Pricing</h2>
+          <h2 className="text-lg font-bold">{R.pricing}</h2>
           <p className="mt-2 text-3xl font-extrabold tracking-tight">
             {inr(f.pricing.minRupees)}–{inr(f.pricing.maxRupees)}
-            <span className="ml-2 align-middle text-sm font-normal text-ink-3">yours today: {inr(a.priceMin)}–{inr(a.priceMax)}</span>
+            <span className="ml-2 align-middle text-sm font-normal text-ink-3">{R.yoursToday(`${inr(a.priceMin)}–${inr(a.priceMax)}`)}</span>
           </p>
           <p className="mt-2 text-sm text-ink-2">{f.pricing.reasoning}</p>
         </section>
 
         <section className="mt-8">
-          <h2 className="text-2xl font-extrabold tracking-tight">This week&rsquo;s posts</h2>
+          <h2 className="text-2xl font-extrabold tracking-tight">{R.weekPosts}</h2>
           <ol className="mt-4 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-paper-2">
             {f.weekPlan.map((d) => (
               <li key={d.day} className="flex items-start gap-4 px-5 py-3">
-                <span className="w-10 shrink-0 font-mono text-sm font-medium">{d.day}</span>
+                <span className="w-12 shrink-0 font-mono text-sm font-medium">{R.days[d.day] ?? d.day}</span>
                 <span className="w-24 shrink-0 text-xs text-ink-3">
-                  {FORMAT_ICON[d.format]} {d.format}
+                  {FORMAT_ICON[d.format]} {R.formats[d.format] ?? d.format}
                 </span>
                 <span className="text-sm">{d.idea}</span>
               </li>
@@ -159,15 +170,17 @@ export default async function ReportPage({ params }: PageProps<"/research/[id]">
         </section>
 
         <section className="mt-8">
-          <h2 className="text-2xl font-extrabold tracking-tight">Content ideas</h2>
+          <h2 className="text-2xl font-extrabold tracking-tight">{R.ideas}</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {f.contentIdeas.map((c) => (
               <div key={c.title} className="rounded-xl border border-line bg-paper-glow p-4">
                 <p className="text-xs text-ink-3">
-                  {FORMAT_ICON[c.format]} {c.format}
+                  {FORMAT_ICON[c.format]} {R.formats[c.format] ?? c.format}
                 </p>
                 <p className="mt-1 font-semibold">{c.title}</p>
-                <p className="mt-1 text-sm text-ink-2">Hook: “{c.hook}”</p>
+                <p className="mt-1 text-sm text-ink-2">
+                  {R.hook} “{c.hook}”
+                </p>
               </div>
             ))}
           </div>
@@ -175,13 +188,13 @@ export default async function ReportPage({ params }: PageProps<"/research/[id]">
 
         <section className="card mt-8 p-5">
           <div className="flex items-baseline justify-between gap-2">
-            <h2 className="text-lg font-bold">Hashtags</h2>
-            <CopyButton text={allTags.join(" ")} label="Copy all" />
+            <h2 className="text-lg font-bold">{R.hashtags}</h2>
+            <CopyButton text={allTags.join(" ")} label={t.common.copyAll} />
           </div>
           {(["broad", "niche", "local"] as const).map((k) =>
             f.hashtags[k].length ? (
               <p key={k} className="mt-3 text-sm">
-                <span className="mr-2 font-mono text-2xs text-ink-3 uppercase">{k}</span>
+                <span className="mr-2 font-mono text-2xs text-ink-3 uppercase">{R.tagGroups[k]}</span>
                 {f.hashtags[k].join(" ")}
               </p>
             ) : null,
@@ -190,7 +203,7 @@ export default async function ReportPage({ params }: PageProps<"/research/[id]">
 
         {f.watchOuts.length > 0 && (
           <section className="mt-8">
-            <h2 className="text-lg font-bold">Watch out for</h2>
+            <h2 className="text-lg font-bold">{R.watchOut}</h2>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink-2">
               {f.watchOuts.map((w) => (
                 <li key={w}>{w}</li>
@@ -201,8 +214,8 @@ export default async function ReportPage({ params }: PageProps<"/research/[id]">
 
         <section className="mt-12 flex flex-wrap items-center gap-3 rounded-3xl border border-line bg-paper-3 p-6 print:hidden">
           <div className="min-w-0 flex-1">
-            <p className="text-xl font-bold">Next: make this week&rsquo;s first post.</p>
-            <p className="text-sm text-ink-2">Captions will use this research — your buyers, your hashtags.</p>
+            <p className="text-xl font-bold">{R.nextTitle}</p>
+            <p className="text-sm text-ink-2">{R.nextBody}</p>
           </div>
           <UseForPosts id={report.id} />
         </section>

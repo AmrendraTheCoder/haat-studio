@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { engineName } from "@/lib/engines";
+import { useI18n } from "@/lib/i18n/client";
+import type { Messages } from "@/lib/i18n/messages";
 import { QUALITY_STEPS, type PrepInfo, type ResultMeta, type TryOnSettings } from "@/lib/tryon/types";
 import type { LogEntry, LogEvent } from "./types";
 
@@ -30,21 +32,22 @@ export const secs = (ms: number) => {
   return s < 10 ? `${s.toFixed(1)}s` : s < 60 ? `${Math.round(s)}s` : `${Math.floor(s / 60)}m ${String(Math.round(s % 60)).padStart(2, "0")}s`;
 };
 
-function describePrep(p: PrepInfo, what: string) {
+function describePrep(p: PrepInfo, what: string, t: Messages) {
   const changes = [
-    p.rotated && "turned upright",
-    p.flattened && "white background added behind the cut-out",
+    p.rotated && t.pipeline.upright,
+    p.flattened && t.pipeline.whiteBg,
     p.resized && `${p.width}×${p.height} → ${p.outWidth}×${p.outHeight}`,
-    p.stripped && "camera data (like location) removed",
+    p.stripped && t.pipeline.stripped,
   ].filter(Boolean);
-  return `${what}: ${changes.length ? changes.join(", ") : `${p.outWidth}×${p.outHeight}, already fine`}`;
+  return `${what}: ${changes.length ? changes.join(", ") : t.pipeline.fine(p.outWidth, p.outHeight)}`;
 }
 
 /**
  * Derives each stage from the events the server actually sent — nothing is
  * animated on a timer, so the panel can't claim a step that didn't happen.
  */
-function deriveStages(log: LogEntry[], startedAt: number, now: number, settings: TryOnSettings | null, failed: boolean): Stage[] {
+function deriveStages(log: LogEntry[], startedAt: number, now: number, settings: TryOnSettings | null, failed: boolean, t: Messages): Stage[] {
+  const P = t.pipeline;
   const first = (t: LogEvent["type"]) => log.find((l) => l.e.type === t);
   const last = (t: LogEvent["type"]) => [...log].reverse().find((l) => l.e.type === t);
   const uploading = first("uploading");
@@ -69,7 +72,7 @@ function deriveStages(log: LogEntry[], startedAt: number, now: number, settings:
 
   if (uploading) {
     // The server prepares the photos before it answers, so this time covers both.
-    stages.push({ id: "upload", title: "Uploading your photos", state: accepted ? "done" : "active", took: end(accepted) });
+    stages.push({ id: "upload", title: P.upload, state: accepted ? "done" : "active", took: end(accepted) });
   } else if (accepted) {
     mark = accepted.at;
   }
@@ -77,58 +80,58 @@ function deriveStages(log: LogEntry[], startedAt: number, now: number, settings:
   const prep = prepared?.e.type === "prepared" ? prepared.e.prep : null;
   stages.push({
     id: "prepare",
-    title: "Preparing the photos",
+    title: P.prepare,
     state: prepared ? "done" : accepted ? "active" : "todo",
-    detail: prep ? `${describePrep(prep.garment, "Product")} · ${describePrep(prep.person, "Model")}` : undefined,
+    detail: prep ? `${describePrep(prep.garment, P.prepProduct, t)} · ${describePrep(prep.person, P.prepModel, t)}` : undefined,
   });
   if (prepared) mark = prepared.at;
 
   stages.push({
     id: "check",
-    title: "Checking saved photos",
+    title: P.check,
     state: checked ? "done" : prepared ? "active" : "todo",
-    detail: checked ? (hit ? "Made before with these exact inputs — reusing it, no GPU needed" : "New combination — this needs the GPU") : undefined,
+    detail: checked ? (hit ? P.hit : P.miss) : undefined,
     took: end(checked),
   });
 
   const queueDetail = (() => {
     if (queued?.e.type === "queued") {
       const pos = queued.e.position;
-      const line = pos === null ? "In the queue" : pos === 0 ? "Next in line" : `#${pos + 1} in line`;
-      return queued.e.engine === "fashn-space" ? `${line} on Hugging Face's shared GPUs` : line;
+      const line = pos === null ? P.inQueue : pos === 0 ? P.nextInLine : P.position(pos + 1);
+      return queued.e.engine === "fashn-space" ? P.onHf(line) : line;
     }
-    if (waiting) return "Finishing your previous photo first — one at a time saves the free quota";
+    if (waiting) return P.waitingPrevious;
     return undefined;
   })();
   stages.push({
     id: "queue",
-    title: "Waiting for a free GPU",
+    title: P.queue,
     state: hit ? "skipped" : running || done ? "done" : waiting || queued || checked ? "active" : "todo",
-    detail: hit ? "Skipped" : queueDetail,
+    detail: hit ? P.skipped : queueDetail,
     took: hit ? undefined : end(running),
   });
 
   const eta = running?.e.type === "running" ? running.e.etaSeconds : null;
   const genDetail = [
     running?.e.type === "running" ? engineName(running.e.engine) : null,
-    steps && `${steps} refinement steps`,
-    running && !done && `${secs(now - running.at)} so far${eta ? ` · usually ~${Math.round(eta)}s` : ""}`,
+    steps && P.steps(steps),
+    running && !done && P.soFar(secs(now - running.at), eta ? Math.round(eta) : null),
   ]
     .filter(Boolean)
     .join(" · ");
   stages.push({
     id: "generate",
-    title: "Dressing the model",
+    title: P.generate,
     state: hit ? "skipped" : done ? "done" : running ? "active" : "todo",
-    detail: hit ? "Skipped" : genDetail,
+    detail: hit ? P.skipped : genDetail,
     took: hit ? undefined : end(done),
   });
 
   stages.push({
     id: "save",
-    title: hit ? "Opened the saved photo" : "Saved",
+    title: hit ? P.opened : P.save,
     state: done ? "done" : "todo",
-    detail: done ? (hit ? undefined : "Stored on this computer — asking again is instant") : undefined,
+    detail: done ? (hit ? undefined : P.stored) : undefined,
   });
 
   if (failed) {
@@ -160,21 +163,22 @@ export function Pipeline({
   live: boolean;
   failed?: boolean;
 }) {
+  const { t } = useI18n();
   const now = useNow(live);
   // Server timestamps, when present, beat the client's idea of when it started.
   const base = log[0]?.at ?? startedAt;
-  const stages = deriveStages(log, base, now, settings, failed);
+  const stages = deriveStages(log, base, now, settings, failed, t);
   // One polite announcement per stage change for screen readers — the
   // visual list updates every 250 ms, which would be noise if read aloud.
   const current = stages.find((s) => s.state === "active" || s.state === "failed") ?? [...stages].reverse().find((s) => s.state === "done");
-  const announcement = current ? `${current.title}${current.state === "failed" ? " — failed" : current.state === "done" ? " — done" : ""}` : "";
+  const announcement = current ? `${current.title}${current.state === "failed" ? t.pipeline.failed : current.state === "done" ? t.pipeline.done : ""}` : "";
   return (
     <div>
       <p className="sr-only" aria-live="polite">
         {announcement}
       </p>
       <div className="flex items-baseline justify-between">
-        <p className="kicker">{live ? "How it’s being made" : "Step by step"}</p>
+        <p className="kicker">{live ? t.pipeline.live : t.pipeline.after}</p>
         {log.length > 0 && (
           <p className="font-mono text-xs text-ink-2 tabular-nums">{secs((live ? now : (log.at(-1)?.at ?? base)) - base)}</p>
         )}
@@ -201,13 +205,16 @@ export function Pipeline({
 
 /** For a result opened later, when there is no live log: what we know from its saved record. */
 export function MadeWith({ r }: { r: ResultMeta }) {
+  const { t, locale } = useI18n();
+  const P = t.pipeline;
+  const stop = locale === "hi" ? "।" : ".";
   const rows: [string, string][] = [
-    ["Engine", r.engine === "fashn-space" ? "FASHN VTON 1.5 · Hugging Face ZeroGPU" : engineName(r.engine)],
-    ["Quality", `${r.settings.quality} · ${QUALITY_STEPS[r.settings.quality]} steps · seed ${r.settings.seed}`],
-    ["Garment", `${{ tops: "Top", bottoms: "Bottom", "one-pieces": "Full outfit" }[r.settings.category]} · ${r.settings.photoType === "flat-lay" ? "photographed flat" : "photographed worn"}`],
-    ["Time", `${secs(r.totalMs)} total${r.queueMs > 500 ? ` · ${secs(r.queueMs)} waiting for a GPU` : ""}`],
-    ...(r.prep ? ([["Preparation", `${describePrep(r.prep.garment, "Product")}. ${describePrep(r.prep.person, "Model")}.`]] as [string, string][]) : []),
-    ["Created", new Date(r.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })],
+    [P.rows.engine, r.engine === "fashn-space" ? "FASHN VTON 1.5 · Hugging Face ZeroGPU" : engineName(r.engine)],
+    [P.rows.quality, P.qualityLine(t.model.qualities[r.settings.quality].title, QUALITY_STEPS[r.settings.quality], r.settings.seed)],
+    [P.rows.garment, `${t.product.categories[r.settings.category].title} · ${r.settings.photoType === "flat-lay" ? P.flat : P.worn}`],
+    [P.rows.time, `${P.total(secs(r.totalMs))}${r.queueMs > 500 ? ` · ${P.waitingGpu(secs(r.queueMs))}` : ""}`],
+    ...(r.prep ? ([[P.rows.preparation, `${describePrep(r.prep.garment, P.prepProduct, t)}${stop} ${describePrep(r.prep.person, P.prepModel, t)}${stop}`]] as [string, string][]) : []),
+    [P.rows.created, new Date(r.createdAt).toLocaleString(locale === "hi" ? "hi-IN" : "en-IN", { dateStyle: "medium", timeStyle: "short" })],
   ];
   return (
     <dl className="space-y-2 text-xs">

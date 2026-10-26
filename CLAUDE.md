@@ -37,6 +37,7 @@ src/lib/research/   schema.ts (shared), build.ts (prompt, calculated economics +
 src/lib/guard.ts    requirePasscode() for every creating route (STUDIO_PASSCODE)
 src/lib/client/roving.ts  radioKeyDown/rovingTabIndex — every role="radio" group uses them
 src/lib/client/share.ts   Web Share (files) for phones; feature-detected
+src/lib/i18n/       messages.ts (en + hi dictionaries), server.ts getMessages(), client.tsx useI18n()/LanguageToggle
 src/app/design            "How it's designed" page; docs/ux/ is the long form
 src/app/studio/post           post maker (?r=<key>)
 src/app/research, research/[id]  questionnaire and saved report
@@ -82,6 +83,11 @@ tests/              vitest, no network
   labelled template fallback. Captions quoting a price the seller didn't give
   are rejected (`pricesMentioned`). Maths and dates in research are code.
 - **Creating routes call `requirePasscode` first.** Reads stay open.
+- **Every word a seller sees comes from `src/lib/i18n/messages.ts`** — `getMessages()` in
+  server components, `useI18n()` in client ones. Add the English and the Hindi together;
+  the `Messages` type rejects a missing key and a test rejects an untranslated one.
+  Data that is saved (research warnings) stores codes, not sentences, so it renders in
+  either language. Hashtags stay in Roman letters in every language.
 
 ## Verifying
 
@@ -133,6 +139,12 @@ npm run eval           # real generations; spends quota
     keeps `data/` out of the build. Docker uses `/data`, unaffected.
 16. **Next 16:** route handlers use Web `Request`/`Response`; `connection()` marks a
    page as per-request. Read `node_modules/next/dist/docs/` before using a Next API.
+17. **The language lives in a cookie (`haat-lang`), not localStorage,** so server-rendered
+    pages come out in the right language; the toggle sets it and calls `router.refresh()`.
+    Every page reading it is per-request — that's why `/design` is no longer static.
+18. **Gemini writes Devanagari hashtags for a Hindi caption** unless the system prompt
+    itself says Roman letters (`caption.ts` SYSTEM + HASHTAG_RULE). A rule only in the
+    user prompt was ignored.
 
 ## State
 
@@ -144,3 +156,4 @@ npm run eval           # real generations; spends quota
 | 4. Post maker | Done. Templates verified in the browser; AI captions verified live with Gemini 2.5 Flash (exact prices, Hinglish) |
 | 5. Market research | Done. Verified live with Gemini 2.5 Flash (~9 s per report) and on the template path |
 | 6. Deployment | Production build + standalone server verified locally (all routes, sharp exports). Docker image not built here (Docker Desktop wasn't running); Space not created (needs the user's write token) |
+| Hindi | Done 2026-10-26. Header toggle; every screen, the post canvas, captions (English / Hinglish / हिन्दी) and research reports. Verified live with Gemini 2.5 Flash. Wording not yet reviewed by a native speaker |

@@ -61,6 +61,6 @@ printer, crocheter). Sells 10–200 pieces a month, ₹300–₹3,000 each.
 | **Patchy mobile data** | Photos are checked in the browser before uploading; a dropped connection can reconnect; the job finishes even if the tab closes |
 | **iPhone photos are HEIC** | Detected and explained, with the exact setting to change |
 | **Free GPU, a few photos a day** | Results are saved and reused; the cost is stated before every generation |
-| **Mixed English and Hindi** | Simple English UI, Hinglish captions. A Hindi interface is the clearest gap (see [07](07-design-critique.md)) |
+| **Mixed English and Hindi** | English or Hindi interface (one tap), and captions in English, Hinglish or Hindi |
 | **Trust** | Never show a fake result; label anything AI-written; never retype a seller's price |
 | **Privacy** | Phone photos carry GPS location — removed before anything leaves the server |

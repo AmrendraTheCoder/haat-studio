@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { readPasscode, savePasscode } from "@/lib/client/passcode";
+import { useI18n } from "@/lib/i18n/client";
 
 /**
  * Shown only on servers with STUDIO_PASSCODE set. The passcode is kept in
  * this browser and sent with every request that creates something.
  */
 export function PasscodeField({ required }: { required: boolean }) {
+  const { t } = useI18n();
   const [value, setValue] = useState("");
   const [saved, setSaved] = useState(false);
   // Browser storage only exists after hydration; reading it during render would mismatch the server HTML.
@@ -28,7 +30,7 @@ export function PasscodeField({ required }: { required: boolean }) {
       }}
     >
       <label htmlFor="passcode" className="font-semibold">
-        Studio passcode
+        {t.passcode.label}
       </label>
       <input
         id="passcode"
@@ -40,12 +42,12 @@ export function PasscodeField({ required }: { required: boolean }) {
           setSaved(false);
         }}
         className="min-w-0 flex-1 rounded-lg border border-line bg-white px-3 py-1.5"
-        placeholder="Ask the owner of this studio"
+        placeholder={t.passcode.placeholder}
       />
       <button type="submit" className="btn-primary !px-4 !py-1.5">
-        {saved ? "Saved ✓" : "Save"}
+        {saved ? t.passcode.saved : t.passcode.save}
       </button>
-      <p className="w-full text-xs text-ink-3">This public copy needs a passcode before it can create anything, so the free GPU time isn&rsquo;t used up by strangers.</p>
+      <p className="w-full text-xs text-ink-3">{t.passcode.note}</p>
     </form>
   );
 }

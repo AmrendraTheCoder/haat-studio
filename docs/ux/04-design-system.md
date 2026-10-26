@@ -130,6 +130,10 @@ returns focus to the opener; page scroll locked while open.
 - Say the number ("about 15–30 seconds", "₹99 per piece").
 - Label AI help as AI, and templates as templates.
 - English that a Hindi speaker reads easily: short sentences, no idioms.
+- Hindi as people speak it, not textbook Hindi: keep everyday English shop words
+  (फ़ोटो, ऑर्डर, DM, MRP) rather than formal coinages.
+- Devanagari gets Noto Sans Devanagari, more line height on headings, and no
+  monospace or letter-spacing (both break its joined letters) — see `:lang(hi)` in `globals.css`.
 
 ## Token audit (this pass)
 

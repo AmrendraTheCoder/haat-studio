@@ -1,11 +1,15 @@
+"use client";
+
 import Link from "next/link";
 import { TEST_ENGINES } from "@/lib/engines";
+import { LanguageToggle, useI18n } from "@/lib/i18n/client";
 import type { Setup } from "@/lib/site";
 
 /** Lowercase display wordmark with the magenta full stop, as in stiche-v2. */
 export function HaatWord({ className = "", suffix }: { className?: string; suffix?: string }) {
   return (
-    <span className={`inline-flex items-baseline font-display font-extrabold tracking-[-0.06em] ${className}`}>
+    // The brand is a Latin wordmark in every language; lang="en" keeps its mono suffix under :lang(hi).
+    <span lang="en" className={`inline-flex items-baseline font-display font-extrabold tracking-[-0.06em] ${className}`}>
       haat<span className="text-accent-strong">.</span>
       {suffix && <span className="ml-1.5 font-mono text-[0.42em] font-medium tracking-normal text-ink-3">{suffix}</span>}
     </span>
@@ -48,106 +52,114 @@ export function WaveBorder({ flip = false, className = "" }: { flip?: boolean; c
 }
 
 const NAV = [
-  { href: "/#how", label: "How it works" },
-  { href: "/#examples", label: "Examples" },
-  { href: "/research", label: "Market research" },
-  { href: "/#under-the-hood", label: "Under the hood" },
-  { href: "/design", label: "Design" },
+  { href: "/#how", key: "how" },
+  { href: "/#examples", key: "examples" },
+  { href: "/research", key: "research" },
+  { href: "/#under-the-hood", key: "hood" },
+  { href: "/design", key: "design" },
 ] as const;
 
 /** Header for the working pages: the three tools, and whether generation is on. */
 export function StudioHeader({ setup }: { setup: Setup }) {
+  const { t } = useI18n();
   const ready = setup.engine.configured;
   const test = TEST_ENGINES.has(setup.engine.id);
   return (
     <header className="sticky top-0 z-40 border-b border-line/70 bg-paper/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <div className="flex items-center gap-5">
-          <Link href="/" aria-label="Haat Studio — home" className="inline-flex min-h-11 items-center">
+          <Link href="/" aria-label={t.nav.home} className="inline-flex min-h-11 items-center">
             <HaatWord className="text-2xl" suffix="studio" />
           </Link>
-          <nav aria-label="Tools" className="hidden items-center gap-2 text-sm sm:flex">
+          <nav aria-label={t.nav.tools} className="hidden items-center gap-2 text-sm sm:flex">
             <Link href="/studio" className="inline-flex min-h-11 items-center px-2 text-ink-2 hover:text-ink">
-              Try-on
+              {t.nav.tryon}
             </Link>
             <Link href="/research" className="inline-flex min-h-11 items-center px-2 text-ink-2 hover:text-ink">
-              Research
+              {t.nav.research}
             </Link>
           </nav>
         </div>
-        <span
-          className={`chip ${ready ? "!border-good/40 !text-good" : "!border-marigold/60 !text-ink-2"}`}
-          title={ready ? setup.engine.label : setup.engine.missing}
-        >
-          <span className={`size-1.5 rounded-full ${ready ? "bg-good" : "bg-marigold"}`} />
-          {!ready ? "Demo mode" : test ? "Test engine · no try-on" : "Free GPU · ready"}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className={`chip hidden sm:inline-flex ${ready ? "!border-good/40 !text-good" : "!border-marigold/60 !text-ink-2"}`}
+            title={ready ? setup.engine.label : setup.engine.missing}
+          >
+            <span className={`size-1.5 rounded-full ${ready ? "bg-good" : "bg-marigold"}`} />
+            {!ready ? t.nav.engine.demo : test ? t.nav.engine.test : t.nav.engine.ready}
+          </span>
+          <LanguageToggle />
+        </div>
       </div>
-      <nav aria-label="Tools" className="flex gap-2 border-t border-line/50 px-2 text-sm sm:hidden">
+      <nav aria-label={t.nav.tools} className="flex items-center gap-2 border-t border-line/50 px-2 text-sm sm:hidden">
         <Link href="/studio" className="inline-flex min-h-11 items-center px-2">
-          Try-on
+          {t.nav.tryon}
         </Link>
         <Link href="/research" className="inline-flex min-h-11 items-center px-2">
-          Research
+          {t.nav.research}
         </Link>
+        <span className={`chip ml-auto ${ready ? "!border-good/40 !text-good" : "!border-marigold/60 !text-ink-2"}`}>
+          <span className={`size-1.5 rounded-full ${ready ? "bg-good" : "bg-marigold"}`} />
+          {!ready ? t.nav.engine.demo : test ? t.nav.engine.test : t.nav.engine.ready}
+        </span>
       </nav>
     </header>
   );
 }
 
 export function SiteNav({ cta = true }: { cta?: boolean }) {
+  const { t } = useI18n();
   return (
     <header className="sticky top-0 z-40 border-b border-line/70 bg-paper/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Link href="/" aria-label="Haat Studio — home" className="inline-flex min-h-11 items-center">
+        <Link href="/" aria-label={t.nav.home} className="inline-flex min-h-11 items-center">
           <HaatWord className="text-2xl" suffix="studio" />
         </Link>
-        <nav aria-label="Sections" className="hidden items-center gap-7 text-sm md:flex">
+        <nav aria-label={t.nav.sectionsLabel} className="hidden items-center gap-6 text-sm lg:flex">
           {NAV.map((i) => (
             <Link key={i.href} href={i.href} className="inline-flex min-h-11 items-center text-ink-2 transition-colors hover:text-ink">
-              {i.label}
+              {t.nav.sections[i.key]}
             </Link>
           ))}
         </nav>
-        {cta && (
-          <Link href="/studio" className="btn-primary !px-4 !py-2">
-            Open studio <span aria-hidden>→</span>
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          <LanguageToggle />
+          {cta && (
+            <Link href="/studio" className="btn-primary !px-4 !py-2">
+              {t.nav.openStudio} <span aria-hidden>→</span>
+            </Link>
+          )}
+        </div>
       </div>
     </header>
   );
 }
 
-const TICKER = ["Flat-lay to on-model", "No photoshoot", "No model fees", "Sized for Instagram", "Free GPU", "Made for Indian sellers"];
-
 export function SiteFooter() {
+  const { t } = useI18n();
   return (
     <footer className="mt-24 border-t border-line bg-paper-2">
       <div className="border-b border-line py-5 text-ink-2">
-        <ScrollingStrip items={TICKER} className="font-display text-xl font-bold tracking-tight sm:text-2xl" />
+        <ScrollingStrip items={t.nav.ticker} className="font-display text-xl font-bold tracking-tight sm:text-2xl" />
       </div>
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6 md:flex-row md:items-end md:justify-between">
         <div>
           <HaatWord className="text-5xl" />
-          <p className="mt-3 max-w-md text-sm text-ink-3">
-            Haat Studio is part 1 of Haat, an assistant for India&rsquo;s Instagram sellers. Try-on by FASHN VTON 1.5
-            (Apache-2.0) on Hugging Face&rsquo;s free GPUs.
-          </p>
+          <p className="mt-3 max-w-md text-sm text-ink-3">{t.nav.footerBlurb}</p>
         </div>
-        <nav aria-label="Footer" className="flex flex-wrap gap-x-6 text-sm text-ink-2">
+        <nav aria-label={t.nav.footerLabel} className="flex flex-wrap gap-x-6 text-sm text-ink-2">
           {[
-            ["/studio", "Try-on studio"],
-            ["/research", "Market research"],
-            ["/design", "How it's designed"],
-            ["/#under-the-hood", "Under the hood"],
+            ["/studio", t.nav.footerLinks.studio],
+            ["/research", t.nav.footerLinks.research],
+            ["/design", t.nav.footerLinks.design],
+            ["/#under-the-hood", t.nav.footerLinks.hood],
           ].map(([href, label]) => (
             <Link key={href} href={href} className="inline-flex min-h-11 items-center hover:text-ink">
               {label}
             </Link>
           ))}
           <a href="https://github.com/AmrendraTheCoder/haat-studio" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center hover:text-ink">
-            Source on GitHub
+            {t.nav.footerLinks.github}
           </a>
         </nav>
       </div>

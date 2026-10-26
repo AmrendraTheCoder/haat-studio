@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
+import { getMessages } from "@/lib/i18n/server";
 import { StudioApp } from "@/components/studio/StudioApp";
 import { readRecent, readSetup } from "@/lib/site";
 import { store } from "@/lib/tryon";
 
-export const metadata: Metadata = { title: "Studio" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getMessages()).t.meta.studio };
+}
 
 /** `?r=<key>` opens a photo — finished, or still being made — so a reload or a shared link lands back on it. */
 export default async function StudioPage({ searchParams }: PageProps<"/studio">) {

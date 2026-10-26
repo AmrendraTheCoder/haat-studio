@@ -6,16 +6,16 @@
 
 It looks like a craft brand, not a tech tool — warm, confident, honest — and
 the core loop (photo → post → share) is short. The biggest remaining
-opportunity is **language and first-time guidance**: the UI is English-only for
-users who often think in Hindi, and nothing teaches a first-timer what a good
-garment photo looks like before they take one.
+opportunity is **first-time guidance**: nothing teaches a first-timer what a good
+garment photo looks like before they take one. (Language was the other gap; the
+app now has a full Hindi interface.)
 
 ## Usability
 
 | Finding | Severity | Recommendation |
 |---|---|---|
 | Posting was buried below downloads on the result | 🔴 → fixed | "Make it a post" is now the primary action |
-| UI is English-only | 🟡 open | Add a Hindi toggle; start with the studio's three steps and errors |
+| UI is English-only | 🟡 → fixed | English ⇄ हिन्दी toggle in the header; every screen, error, the post canvas, captions and research reports |
 | No example of a *good* garment photo before uploading | 🟡 open | Show a small "good vs bad" photo strip in step 1 (flat, whole garment, plain background vs folded, cropped, cluttered) |
 | Research is ten questions on one long page | 🟢 open | Fine on desktop; on phones consider one section per screen with a progress bar |
 | "New product" clears the current product without undo | 🟢 open | Keep the last product for a few seconds with "Undo" |
@@ -62,8 +62,8 @@ garment photo looks like before they take one.
 
 ## Priority recommendations
 
-1. **Hindi interface** — the biggest barrier for sellers like Meena; start
-   with the studio, errors and captions UI.
+1. ~~**Hindi interface**~~ — done: a header toggle switches every screen, and
+   captions and research come back in Hindi. Next: have a native speaker review the wording.
 2. **Test with five real sellers** ([05](05-usability-testing.md) Part B) — every
    persona here is still an assumption.
 3. **"Good photo" guidance before upload** — the cheapest way to raise output

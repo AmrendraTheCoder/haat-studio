@@ -47,6 +47,8 @@ export const answersSchema = z
     ages: z.array(z.enum(AGES)).min(1, "Pick at least one age group"),
     gender: z.enum(["women", "men", "all"]),
     goal: z.enum(key(GOALS)),
+    /** The language the report is written in — the seller's app language when they asked. */
+    language: z.enum(["en", "hi"]).default("en"),
   })
   .refine((a) => a.priceMax >= a.priceMin, { path: ["priceMax"], message: "The highest price can't be below the lowest" });
 
@@ -73,16 +75,23 @@ export const findingsSchema = z.object({
 });
 export type Findings = z.infer<typeof findingsSchema>;
 
+/** Codes, not sentences, so the report page can say them in either language. */
+export type EconomicsWarning = { code: "noCost" } | { code: "loss" } | { code: "thin"; pct: number };
+
 export interface Economics {
   /** Only when the seller gave a cost per piece. */
   perPiece: { atMin: number; atMax: number; marginMinPct: number; marginMaxPct: number } | null;
-  warnings: string[];
+  /** Plain strings come from reports saved before warnings became codes. */
+  warnings: (EconomicsWarning | string)[];
 }
 
 export interface Moment {
   date: string; // YYYY-MM-DD
   name: string;
   note: string;
+  /** Absent on reports saved before the Hindi version. */
+  nameHi?: string;
+  noteHi?: string;
   daysAway: number;
 }
 

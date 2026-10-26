@@ -6,9 +6,12 @@ import { StudioHeader } from "@/components/site/site";
 import { checkImageFile, fileFrom, resultUrl } from "@/lib/client/check";
 import { passcodeHeaders } from "@/lib/client/passcode";
 import { readEvents } from "@/lib/client/events";
+import { useI18n } from "@/lib/i18n/client";
+import type { Messages } from "@/lib/i18n/messages";
 import { PRESETS, type SampleGarment } from "@/lib/presets";
 import type { Setup } from "@/lib/site";
 import type { ResultMeta, StreamEvent } from "@/lib/tryon/types";
+import { formatWait } from "@/lib/wait";
 import { Notice, RecentGrid, Stepper } from "./parts";
 import { ResultStep } from "./ResultStep";
 import { ModelStep, ProductStep } from "./Steps";
@@ -32,6 +35,17 @@ function errorKind(e: Extract<StreamEvent, { type: "error" }>): ErrorKind {
   return "other";
 }
 
+/** The server's sentence for a failed job, in the seller's language where we can say it ourselves. */
+function errorMessage(e: Extract<StreamEvent, { type: "error" }>, kind: ErrorKind, t: Messages): string {
+  if (kind === "quota") {
+    const wait = Math.min(...e.attempts.map((a) => a.retryAfterSeconds ?? Infinity));
+    return t.result.quota(Number.isFinite(wait) ? formatWait(wait) : null);
+  }
+  const tried = e.attempts.filter((a) => a.kind !== "skipped");
+  if (tried.length > 0 && tried.every((a) => a.kind === "timeout")) return t.studio.queueLong;
+  return e.message;
+}
+
 export function StudioApp({
   setup,
   initialRecent,
@@ -45,6 +59,7 @@ export function StudioApp({
   initialKey: string | null;
   badLink: boolean;
 }) {
+  const { t } = useI18n();
   const [inputs, setInputs] = useState<Inputs>(() => {
     const first = PRESETS.find((p) => setup.presets.includes(p.id));
     return { garment: null, category: null, photoType: "flat-lay", person: first ? { kind: "preset", id: first.id } : null, quality: "balanced" };
@@ -59,7 +74,7 @@ export function StudioApp({
   const [recent, setRecent] = useState(initialRecent);
   const [featured, setFeatured] = useState(initialFeatured);
   const [productError, setProductError] = useState<string | null>(null);
-  const [productNote, setProductNote] = useState<string | null>(badLink ? "That link didn't point to a photo, so you're starting fresh." : null);
+  const [productNote, setProductNote] = useState<string | null>(badLink ? t.studio.badLink : null);
   const [modelError, setModelError] = useState<string | null>(null);
   const [loadingSample, setLoadingSample] = useState(false);
   const [lastRequest, setLastRequest] = useState<SubmitInput | null>(null);
@@ -107,10 +122,11 @@ export function StudioApp({
           } else if (e.type === "error") {
             terminal = true;
             setUrl(null); // failures aren't saved, so the link would lead nowhere
+            const kind = errorKind(e);
             setRun((r) => ({
               phase: "error",
-              kind: errorKind(e),
-              message: e.message,
+              kind,
+              message: errorMessage(e, kind, t),
               attempts: e.attempts,
               log: [...logOf(r), entry],
               startedAt: startOf(r),
@@ -129,9 +145,7 @@ export function StudioApp({
           return {
             phase: "error",
             kind: "offline",
-            message: key
-              ? "The connection dropped while your photo was being made. It keeps going on the server — reconnect to pick it up."
-              : "Couldn't reach the server. Check the connection and try again.",
+            message: key ? t.result.offlineMid : t.common.unreachable,
             attempts: [],
             log: logOf(r),
             startedAt: startOf(r),
@@ -140,7 +154,7 @@ export function StudioApp({
         });
       }
     },
-    [refreshLists],
+    [refreshLists, t],
   );
 
   const reconnect = useCallback(
@@ -151,7 +165,7 @@ export function StudioApp({
       try {
         res = await fetch(`/api/tryon/${key}`, { cache: "no-store" });
       } catch {
-        setRun({ phase: "error", kind: "offline", message: "Couldn't reach the server.", attempts: [], log: [], startedAt: Date.now(), key });
+        setRun({ phase: "error", kind: "offline", message: t.common.unreachable, attempts: [], log: [], startedAt: Date.now(), key });
         return;
       }
       if (!res.ok) {
@@ -159,10 +173,7 @@ export function StudioApp({
         setRun({
           phase: "error",
           kind: "missing",
-          message:
-            res.status === 404
-              ? "Nothing is being made at this link and nothing was saved under it. The photo may have failed, or the link is incomplete."
-              : `The server answered ${res.status}.`,
+          message: res.status === 404 ? t.result.missing : t.common.serverAnswered(res.status),
           attempts: [],
           log: [],
           startedAt: Date.now(),
@@ -172,7 +183,7 @@ export function StudioApp({
       }
       await consume(res);
     },
-    [consume],
+    [consume, t],
   );
 
   useEffect(() => {
@@ -210,7 +221,7 @@ export function StudioApp({
     try {
       res = await fetch("/api/tryon", { method: "POST", body: form, headers: passcodeHeaders() });
     } catch {
-      setRun((r) => ({ phase: "error", kind: "offline", message: "Couldn't reach the server. Check the connection and try again.", attempts: [], log: logOf(r), startedAt, key: null }));
+      setRun((r) => ({ phase: "error", kind: "offline", message: t.common.unreachable, attempts: [], log: logOf(r), startedAt, key: null }));
       return;
     }
     if (!res.ok) {
@@ -219,7 +230,7 @@ export function StudioApp({
       setRun((r) => ({
         phase: "error",
         kind: status === 400 || status === 409 ? "input" : "other",
-        message: body?.error ?? `The server answered ${status}.`,
+        message: body?.error ?? t.common.serverAnswered(status),
         attempts: [],
         log: logOf(r),
         startedAt,
@@ -235,11 +246,11 @@ export function StudioApp({
   const pickGarment = useCallback(async (file: File, note?: string) => {
     setProductError(null);
     setProductNote(note ?? null);
-    const problem = await checkImageFile(file, "product");
+    const problem = await checkImageFile(file, "product", t);
     if (problem) return setProductError(problem);
     const picked: Picked = { file, url: URL.createObjectURL(file), owned: true };
     setInputs((i) => ({ ...i, garment: picked }));
-  }, []);
+  }, [t]);
 
   async function pickSample(s: SampleGarment) {
     setLoadingSample(true);
@@ -254,9 +265,9 @@ export function StudioApp({
         photoType: s.photoType,
         person: setup.presets.includes(s.preset) ? { kind: "preset", id: s.preset } : i.person,
       }));
-      setProductNote(`Sample loaded: ${s.label}. Its category and a matching model are selected for you.`);
+      setProductNote(t.studio.sampleLoaded(t.product.samples[s.id] ?? s.label));
     } catch (err) {
-      setProductError(`Couldn't load the sample: ${(err as Error).message}`);
+      setProductError(t.studio.sampleFailed((err as Error).message));
     } finally {
       setLoadingSample(false);
     }
@@ -264,7 +275,7 @@ export function StudioApp({
 
   async function pickPersonFile(file: File) {
     setModelError(null);
-    const problem = await checkImageFile(file, "model");
+    const problem = await checkImageFile(file, "model", t);
     if (problem) return setModelError(problem);
     setInputs((i) => ({ ...i, person: { kind: "upload", picked: { file, url: URL.createObjectURL(file), owned: true } } }));
   }
@@ -298,7 +309,7 @@ export function StudioApp({
         personPreview: resultUrl(r.key, "person.jpg"),
       });
     } catch (err) {
-      setRun({ phase: "error", kind: "other", message: `Couldn't reload this photo's inputs: ${(err as Error).message}`, attempts: [], log: [], startedAt: Date.now(), key: null });
+      setRun({ phase: "error", kind: "other", message: t.result.reloadFailed((err as Error).message), attempts: [], log: [], startedAt: Date.now(), key: null });
     }
   }
 
@@ -308,7 +319,7 @@ export function StudioApp({
       setView("model");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
-      setModelError(`Couldn't reload the product photo: ${(err as Error).message}`);
+      setModelError(t.studio.reloadProductFailed((err as Error).message));
       setView("model");
     }
   }
@@ -343,9 +354,9 @@ export function StudioApp({
       headers: { "Content-Type": "application/json", ...passcodeHeaders() },
       body: JSON.stringify({ key, on }),
     }).catch(() => null);
-    if (!res) return "Couldn't reach the server.";
+    if (!res) return t.common.unreachable;
     const body = (await res.json().catch(() => null)) as { featured?: string[]; error?: string } | null;
-    if (!res.ok || !body?.featured) return body?.error ?? `The server answered ${res.status}.`;
+    if (!res.ok || !body?.featured) return body?.error ?? t.common.serverAnswered(res.status);
     setFeatured(body.featured);
     return null;
   }
@@ -374,17 +385,16 @@ export function StudioApp({
         {!setup.engine.configured && (
           <div className="mb-6">
             <Notice tone="warn">
-              <strong>Demo mode — new photos can&rsquo;t be generated on this server yet.</strong>{" "}
+              <strong>{t.studio.demoTitle}</strong>{" "}
               {setup.engine.label === "misconfigured" ? (
-                <>The configuration has a problem: {setup.engine.missing}</>
+                t.studio.configProblem(setup.engine.missing ?? "")
               ) : (
                 <>
-                  It has no Hugging Face token. Everything else works: walk through the steps and open saved photos below. To switch generation on
-                  (free, no card): create a <em>read</em> token at{" "}
+                  {t.studio.demoBody}{" "}
                   <a className="underline" href="https://huggingface.co/settings/tokens" target="_blank" rel="noreferrer">
                     huggingface.co/settings/tokens
-                  </a>
-                  , add <code className="font-mono">HF_TOKEN=hf_…</code> to <code className="font-mono">.env</code>, and reload.
+                  </a>{" "}
+                  {t.studio.demoBodyEnd}
                 </>
               )}
             </Notice>
@@ -400,7 +410,7 @@ export function StudioApp({
           reachable={reachable}
           complete={{ product: reachable.model, model: Boolean(reachable.model && inputs.person), result: run.phase === "done" }}
           onGo={go}
-          lockedReason={working ? "Your photo is still being made — the steps unlock when it finishes." : null}
+          lockedReason={working ? t.studio.locked : null}
         />
 
         <div className="mt-8">

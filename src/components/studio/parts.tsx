@@ -6,16 +6,14 @@ import { resultUrl } from "@/lib/client/check";
 import { TEST_ENGINES } from "@/lib/engines";
 import { ACCEPT_ATTR } from "@/lib/limits";
 import { radioKeyDown, rovingTabIndex } from "@/lib/client/roving";
+import { useI18n } from "@/lib/i18n/client";
+import type { Messages } from "@/lib/i18n/messages";
 import type { ResultMeta } from "@/lib/tryon/types";
 import type { View } from "./types";
 
 /* ── Stepper ─────────────────────────────────────────────────────────── */
 
-const STEPS: { id: View; label: string }[] = [
-  { id: "product", label: "Product" },
-  { id: "model", label: "Model" },
-  { id: "result", label: "Photo" },
-];
+const STEPS: View[] = ["product", "model", "result"];
 
 export function Stepper({
   view,
@@ -31,20 +29,21 @@ export function Stepper({
   onGo: (v: View) => void;
   lockedReason: string | null;
 }) {
+  const { t } = useI18n();
   return (
-    <ol className="flex items-center gap-2" aria-label="Steps">
-      {STEPS.map((s, i) => {
-        const active = s.id === view;
-        const done = !active && complete[s.id];
-        const enabled = reachable[s.id] && !active && !lockedReason;
+    <ol className="flex items-center gap-2" aria-label={t.studio.steps.label}>
+      {STEPS.map((id, i) => {
+        const active = id === view;
+        const done = !active && complete[id];
+        const enabled = reachable[id] && !active && !lockedReason;
         return (
-          <li key={s.id} className="flex flex-1 items-center gap-2">
+          <li key={id} className="flex flex-1 items-center gap-2">
             <button
               type="button"
               disabled={!enabled}
-              onClick={() => onGo(s.id)}
+              onClick={() => onGo(id)}
               aria-current={active ? "step" : undefined}
-              title={lockedReason ?? (reachable[s.id] ? undefined : "Finish the earlier step first")}
+              title={lockedReason ?? (reachable[id] ? undefined : t.studio.steps.finishEarlier)}
               className={`flex min-h-11 min-w-0 items-center gap-2 rounded-full py-1 pr-3 pl-1.5 text-sm transition-colors ${
                 active ? "bg-ink text-paper" : enabled ? "text-ink hover:bg-paper-2" : "text-ink-3"
               } disabled:cursor-default`}
@@ -56,7 +55,7 @@ export function Stepper({
               >
                 {done ? "✓" : i + 1}
               </span>
-              <span className="truncate font-medium">{s.label}</span>
+              <span className="truncate font-medium">{t.studio.steps[id]}</span>
             </button>
             {i < STEPS.length - 1 && <span className="h-px flex-1 bg-line" aria-hidden />}
           </li>
@@ -88,12 +87,13 @@ export function Dropzone({
   pasteTarget?: boolean;
   compact?: boolean;
 }) {
+  const { t } = useI18n();
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
 
   const take = (files: FileList | null | undefined) => {
     if (!files || files.length === 0) return;
-    onFile(files[0], files.length > 1 ? `You added ${files.length} files — using the first one.` : undefined);
+    onFile(files[0], files.length > 1 ? t.dropzone.multiple(files.length) : undefined);
   };
 
   useEffect(() => {
@@ -134,15 +134,15 @@ export function Dropzone({
           e.target.value = ""; // choosing the same file again should still fire
         }}
       />
-      <button type="button" onClick={() => input.current?.click()} className="absolute inset-0 size-full" aria-label={previewUrl ? `Replace: ${title}` : title} />
+      <button type="button" onClick={() => input.current?.click()} className="absolute inset-0 size-full" aria-label={previewUrl ? t.dropzone.replaceAria(title) : title} />
       {previewUrl ? (
         <>
           <img src={previewUrl} alt="" className="pointer-events-none size-full object-contain p-3" />
           <div className="absolute right-2 bottom-2 flex gap-1.5">
-            <span className="pointer-events-none rounded-full bg-ink/80 px-3 py-1 text-xs text-paper">Replace</span>
+            <span className="pointer-events-none rounded-full bg-ink/80 px-3 py-1 text-xs text-paper">{t.dropzone.replace}</span>
             {onClear && (
-              <button type="button" onClick={onClear} className="relative rounded-full bg-paper px-3 py-1 text-xs text-ink shadow ring-1 ring-line">
-                Remove
+              <button type="button" onClick={onClear} className="relative min-h-11 rounded-full bg-paper px-4 py-1 text-xs text-ink shadow ring-1 ring-line">
+                {t.dropzone.remove}
               </button>
             )}
           </div>
@@ -244,6 +244,7 @@ export function Notice({ tone, children }: { tone: "warn" | "error" | "info"; ch
 /* ── Lightbox ────────────────────────────────────────────────────────── */
 
 export function Lightbox({ result, onClose }: { result: ResultMeta; onClose: () => void }) {
+  const { t } = useI18n();
   const close = useRef<HTMLButtonElement>(null);
   const [compare, setCompare] = useState(false);
 
@@ -277,20 +278,20 @@ export function Lightbox({ result, onClose }: { result: ResultMeta; onClose: () 
   }, [onClose]);
 
   return (
-    <div ref={dialog} role="dialog" aria-modal="true" aria-label="Full-screen photo" className="fixed inset-0 z-50 flex flex-col bg-ink/95" onClick={onClose}>
+    <div ref={dialog} role="dialog" aria-modal="true" aria-label={t.lightbox.label} className="fixed inset-0 z-50 flex flex-col bg-ink/95" onClick={onClose}>
       <div className="flex items-center justify-between gap-3 p-3 text-paper" onClick={(e) => e.stopPropagation()}>
-        <button type="button" onClick={() => setCompare((c) => !c)} className="rounded-full border border-paper/30 px-4 py-1.5 text-sm hover:bg-paper/10">
-          {compare ? "Show result only" : "Compare before / after"}
+        <button type="button" onClick={() => setCompare((c) => !c)} className="min-h-11 rounded-full border border-paper/30 px-4 py-1.5 text-sm hover:bg-paper/10">
+          {compare ? t.lightbox.resultOnly : t.lightbox.compare}
         </button>
-        <button ref={close} type="button" onClick={onClose} className="rounded-full bg-paper px-4 py-1.5 text-sm font-medium text-ink">
-          Close · Esc
+        <button ref={close} type="button" onClick={onClose} className="min-h-11 rounded-full bg-paper px-4 py-1.5 text-sm font-medium text-ink">
+          {t.lightbox.close}
         </button>
       </div>
       <div className="grid min-h-0 flex-1 place-items-center p-3 pt-0" onClick={(e) => e.stopPropagation()}>
         {compare ? (
           <BeforeAfter before={resultUrl(result.key, "person.jpg")} after={resultUrl(result.key, "result.png")} className="aspect-[2/3] h-full max-h-full max-w-full rounded-xl" />
         ) : (
-          <img src={resultUrl(result.key, "result.png")} alt="Try-on result" className="max-h-full max-w-full rounded-xl object-contain" />
+          <img src={resultUrl(result.key, "result.png")} alt={t.lightbox.alt} className="max-h-full max-w-full rounded-xl object-contain" />
         )}
       </div>
     </div>
@@ -299,12 +300,12 @@ export function Lightbox({ result, onClose }: { result: ResultMeta; onClose: () 
 
 /* ── Recent photos ───────────────────────────────────────────────────── */
 
-const ago = (iso: string) => {
+const ago = (iso: string, t: Messages, locale: string) => {
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins} min ago`;
+  if (mins < 1) return t.recent.justNow;
+  if (mins < 60) return t.recent.minutes(mins);
   const hours = Math.round(mins / 60);
-  return hours < 24 ? `${hours} h ago` : new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  return hours < 24 ? t.recent.hours(hours) : new Date(iso).toLocaleDateString(locale === "hi" ? "hi-IN" : "en-IN", { day: "numeric", month: "short" });
 };
 
 export function RecentGrid({
@@ -321,37 +322,34 @@ export function RecentGrid({
   /** While a photo is being made, opening another would hide its progress. */
   disabled?: boolean;
 }) {
+  const { t, locale } = useI18n();
   return (
     <section className="mt-16">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-2xl font-extrabold tracking-[-0.04em]">Recent photos</h2>
-        <p className="text-xs text-ink-3">
-          {disabled ? "Available again when the current photo finishes" : "Saved on this computer · opening one uses no GPU"}
-        </p>
+        <h2 className="text-2xl font-extrabold tracking-[-0.04em]">{t.recent.title}</h2>
+        <p className="text-xs text-ink-3">{disabled ? t.recent.busy : t.recent.note}</p>
       </div>
       {results.length === 0 ? (
-        <p className="mt-4 rounded-2xl border border-dashed border-line-strong/40 p-6 text-center text-sm text-ink-3">
-          Nothing generated yet. Photos you create appear here, and stay here after you close the page.
-        </p>
+        <p className="mt-4 rounded-2xl border border-dashed border-line-strong/40 p-6 text-center text-sm text-ink-3">{t.recent.empty}</p>
       ) : (
         <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
           {results.map((r) => (
-            <button key={r.key} type="button" disabled={disabled} onClick={() => onOpen(r)} className="group text-left disabled:opacity-50" aria-label={`Open photo from ${ago(r.createdAt)}`}>
+            <button key={r.key} type="button" disabled={disabled} onClick={() => onOpen(r)} className="group text-left disabled:opacity-50" aria-label={t.recent.open(ago(r.createdAt, t, locale))}>
               <div
                 className={`relative aspect-[2/3] overflow-hidden rounded-xl border bg-paper-2 ${r.key === activeKey ? "border-ink ring-2 ring-ink" : "border-line"}`}
               >
                 <img src={resultUrl(r.key, "result.png")} alt="" loading="lazy" className="size-full object-cover transition-transform group-hover:scale-[1.03]" />
                 <img src={resultUrl(r.key, "garment.jpg")} alt="" loading="lazy" className="absolute right-1.5 bottom-1.5 size-10 rounded-lg border border-line bg-white object-contain p-0.5" />
                 {TEST_ENGINES.has(r.engine) && (
-                  <span className="absolute inset-x-0 top-0 bg-marigold py-0.5 text-center font-mono text-2xs text-ink uppercase">test engine</span>
+                  <span className="absolute inset-x-0 top-0 bg-marigold py-0.5 text-center font-mono text-2xs text-ink uppercase">{t.recent.testEngine}</span>
                 )}
                 {featured.includes(r.key) && (
-                  <span className="absolute top-1.5 left-1.5 rounded-full bg-accent-strong px-1.5 py-0.5 text-2xs text-paper" title="Featured on the home page">
+                  <span className="absolute top-1.5 left-1.5 rounded-full bg-accent-strong px-1.5 py-0.5 text-2xs text-paper" title={t.recent.featured}>
                     ★
                   </span>
                 )}
               </div>
-              <p className="mt-1 font-mono text-2xs text-ink-3">{ago(r.createdAt)}</p>
+              <p className="mt-1 font-mono text-2xs text-ink-3">{ago(r.createdAt, t, locale)}</p>
             </button>
           ))}
         </div>

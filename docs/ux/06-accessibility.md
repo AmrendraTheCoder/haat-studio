@@ -77,4 +77,6 @@ with VoiceOver on a device).
 - **The post canvas** is an image: it has a label, and every word on it is also
   in the form fields, but the composed post isn't described as a whole.
 - **Generated-photo alt text** is generic ("After"); it could name the garment and model.
-- **Language:** the interface is English only (`lang="en"`); Hindi content would need `lang="hi"`.
+- **Language:** English or Hindi; `<html lang>` follows the seller's choice so screen readers switch voice.
+  The `/design` page stays English and marks its sections `lang="en"`. The toggle's visible word
+  ("हिन्दी" / "English") is its accessible name (2.5.3), marked with the language it names.

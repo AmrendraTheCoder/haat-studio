@@ -82,7 +82,7 @@ For each screen: its one job, what's on it, and why.
 | Three templates that never cover the garment | Panel, offer badge in a corner, frame. Text on the product hides the product. |
 | Post / Square / Story | The three shapes Instagram actually uses. |
 | Festive palette | Diwali is the biggest selling moment of the year. |
-| Caption: tone and language (English / Hinglish) | Write the way her buyers write. |
+| Caption: tone and language (English / Hinglish / हिन्दी) | Write the way her buyers write. Hashtags stay in English letters — that's how shoppers search. |
 | "Written by gemini… Read it before posting" | AI help, clearly labelled, never posted unseen. |
 
 ## Research `/research` and report `/research/<id>`

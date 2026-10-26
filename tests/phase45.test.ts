@@ -6,6 +6,9 @@ import { pricesMentioned, templateCaption, writeCaption } from "@/lib/posts/capt
 import { inr, postSchema, type CaptionRequest } from "@/lib/posts/spec";
 import { createReport, economics, normalise, templateFindings, upcomingMoments } from "@/lib/research/build";
 import { answersSchema, findingsSchema, type Answers } from "@/lib/research/schema";
+import { researchPrompt } from "@/lib/research/build";
+import { captionPrompt } from "@/lib/posts/caption";
+import { messages } from "@/lib/i18n/messages";
 
 const fixed = (id: string, reply: string | Error, configured = true): Candidate & { calls: number } => {
   const c = {
@@ -68,14 +71,15 @@ describe("research (phase 5)", () => {
   it("does the profit maths itself and warns on thin margins", () => {
     const e = economics(answers);
     expect(e.perPiece).toEqual({ atMin: 99, atMax: 899, marginMinPct: 20, marginMaxPct: 69 });
-    expect(e.warnings[0]).toMatch(/only 20%/);
-    expect(economics({ ...answers, costPerPiece: 600 }).warnings[0]).toMatch(/lose money/);
+    expect(e.warnings).toEqual([{ code: "thin", pct: 20 }]);
+    expect(economics({ ...answers, costPerPiece: 600 }).warnings).toEqual([{ code: "loss" }]);
+    expect(economics({ ...answers, costPerPiece: undefined }).warnings).toEqual([{ code: "noCost" }]);
     expect(economics({ ...answers, costPerPiece: undefined }).perPiece).toBeNull();
   });
 
   it("lists only upcoming moments inside the window, with days away", () => {
     const m = upcomingMoments(new Date("2026-10-26T10:00:00Z"));
-    expect(m[0]).toMatchObject({ name: "Diwali", daysAway: 13 });
+    expect(m[0]).toMatchObject({ name: "Diwali", nameHi: "दिवाली", daysAway: 13 });
     expect(m.every((x) => x.daysAway >= 0 && x.daysAway <= 75)).toBe(true);
     expect(m.find((x) => x.name === "Valentine's Day")).toBeUndefined();
   });
@@ -108,6 +112,20 @@ describe("research (phase 5)", () => {
     expect(none.via).toBe("template");
     expect(none.findings.summary).toMatch(/not market research/);
     expect(none.id).toMatch(/^[0-9a-f]{12}$/);
+  });
+
+  it("writes the report in Hindi when the seller uses the app in Hindi", async () => {
+    expect(answers.language).toBe("en");
+    const hi = { ...answers, language: "hi" as const };
+    expect(researchPrompt(hi, [])).toMatch(/Hindi \(Devanagari script\)/);
+    expect(researchPrompt(answers, [])).not.toMatch(/Devanagari/);
+
+    const plan = templateFindings(hi);
+    expect(findingsSchema.safeParse(plan).success).toBe(true);
+    expect(plan.summary).toMatch(/मार्केट रिसर्च नहीं/);
+    // Hashtags stay searchable in Roman letters.
+    expect([...plan.hashtags.broad, ...plan.hashtags.local].every((h) => /^#[a-z0-9]+$/.test(h))).toBe(true);
+    expect((await createReport(hi, [])).findings.summary).toMatch(/[\u0900-\u097F]/);
   });
 });
 
@@ -155,6 +173,41 @@ describe("posts (phase 4)", () => {
     const hinglish = templateCaption({ ...request(), language: "hinglish", tone: "friendly" }, null);
     expect(hinglish.caption).toMatch(/Naya Cotton kurti aa gaya/);
     expect(new Set(out.hashtags.map((h) => h.toLowerCase())).size).toBe(out.hashtags.length);
+  });
+
+  it("writes captions in Hindi: prompt, template, and the price check", () => {
+    const hi = { ...request(), language: "hindi" as const, tone: "friendly" as const };
+    expect(captionPrompt(hi, null)).toMatch(/Devanagari/);
+    const out = templateCaption(hi, null);
+    expect(out.caption).toContain("नया Cotton kurti आ गया");
+    expect(out.caption).toContain("MRP ₹1,599 — 19% छूट");
+    expect(out.caption).toContain("ऑर्डर के लिए DM करें");
+    // A Devanagari product name keeps its vowel signs in the hashtag.
+    expect(templateCaption({ ...hi, post: { ...hi.post, product: "सूती कुर्ती" } }, null).hashtags).toContain("#सूतीकुर्ती");
+    expect(pricesMentioned("सिर्फ़ रु 999, पहले रु. १,५९९")).toEqual([999, 1599]);
+  });
+});
+
+/** Names that are the same in Hindi: brands and places. */
+const SAME_IN_BOTH = new Set([".research.channelNames.marketplace"]);
+
+describe("Hindi dictionary", () => {
+  // The type system makes both languages have the same keys; this catches empty or untranslated strings.
+  const leaves = (o: unknown, path = ""): [string, string][] =>
+    typeof o === "string"
+      ? [[path, o]]
+      : o && typeof o === "object"
+        ? Object.entries(o).flatMap(([k, v]) => leaves(v, `${path}.${k}`))
+        : [];
+
+  it("has a non-empty Hindi string for every English one", () => {
+    const hi = new Map(leaves(messages.hi));
+    for (const [path, en] of leaves(messages.en)) {
+      if (path === ".design.englishOnly") continue; // shown only in Hindi
+      expect(hi.get(path), path).toBeTruthy();
+      // Prose (three or more lowercase words) identical in both is almost always a missed translation.
+      if (/(?:\b[a-z]{2,}\b.*){3}/.test(en) && !SAME_IN_BOTH.has(path)) expect.soft(hi.get(path), `${path} looks untranslated`).not.toBe(en);
+    }
   });
 });
 

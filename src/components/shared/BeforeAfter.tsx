@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useI18n } from "@/lib/i18n/client";
 
 /**
  * Drag to compare the model photo (before) with the try-on result (after).
@@ -12,8 +13,8 @@ export function BeforeAfter({
   before,
   after,
   className = "",
-  beforeLabel = "Before",
-  afterLabel = "After",
+  beforeLabel,
+  afterLabel,
 }: {
   before: string;
   after: string;
@@ -21,6 +22,9 @@ export function BeforeAfter({
   beforeLabel?: string;
   afterLabel?: string;
 }) {
+  const { t } = useI18n();
+  beforeLabel ??= t.compare.before;
+  afterLabel ??= t.compare.after;
   const box = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState(50);
   const [dragging, setDragging] = useState(false);
@@ -73,7 +77,7 @@ export function BeforeAfter({
       <div
         role="slider"
         tabIndex={0}
-        aria-label="Compare before and after"
+        aria-label={t.compare.slider}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(pos)}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter, SiteNav } from "@/components/site/site";
+import { getMessages } from "@/lib/i18n/server";
 
 export const metadata: Metadata = {
   title: "How it's designed",
@@ -63,12 +64,18 @@ const SWATCHES = [
   ["danger", "bg-danger", "Errors · 5.2:1"],
 ];
 
-export default function DesignPage() {
+export default async function DesignPage() {
+  const { locale, t } = await getMessages();
   return (
     <main className="overflow-x-clip">
       <SiteNav />
 
-      <section className="mx-auto max-w-6xl px-4 pt-14 pb-10 sm:px-6">
+      <section lang="en" className="mx-auto max-w-6xl px-4 pt-14 pb-10 sm:px-6">
+        {locale === "hi" && (
+          <p lang="hi" className="mb-6 rounded-xl border border-line bg-paper-glow px-4 py-3 text-sm">
+            {t.design.englishOnly}
+          </p>
+        )}
         <p className="kicker">How it&rsquo;s designed</p>
         <h1 className="mt-4 font-extrabold leading-[0.9] tracking-[-0.06em]" style={{ fontSize: "var(--text-giant)" }}>
           designed for a seller
@@ -85,7 +92,7 @@ export default function DesignPage() {
         </p>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="who">
+      <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="who">
         <h2 id="who" className="text-3xl font-extrabold tracking-tight">
           Who it&rsquo;s for
         </h2>
@@ -112,7 +119,7 @@ export default function DesignPage() {
         </p>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="journey">
+      <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="journey">
         <h2 id="journey" className="text-3xl font-extrabold tracking-tight">
           Priya&rsquo;s Monday, start to posted
         </h2>
@@ -132,7 +139,7 @@ export default function DesignPage() {
         </p>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="principles">
+      <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="principles">
         <h2 id="principles" className="text-3xl font-extrabold tracking-tight">
           Eight rules every screen follows
         </h2>
@@ -147,7 +154,7 @@ export default function DesignPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="changes">
+      <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="changes">
         <h2 id="changes" className="text-3xl font-extrabold tracking-tight">
           What testing changed
         </h2>
@@ -179,7 +186,7 @@ export default function DesignPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="access">
+      <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="access">
         <h2 id="access" className="text-3xl font-extrabold tracking-tight">
           Accessible by default
         </h2>
@@ -195,7 +202,7 @@ export default function DesignPage() {
         </dl>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="system">
+      <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="system">
         <h2 id="system" className="text-3xl font-extrabold tracking-tight">
           The look
         </h2>
@@ -237,7 +244,7 @@ export default function DesignPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <div className="rounded-3xl border border-line bg-paper-3 px-6 py-10">
           <h2 className="text-2xl font-extrabold tracking-tight">What we still don&rsquo;t know</h2>
           <ul className="mt-3 list-disc space-y-1.5 pl-5 text-ink-2">

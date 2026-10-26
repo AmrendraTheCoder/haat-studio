@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useI18n } from "@/lib/i18n/client";
 
-export function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
+export function CopyButton({ text, label }: { text: string; label?: string }) {
+  const { t } = useI18n();
   const [done, setDone] = useState(false);
   return (
     <button
@@ -15,7 +17,7 @@ export function CopyButton({ text, label = "Copy" }: { text: string; label?: str
         setTimeout(() => setDone(false), 1500);
       }}
     >
-      {done ? "Copied ✓" : label}
+      {done ? t.common.copied : (label ?? t.common.copy)}
     </button>
   );
 }
@@ -23,6 +25,7 @@ export function CopyButton({ text, label = "Copy" }: { text: string; label?: str
 /** Makes this report the one the post maker grounds captions in, then opens the studio. */
 export function UseForPosts({ id }: { id: string }) {
   const router = useRouter();
+  const { t } = useI18n();
   return (
     <button
       type="button"
@@ -36,15 +39,16 @@ export function UseForPosts({ id }: { id: string }) {
         router.push("/studio");
       }}
     >
-      Use this for my posts →
+      {t.report.useForPosts}
     </button>
   );
 }
 
 export function PrintButton() {
+  const { t } = useI18n();
   return (
     <button type="button" className="btn-ghost print:hidden" onClick={() => window.print()}>
-      Print / save as PDF
+      {t.report.print}
     </button>
   );
 }

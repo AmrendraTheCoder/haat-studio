@@ -2,16 +2,13 @@
 
 import { useState } from "react";
 import { radioKeyDown, rovingTabIndex } from "@/lib/client/roving";
+import { useI18n } from "@/lib/i18n/client";
 import { PRESETS, SAMPLE_GARMENTS, type SampleGarment } from "@/lib/presets";
 import type { Setup } from "@/lib/site";
 import { ActionBar, Choices, Dropzone, ICONS, Notice } from "./parts";
 import type { Category, Inputs, PersonChoice, PhotoType, Quality } from "./types";
 
-export const CATEGORY_TEXT: Record<Category, { title: string; hint: string }> = {
-  tops: { title: "Top", hint: "shirts, tees, tops, blouses" },
-  bottoms: { title: "Bottom", hint: "jeans, trousers, skirts" },
-  "one-pieces": { title: "Full outfit", hint: "dresses, jumpsuits" },
-};
+const CATEGORIES: Category[] = ["tops", "bottoms", "one-pieces"];
 
 /* ── Step 1: the product ─────────────────────────────────────────────── */
 
@@ -40,13 +37,15 @@ export function ProductStep({
   onPhotoType: (p: PhotoType) => void;
   onContinue: () => void;
 }) {
+  const { t } = useI18n();
+  const p = t.product;
   const samples = SAMPLE_GARMENTS.filter((s) => setup.samples.includes(s.id));
-  const reason = !inputs.garment ? "Add a photo of the garment, or pick a sample." : !inputs.category ? "Choose what kind of garment it is." : null;
+  const reason = !inputs.garment ? p.reasonNoPhoto : !inputs.category ? p.reasonNoCategory : null;
 
   return (
     <div className="rise">
-      <h1 className="text-3xl font-extrabold tracking-[-0.04em] sm:text-4xl">What are you selling?</h1>
-      <p className="mt-2 text-ink-2">One clear photo of the garment on its own. You can paste a copied image too.</p>
+      <h1 className="text-3xl font-extrabold tracking-[-0.04em] sm:text-4xl">{p.h1}</h1>
+      <p className="mt-2 text-ink-2">{p.lead}</p>
 
       <div className="mt-6 grid gap-6 sm:grid-cols-[1fr_1fr]">
         <div className="space-y-3">
@@ -55,27 +54,30 @@ export function ProductStep({
             previewUrl={inputs.garment?.url ?? null}
             onFile={onFile}
             onClear={onClear}
-            title={busyLoading ? "Loading…" : "Add your product photo"}
-            hint="Tap to choose, or drop it here · JPEG, PNG or WebP · up to 15 MB"
+            title={busyLoading ? t.common.loading : p.dropTitle}
+            hint={p.dropHint}
             pasteTarget
           />
           {error && <Notice tone="error">{error}</Notice>}
           {note && !error && <Notice tone="info">{note}</Notice>}
           {samples.length > 0 && (
             <div>
-              <p className="kicker !text-2xs">No photo handy? Try a sample</p>
+              <p className="kicker !text-2xs">{p.trySample}</p>
               <div className="mt-2 grid grid-cols-3 gap-2">
-                {samples.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => onSample(s)}
-                    title={s.label}
-                    className="overflow-hidden rounded-xl border border-line bg-white transition-colors hover:border-ink"
-                  >
-                    <img src={`/samples/${s.file}`} alt={s.label} className="aspect-square w-full object-contain p-1.5" />
-                  </button>
-                ))}
+                {samples.map((s) => {
+                  const label = p.samples[s.id] ?? s.label;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => onSample(s)}
+                      title={label}
+                      className="overflow-hidden rounded-xl border border-line bg-white transition-colors hover:border-ink"
+                    >
+                      <img src={`/samples/${s.file}`} alt={label} className="aspect-square w-full object-contain p-1.5" />
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -84,34 +86,34 @@ export function ProductStep({
         <div className="space-y-6">
           <fieldset>
             <legend className="mb-2 text-sm font-semibold">
-              What kind of garment? <span className="font-normal text-ink-3">(required)</span>
+              {p.kindLegend} <span className="font-normal text-ink-3">{t.common.required}</span>
             </legend>
             <Choices
-              label="Garment category"
+              label={p.kindLabel}
               value={inputs.category}
               onChange={onCategory}
-              options={(Object.keys(CATEGORY_TEXT) as Category[]).map((c) => ({ value: c, ...CATEGORY_TEXT[c], icon: ICONS[c] }))}
+              options={CATEGORIES.map((c) => ({ value: c, ...p.categories[c], icon: ICONS[c] }))}
             />
           </fieldset>
           <fieldset>
-            <legend className="mb-2 text-sm font-semibold">How is it photographed?</legend>
+            <legend className="mb-2 text-sm font-semibold">{p.photoLegend}</legend>
             <Choices
-              label="Photo type"
+              label={p.photoLabel}
               columns={2}
               value={inputs.photoType}
               onChange={onPhotoType}
               options={[
-                { value: "flat-lay", title: "Flat or on a hanger", hint: "no one wearing it", icon: ICONS["flat-lay"] },
-                { value: "model", title: "Worn by someone", hint: "the photo shows a person", icon: ICONS.model },
+                { value: "flat-lay", ...p.photoTypes["flat-lay"], icon: ICONS["flat-lay"] },
+                { value: "model", ...p.photoTypes.model, icon: ICONS.model },
               ]}
             />
           </fieldset>
           <div className="rounded-xl bg-paper-2 p-4 text-xs leading-relaxed text-ink-2">
-            <p className="font-semibold text-ink">For the most faithful result</p>
+            <p className="font-semibold text-ink">{p.tipsTitle}</p>
             <ul className="mt-1.5 list-disc space-y-1 pl-4">
-              <li>Whole garment in frame, front side up, nothing cut off.</li>
-              <li>Plain background, even light, few folds.</li>
-              <li>One garment per photo.</li>
+              {p.tips.map((tip) => (
+                <li key={tip}>{tip}</li>
+              ))}
             </ul>
           </div>
         </div>
@@ -120,7 +122,7 @@ export function ProductStep({
       <ActionBar reason={reason}>
         <span />
         <button type="button" className="btn-primary !px-6 !py-3" disabled={reason !== null} onClick={onContinue}>
-          Continue <span aria-hidden>→</span>
+          {t.common.continue} <span aria-hidden>→</span>
         </button>
       </ActionBar>
     </div>
@@ -129,11 +131,7 @@ export function ProductStep({
 
 /* ── Step 2: the model ───────────────────────────────────────────────── */
 
-const QUALITY: { value: Quality; title: string; hint: string }[] = [
-  { value: "fast", title: "Fast", hint: "20 steps · least GPU" },
-  { value: "balanced", title: "Balanced", hint: "30 steps · recommended" },
-  { value: "best", title: "Best", hint: "50 steps · ~1.7× the GPU" },
-];
+const QUALITIES: Quality[] = ["fast", "balanced", "best"];
 
 export function ModelStep({
   inputs,
@@ -156,6 +154,8 @@ export function ModelStep({
   onBack: () => void;
   onCreate: () => void;
 }) {
+  const { t } = useI18n();
+  const m = t.model;
   const [showQuality, setShowQuality] = useState(false);
   const installed = PRESETS.filter((p) => setup.presets.includes(p.id));
   const category = inputs.category;
@@ -166,32 +166,25 @@ export function ModelStep({
     mismatch && category
       ? installed.filter((p) => p.suits.includes(category)).sort((a, b) => a.suits.indexOf(category) - b.suits.indexOf(category))[0]
       : undefined;
-  const reason = !inputs.person
-    ? "Choose a model, or upload a photo of one."
-    : !setup.engine.configured
-      ? "Generation is switched off on this server (no Hugging Face token) — see the note at the top."
-      : null;
-  // Say what pressing Create costs before it's pressed: time, and free quota.
-  const expectation = "Takes about 15–30 seconds and uses a little of today's free GPU time.";
+  const presetText = (id: string, fallback: { label: string; note: string }) => m.presets[id] ?? fallback;
+  const reason = !inputs.person ? m.reasonNoPerson : !setup.engine.configured ? m.reasonOff : null;
 
   return (
     <div className="rise">
-      <h1 className="text-3xl font-extrabold tracking-[-0.04em] sm:text-4xl">Who should wear it?</h1>
-      <p className="mt-2 text-ink-2">Pick a model, or upload a photo of a real person standing front-on.</p>
+      <h1 className="text-3xl font-extrabold tracking-[-0.04em] sm:text-4xl">{m.h1}</h1>
+      <p className="mt-2 text-ink-2">{m.lead}</p>
 
       {installed.length < PRESETS.length && (
         <div className="mt-4">
-          <Notice tone="warn">
-            {installed.length === 0 ? "No model photos are installed" : "Some model photos are missing"} on this server — run{" "}
-            <code className="font-mono">npm run setup</code>. You can still upload your own.
-          </Notice>
+          <Notice tone="warn">{installed.length === 0 ? m.noneInstalled : m.someMissing}</Notice>
         </div>
       )}
 
-      <div role="radiogroup" aria-label="Model" className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div role="radiogroup" aria-label={m.groupLabel} className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {PRESETS.map((p, i) => {
           const ready = setup.presets.includes(p.id);
           const active = inputs.person?.kind === "preset" && inputs.person.id === p.id;
+          const text = presetText(p.id, p);
           return (
             <button
               key={p.id}
@@ -210,11 +203,11 @@ export function ModelStep({
                 {ready && <img src={`/presets/${p.file}`} alt="" className="size-full object-cover" />}
               </div>
               <div className={`p-2.5 ${active ? "bg-ink text-paper" : "bg-paper-glow"}`}>
-                <p className="text-sm font-semibold">{p.label}</p>
-                <p className={`mt-0.5 text-2xs leading-snug ${active ? "text-paper/70" : "text-ink-3"}`}>{ready ? p.note : "Not installed"}</p>
+                <p className="text-sm font-semibold">{text.label}</p>
+                <p className={`mt-0.5 text-2xs leading-snug ${active ? "text-paper/70" : "text-ink-3"}`}>{ready ? text.note : m.notInstalled}</p>
                 {ready && category && (
                   <p className={`mt-1.5 font-mono text-2xs ${p.suits.includes(category) ? (active ? "text-paper" : "text-good") : "text-danger"}`}>
-                    {p.suits.includes(category) ? `✓ suits ${CATEGORY_TEXT[category].title.toLowerCase()}s` : `✗ not for ${CATEGORY_TEXT[category].title.toLowerCase()}s`}
+                    {p.suits.includes(category) ? m.suits(t.product.categoryPlural[category]) : m.notFor(t.product.categoryPlural[category])}
                   </p>
                 )}
               </div>
@@ -228,14 +221,12 @@ export function ModelStep({
             previewUrl={inputs.person?.kind === "upload" ? inputs.person.picked.url : null}
             onFile={(f) => onPersonFile(f)}
             onClear={onClearPerson}
-            title="Your own model"
-            hint="One person, front-on, full body or waist-up"
+            title={m.ownTitle}
+            hint={m.ownHint}
           />
           <div className={`p-2.5 ${inputs.person?.kind === "upload" ? "bg-ink text-paper" : "bg-paper-glow"}`}>
-            <p className="text-sm font-semibold">Upload a photo</p>
-            <p className={`mt-0.5 text-2xs leading-snug ${inputs.person?.kind === "upload" ? "text-paper/70" : "text-ink-3"}`}>
-              Arms away from the body, plain background.
-            </p>
+            <p className="text-sm font-semibold">{m.uploadTitle}</p>
+            <p className={`mt-0.5 text-2xs leading-snug ${inputs.person?.kind === "upload" ? "text-paper/70" : "text-ink-3"}`}>{m.uploadHint}</p>
           </div>
         </div>
       </div>
@@ -247,13 +238,11 @@ export function ModelStep({
       {mismatch && category && (
         <div className="mt-3">
           <Notice tone="warn">
-            <strong>{mismatch.label} isn&rsquo;t a good match for a {CATEGORY_TEXT[category].title.toLowerCase()}.</strong>{" "}
-            {mismatch.wearing === "one-piece" && category === "bottoms"
-              ? "This model is wearing a dress, so there is no separate bottom to replace. In our tests the garment blended into the dress instead."
-              : "Results with this pose may not show the garment properly."}{" "}
+            <strong>{m.mismatch(presetText(mismatch.id, mismatch).label, t.product.categoryOne[category])}</strong>{" "}
+            {mismatch.wearing === "one-piece" && category === "bottoms" ? m.mismatchDress : m.mismatchOther}{" "}
             {better && (
-              <button type="button" className="font-semibold underline" onClick={() => onPerson({ kind: "preset", id: better.id })}>
-                Use {better.label} instead
+              <button type="button" className="min-h-11 font-semibold underline" onClick={() => onPerson({ kind: "preset", id: better.id })}>
+                {m.useInstead(presetText(better.id, better).label)}
               </button>
             )}
           </Notice>
@@ -261,7 +250,7 @@ export function ModelStep({
       )}
       {inputs.person?.kind === "upload" && category === "bottoms" && (
         <div className="mt-3">
-          <Notice tone="info">For a bottom, the person should be wearing a separate top and bottom — not a dress or a long kurta.</Notice>
+          <Notice tone="info">{m.bottomTip}</Notice>
         </div>
       )}
 
@@ -270,29 +259,28 @@ export function ModelStep({
           type="button"
           onClick={() => setShowQuality((s) => !s)}
           aria-expanded={showQuality}
-          className="flex w-full items-center justify-between px-4 py-3 text-sm"
+          className="flex min-h-11 w-full items-center justify-between px-4 py-3 text-sm"
         >
           <span>
-            <span className="font-semibold">Quality:</span> {QUALITY.find((q) => q.value === inputs.quality)?.title}
+            <span className="font-semibold">{m.quality}</span> {m.qualities[inputs.quality].title}
           </span>
-          <span className="text-ink-3">{showQuality ? "Hide" : "Change"}</span>
+          <span className="text-ink-3">{showQuality ? m.hide : m.change}</span>
         </button>
         {showQuality && (
           <div className="border-t border-line p-4">
-            <Choices label="Quality" value={inputs.quality} onChange={onQuality} options={QUALITY} />
-            <p className="mt-3 text-xs text-ink-3">
-              More steps can sharpen detail but use more of the free daily GPU time. Balanced is the default.
-            </p>
+            <Choices label={m.qualityLabel} value={inputs.quality} onChange={onQuality} options={QUALITIES.map((q) => ({ value: q, ...m.qualities[q] }))} />
+            <p className="mt-3 text-xs text-ink-3">{m.qualityNote}</p>
           </div>
         )}
       </div>
 
-      <ActionBar reason={reason ?? expectation}>
+      {/* Say what pressing Create costs before it's pressed: time, and free quota. */}
+      <ActionBar reason={reason ?? m.expectation}>
         <button type="button" className="btn-ghost" onClick={onBack}>
-          <span aria-hidden>←</span> Back
+          <span aria-hidden>←</span> {t.common.back}
         </button>
         <button type="button" className="btn-primary !px-6 !py-3" disabled={reason !== null} onClick={onCreate}>
-          Create photo <span aria-hidden>→</span>
+          {m.create} <span aria-hidden>→</span>
         </button>
       </ActionBar>
     </div>

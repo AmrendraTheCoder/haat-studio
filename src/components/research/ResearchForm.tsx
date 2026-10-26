@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState } from "react";
 import { PasscodeField } from "@/components/shared/Passcode";
 import { passcodeHeaders } from "@/lib/client/passcode";
+import { useI18n } from "@/lib/i18n/client";
 import { AGES, CATEGORIES, CHANNELS, GOALS, answersSchema } from "@/lib/research/schema";
 import type { Setup } from "@/lib/site";
 
@@ -31,6 +32,8 @@ const digits = (v: string) => v.replace(/[^\d]/g, "");
 
 export function ResearchForm({ setup }: { setup: Setup }) {
   const router = useRouter();
+  const { t, locale } = useI18n();
+  const Q = t.research;
   const [form, setForm] = useState<Form>(EMPTY);
   const [showErrors, setShowErrors] = useState(false);
   const [state, setState] = useState<"idle" | "working" | "error">("idle");
@@ -51,19 +54,19 @@ export function ResearchForm({ setup }: { setup: Setup }) {
 
   useEffect(() => {
     if (state !== "working") return;
-    const t = setInterval(() => setNow(Date.now()), 500);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(timer);
   }, [state]);
 
-  const parsed = useMemo(() => answersSchema.safeParse({ ...form, costPerPiece: form.costPerPiece || undefined }), [form]);
+  const parsed = useMemo(() => answersSchema.safeParse({ ...form, costPerPiece: form.costPerPiece || undefined, language: locale }), [form, locale]);
   const errors = useMemo(() => {
     const out: Record<string, string> = {};
-    if (!parsed.success) for (const i of parsed.error.issues) out[String(i.path[0])] ??= i.message;
-    if (!form.category) out.category = "Pick the closest category";
-    if (!form.gender) out.gender = "Who mostly buys?";
-    if (!form.goal) out.goal = "Pick your main goal";
+    if (!parsed.success) for (const i of parsed.error.issues) out[String(i.path[0])] ??= Q.errors[String(i.path[0])] ?? i.message;
+    if (!form.category) out.category = Q.errors.category;
+    if (!form.gender) out.gender = Q.errors.gender;
+    if (!form.goal) out.goal = Q.errors.goal;
     return out;
-  }, [parsed, form]);
+  }, [parsed, form, Q]);
   const missing = Object.keys(errors).length;
   const e = (k: keyof Form) => (showErrors ? errors[k] : undefined);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
@@ -88,7 +91,7 @@ export function ResearchForm({ setup }: { setup: Setup }) {
       });
       const body = (await res.json().catch(() => null)) as { id?: string; error?: string; fields?: Record<string, string> } | null;
       if (!res.ok || !body?.id) {
-        throw new Error(body?.fields ? Object.values(body.fields).join(" ") : (body?.error ?? `The server answered ${res.status}.`));
+        throw new Error(body?.fields ? Object.values(body.fields).join(" ") : (body?.error ?? t.common.serverAnswered(res.status)));
       }
       try {
         localStorage.setItem(RESEARCH_KEY, JSON.stringify(body.id));
@@ -104,77 +107,76 @@ export function ResearchForm({ setup }: { setup: Setup }) {
 
   return (
     <main className="mx-auto max-w-3xl px-4 pt-8 pb-24 sm:px-6">
-      <p className="kicker">Phase 5 · Market research</p>
-      <h1 className="mt-3 text-4xl font-extrabold tracking-[-0.05em] sm:text-5xl">Tell us about your shop.</h1>
-      <p className="mt-3 text-lg text-ink-2">Ten quick answers. You get who your buyers are, what to post this week, prices to check and the selling days coming up.</p>
+      <p className="kicker">{Q.kicker}</p>
+      <h1 className="mt-3 text-4xl font-extrabold tracking-[-0.05em] sm:text-5xl">{Q.h1}</h1>
+      <p className="mt-3 text-lg text-ink-2">{Q.lead}</p>
 
       <div className="mt-5 space-y-3">
         {!setup.llm && (
           <p className="rounded-xl border border-marigold/50 bg-marigold-wash px-4 py-3 text-sm">
-            <strong>AI research is off on this server.</strong> You&rsquo;ll get a starter plan built only from your answers, clearly labelled. To switch on
-            tailored research (free, no card): add <code className="font-mono">GROQ_API_KEY</code> to <code className="font-mono">.env</code>.
+            <strong>{Q.aiOffTitle}</strong> {Q.aiOffBody}
           </p>
         )}
         <PasscodeField required={setup.passcodeRequired} />
       </div>
 
       <div className="mt-8 space-y-8">
-        <Section n={1} title="Your shop">
+        <Section n={1} title={Q.sections[0]}>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Text label="Shop name" hint="optional" value={form.shopName} onChange={(v) => set("shopName", v)} placeholder="Kadam Studio" max={40} />
-            <Text label="What do you sell?" value={form.product} onChange={(v) => set("product", v)} placeholder="Cotton kurtis" max={80} error={e("product")} />
+            <Text label={Q.shopName} hint={t.common.optional} value={form.shopName} onChange={(v) => set("shopName", v)} placeholder={Q.shopPh} max={40} />
+            <Text label={Q.product} value={form.product} onChange={(v) => set("product", v)} placeholder={Q.productPh} max={80} error={e("product")} />
           </div>
-          <Choice label="Closest category" error={e("category")}>
-            {Object.entries(CATEGORIES).map(([k, v]) => (
+          <Choice label={Q.category} error={e("category")}>
+            {Object.keys(CATEGORIES).map((k) => (
               <Pick key={k} on={form.category === k} onClick={() => set("category", k as Form["category"])}>
-                {v}
+                {Q.categories[k]}
               </Pick>
             ))}
           </Choice>
         </Section>
 
-        <Section n={2} title="Where you sell">
-          <Text label="City or region" value={form.city} onChange={(v) => set("city", v)} placeholder="Jaipur" max={60} error={e("city")} />
-          <Choice label="Where do people buy from you?" hint="pick all that apply" error={e("channels")}>
-            {Object.entries(CHANNELS).map(([k, v]) => (
+        <Section n={2} title={Q.sections[1]}>
+          <Text label={Q.city} value={form.city} onChange={(v) => set("city", v)} placeholder={Q.cityPh} max={60} error={e("city")} />
+          <Choice label={Q.channels} hint={Q.pickAll} error={e("channels")}>
+            {Object.keys(CHANNELS).map((k) => (
               <Pick key={k} on={form.channels.includes(k as keyof typeof CHANNELS)} onClick={() => set("channels", toggle(form.channels, k as keyof typeof CHANNELS))}>
-                {v}
+                {Q.channelNames[k]}
               </Pick>
             ))}
           </Choice>
         </Section>
 
-        <Section n={3} title="Your prices">
+        <Section n={3} title={Q.sections[2]}>
           <div className="grid grid-cols-3 gap-3">
-            <Text label="Lowest price ₹" value={form.priceMin} onChange={(v) => set("priceMin", digits(v))} placeholder="499" numeric error={e("priceMin")} />
-            <Text label="Highest price ₹" value={form.priceMax} onChange={(v) => set("priceMax", digits(v))} placeholder="1299" numeric error={e("priceMax")} />
-            <Text label="Your cost per piece ₹" hint="optional" value={form.costPerPiece} onChange={(v) => set("costPerPiece", digits(v))} placeholder="400" numeric error={e("costPerPiece")} />
+            <Text label={Q.priceMin} value={form.priceMin} onChange={(v) => set("priceMin", digits(v))} placeholder="499" numeric error={e("priceMin")} />
+            <Text label={Q.priceMax} value={form.priceMax} onChange={(v) => set("priceMax", digits(v))} placeholder="1299" numeric error={e("priceMax")} />
+            <Text label={Q.cost} hint={t.common.optional} value={form.costPerPiece} onChange={(v) => set("costPerPiece", digits(v))} placeholder="400" numeric error={e("costPerPiece")} />
           </div>
-          <p className="text-xs text-ink-3">Cost per piece lets us work out your profit and margin. It stays on this server.</p>
+          <p className="text-xs text-ink-3">{Q.costNote}</p>
         </Section>
 
-        <Section n={4} title="Who buys">
-          <Choice label="Age" hint="pick all that apply" error={e("ages")}>
+        <Section n={4} title={Q.sections[3]}>
+          <Choice label={Q.age} hint={Q.pickAll} error={e("ages")}>
             {AGES.map((a) => (
               <Pick key={a} on={form.ages.includes(a)} onClick={() => set("ages", toggle(form.ages, a))}>
                 {a}
               </Pick>
             ))}
           </Choice>
-          <Choice label="Mostly" error={e("gender")}>
+          <Choice label={Q.mostly} error={e("gender")}>
             {(["women", "men", "all"] as const).map((g) => (
               <Pick key={g} on={form.gender === g} onClick={() => set("gender", g)}>
-                {{ women: "Women", men: "Men", all: "Everyone" }[g]}
+                {Q.genders[g]}
               </Pick>
             ))}
           </Choice>
         </Section>
 
-        <Section n={5} title="Your main goal right now">
-          <Choice label="Goal" error={e("goal")}>
-            {Object.entries(GOALS).map(([k, v]) => (
+        <Section n={5} title={Q.sections[4]}>
+          <Choice label={Q.goal} error={e("goal")}>
+            {Object.keys(GOALS).map((k) => (
               <Pick key={k} on={form.goal === k} onClick={() => set("goal", k as Form["goal"])}>
-                {v}
+                {Q.goals[k]}
               </Pick>
             ))}
           </Choice>
@@ -183,16 +185,16 @@ export function ResearchForm({ setup }: { setup: Setup }) {
 
       <div className="sticky bottom-0 -mx-4 mt-10 border-t border-line bg-paper/95 px-4 py-4 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
         <button type="button" onClick={submit} disabled={state === "working"} className="btn-primary w-full !py-3.5 !text-base">
-          {state === "working" ? `Researching… ${Math.round((now - startedAt) / 1000)}s` : "Get my research →"}
+          {state === "working" ? Q.researching(Math.round((now - startedAt) / 1000)) : Q.submit}
         </button>
         <p className="mt-2 text-center text-xs text-ink-3">
           {state === "working"
             ? setup.llm
-              ? "The AI is writing your report — usually 10–40 seconds."
-              : "Building your starter plan…"
+              ? Q.aiWriting
+              : Q.building
             : showErrors && missing > 0
-              ? `${missing} answer${missing > 1 ? "s" : ""} still need${missing > 1 ? "" : "s"} attention above.`
-              : "Nothing is posted anywhere. The report is saved on this server so you can come back to it."}
+              ? Q.missing(missing)
+              : Q.nothingPosted}
         </p>
         {serverError && <p className="mt-2 text-center text-sm text-danger">{serverError}</p>}
       </div>

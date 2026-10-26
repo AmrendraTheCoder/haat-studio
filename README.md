@@ -5,10 +5,13 @@
 1. **Try-on studio** — a seller photographs a garment laid flat; the app returns
    it worn by a model, sized for Instagram.
 2. **Post maker** — the shop name, ₹ price, MRP and offer are set on that photo as
-   real text, and a caption with hashtags is written in English or Hinglish.
+   real text, and a caption with hashtags is written in English, Hinglish or Hindi.
 3. **Market research** — ten answers about the shop give back who buys, what's
    working, what to charge, a week of posts, the selling days coming up and the
    exact profit per piece.
+
+The whole app works in **English or हिन्दी** — one tap in the header switches it,
+and research reports and captions come back in Hindi too.
 
 Everything runs on free services. It follows the architecture of
 [stiche-v2](https://github.com/AmrendraTheCoder/stiche-v2) without sharing code with it.

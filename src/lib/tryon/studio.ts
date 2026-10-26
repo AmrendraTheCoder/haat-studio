@@ -1,4 +1,5 @@
 import { TEST_ENGINES } from "@/lib/engines";
+import { formatWait } from "@/lib/wait";
 import { toPng } from "./image";
 import { cacheKey, type ResultStore } from "./store";
 import { EngineError, type Attempt, type Engine, type Prep, type ResultMeta, type StreamEvent, type TryOnSettings } from "./types";
@@ -200,10 +201,4 @@ export function explain(attempts: Attempt[]): string {
     return "The GPU queue is too long right now. Try again in a few minutes.";
   }
   return `Generation failed — ${tried.map((a) => `${a.engine}: ${a.message}`).join("; ")}`;
-}
-
-function formatWait(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.ceil((seconds % 3600) / 60);
-  return h > 0 ? `${h}h ${m}m` : `${m} min`;
 }

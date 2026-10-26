@@ -1,4 +1,4 @@
-import { CTAS, FORMATS, PALETTES, discountPct, inr, type Cta, type Palette, type PostFormat, type Template } from "./spec";
+import { FORMATS, PALETTES, discountPct, inr, type Palette, type PostFormat, type Template } from "./spec";
 
 /**
  * Draws a post onto a canvas. Browser-only.
@@ -19,7 +19,9 @@ export interface Draft {
   price: number | null;
   mrp: number | null;
   offer: string;
-  cta: Cta;
+  /** Already in the seller's language, like every word below. */
+  cta: string;
+  words: { placeholder: string; off: string; offBadge: string; mrp: string; newIn: string; yourShop: string };
 }
 
 export interface Look {
@@ -28,8 +30,9 @@ export interface Look {
   palette: Palette;
 }
 
-const SANS = '"Inter Variable", Inter, system-ui, sans-serif';
-const MONO = '"Geist Mono", ui-monospace, monospace';
+// Devanagari has no glyphs in Inter or Geist Mono; Noto Sans Devanagari picks those up.
+const SANS = '"Inter Variable", Inter, "Noto Sans Devanagari Variable", system-ui, sans-serif';
+const MONO = '"Geist Mono", ui-monospace, "Noto Sans Devanagari Variable", monospace';
 
 /** Waits for the weights and glyphs (including ₹) the canvas will use. */
 export async function loadFonts() {
@@ -37,6 +40,7 @@ export async function loadFonts() {
   await Promise.all([
     document.fonts.load(`800 64px ${SANS}`, "₹1,29,999 Aa"),
     document.fonts.load(`600 32px ${SANS}`, "Aa"),
+    document.fonts.load(`800 64px ${SANS}`, "ऑर्डर करें"),
     document.fonts.load(`500 28px ${MONO}`, "Aa@"),
   ]).catch(() => {});
 }
@@ -124,12 +128,15 @@ function priceLine(ctx: CanvasRenderingContext2D, d: Draft, x: number, baseline:
     cursor += mw + size * 0.2;
     ctx.font = `800 ${size * 0.42}px ${SANS}`;
     ctx.fillStyle = ink;
-    ctx.fillText(`${discountPct({ price: d.price, mrp: d.mrp })}% off`, cursor, baseline);
+    ctx.fillText(`${discountPct({ price: d.price, mrp: d.mrp })}% ${d.words.off}`, cursor, baseline);
   }
   return cursor - x;
 }
 
 const label = (d: Draft) => (d.handle ? `@${d.handle}` : d.shopName);
+
+/** "K A D A M" — letter-spacing only for Latin text; spacing out Devanagari breaks its joined letters. */
+const spaced = (s: string) => (/^[\x20-\x7e]*$/.test(s) ? s.toUpperCase().split("").join(" ") : s);
 
 export function renderPost(canvas: HTMLCanvasElement, img: HTMLImageElement, d: Draft, look: Look) {
   const { width: W, height: H } = FORMATS[look.format];
@@ -139,7 +146,7 @@ export function renderPost(canvas: HTMLCanvasElement, img: HTMLImageElement, d: 
   if (!ctx) return;
   const c = PALETTES[look.palette];
   const P = 64;
-  const product = d.product.trim() || "Your product name";
+  const product = d.product.trim() || d.words.placeholder;
 
   ctx.fillStyle = c.bg;
   ctx.fillRect(0, 0, W, H);
@@ -151,7 +158,7 @@ export function renderPost(canvas: HTMLCanvasElement, img: HTMLImageElement, d: 
     ctx.font = `600 30px ${MONO}`;
     ctx.fillStyle = c.soft;
     ctx.textAlign = "center";
-    ctx.fillText((d.shopName || label(d) || "your shop").toUpperCase().split("").join(" "), W / 2, top / 2 + 12);
+    ctx.fillText(spaced(d.shopName || label(d) || d.words.yourShop), W / 2, top / 2 + 12);
     ctx.textAlign = "left";
     photo(ctx, img, m, top, W - m * 2, H - top - bottom, c.panel);
     ctx.strokeStyle = c.ink;
@@ -168,9 +175,9 @@ export function renderPost(canvas: HTMLCanvasElement, img: HTMLImageElement, d: 
     ctx.fillText(d.price ? inr(d.price) : "₹ —", W - m, y0 + 86);
     ctx.font = `600 28px ${SANS}`;
     ctx.fillStyle = c.soft;
-    const sub = [d.offer, CTAS[d.cta]].filter(Boolean).join("  ·  ");
+    const sub = [d.offer, d.cta].filter(Boolean).join("  ·  ");
     ctx.fillText(sub, W - m, y0 + 136);
-    if (d.mrp && d.price && d.mrp > d.price) ctx.fillText(`MRP ${inr(d.mrp)} · ${discountPct({ price: d.price, mrp: d.mrp })}% off`, W - m, y0 + 176);
+    if (d.mrp && d.price && d.mrp > d.price) ctx.fillText(`${d.words.mrp} ${inr(d.mrp)} · ${discountPct({ price: d.price, mrp: d.mrp })}% ${d.words.off}`, W - m, y0 + 176);
     ctx.textAlign = "left";
     return;
   }
@@ -199,10 +206,10 @@ export function renderPost(canvas: HTMLCanvasElement, img: HTMLImageElement, d: 
       ctx.font = `900 ${r * 0.62}px ${SANS}`;
       ctx.fillText(`${off}%`, cx, cy + r * 0.12);
       ctx.font = `800 ${r * 0.26}px ${SANS}`;
-      ctx.fillText("OFF", cx, cy + r * 0.48);
+      ctx.fillText(d.words.offBadge, cx, cy + r * 0.48);
     } else {
       ctx.font = `900 ${r * 0.3}px ${SANS}`;
-      const words = wrap(ctx, (d.offer || "New in").toUpperCase(), r * 1.6, 3);
+      const words = wrap(ctx, (d.offer || d.words.newIn).toUpperCase(), r * 1.6, 3);
       words.forEach((w, i) => ctx.fillText(w, cx, cy + (i - (words.length - 1) / 2) * r * 0.34 + r * 0.1));
     }
     ctx.textAlign = "left";
@@ -237,7 +244,7 @@ export function renderPost(canvas: HTMLCanvasElement, img: HTMLImageElement, d: 
 
   const rowY = H - (story ? 90 : look.format === "square" ? 40 : 56);
   const pillSize = story ? 38 : 32;
-  const { h } = pill(ctx, `${CTAS[d.cta]}  →`, W - P, rowY - pillSize * 1.9, pillSize, c.accent, c.onAccent, "right");
+  const { h } = pill(ctx, `${d.cta}  →`, W - P, rowY - pillSize * 1.9, pillSize, c.accent, c.onAccent, "right");
   if (d.shopName && d.handle) {
     ctx.font = `600 28px ${SANS}`;
     ctx.fillStyle = c.soft;

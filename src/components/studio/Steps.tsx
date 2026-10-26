@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { radioKeyDown, rovingTabIndex } from "@/lib/client/roving";
 import { PRESETS, SAMPLE_GARMENTS, type SampleGarment } from "@/lib/presets";
 import type { Setup } from "@/lib/site";
 import { ActionBar, Choices, Dropzone, ICONS, Notice } from "./parts";
@@ -62,7 +63,7 @@ export function ProductStep({
           {note && !error && <Notice tone="info">{note}</Notice>}
           {samples.length > 0 && (
             <div>
-              <p className="kicker !text-[10px]">No photo handy? Try a sample</p>
+              <p className="kicker !text-2xs">No photo handy? Try a sample</p>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {samples.map((s) => (
                   <button
@@ -170,6 +171,8 @@ export function ModelStep({
     : !setup.engine.configured
       ? "Generation is switched off on this server (no Hugging Face token) — see the note at the top."
       : null;
+  // Say what pressing Create costs before it's pressed: time, and free quota.
+  const expectation = "Takes about 15–30 seconds and uses a little of today's free GPU time.";
 
   return (
     <div className="rise">
@@ -186,7 +189,7 @@ export function ModelStep({
       )}
 
       <div role="radiogroup" aria-label="Model" className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {PRESETS.map((p) => {
+        {PRESETS.map((p, i) => {
           const ready = setup.presets.includes(p.id);
           const active = inputs.person?.kind === "preset" && inputs.person.id === p.id;
           return (
@@ -195,6 +198,8 @@ export function ModelStep({
               type="button"
               role="radio"
               aria-checked={active}
+              tabIndex={rovingTabIndex(active, i, inputs.person?.kind === "preset")}
+              onKeyDown={radioKeyDown}
               disabled={!ready}
               onClick={() => onPerson({ kind: "preset", id: p.id })}
               className={`overflow-hidden rounded-2xl border text-left transition-colors disabled:opacity-40 ${
@@ -206,9 +211,9 @@ export function ModelStep({
               </div>
               <div className={`p-2.5 ${active ? "bg-ink text-paper" : "bg-paper-glow"}`}>
                 <p className="text-sm font-semibold">{p.label}</p>
-                <p className={`mt-0.5 text-[11px] leading-snug ${active ? "text-paper/70" : "text-ink-3"}`}>{ready ? p.note : "Not installed"}</p>
+                <p className={`mt-0.5 text-2xs leading-snug ${active ? "text-paper/70" : "text-ink-3"}`}>{ready ? p.note : "Not installed"}</p>
                 {ready && category && (
-                  <p className={`mt-1.5 font-mono text-[10px] ${p.suits.includes(category) ? (active ? "text-paper" : "text-good") : "text-danger"}`}>
+                  <p className={`mt-1.5 font-mono text-2xs ${p.suits.includes(category) ? (active ? "text-paper" : "text-good") : "text-danger"}`}>
                     {p.suits.includes(category) ? `✓ suits ${CATEGORY_TEXT[category].title.toLowerCase()}s` : `✗ not for ${CATEGORY_TEXT[category].title.toLowerCase()}s`}
                   </p>
                 )}
@@ -228,7 +233,7 @@ export function ModelStep({
           />
           <div className={`p-2.5 ${inputs.person?.kind === "upload" ? "bg-ink text-paper" : "bg-paper-glow"}`}>
             <p className="text-sm font-semibold">Upload a photo</p>
-            <p className={`mt-0.5 text-[11px] leading-snug ${inputs.person?.kind === "upload" ? "text-paper/70" : "text-ink-3"}`}>
+            <p className={`mt-0.5 text-2xs leading-snug ${inputs.person?.kind === "upload" ? "text-paper/70" : "text-ink-3"}`}>
               Arms away from the body, plain background.
             </p>
           </div>
@@ -282,7 +287,7 @@ export function ModelStep({
         )}
       </div>
 
-      <ActionBar reason={reason}>
+      <ActionBar reason={reason ?? expectation}>
         <button type="button" className="btn-ghost" onClick={onBack}>
           <span aria-hidden>←</span> Back
         </button>

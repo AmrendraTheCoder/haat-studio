@@ -193,7 +193,7 @@ function HeroShowcase({ hero, setup }: { hero: ResultMeta | undefined; setup: Se
           />
           <div className="pointer-events-none absolute -bottom-5 -left-5 w-28 rotate-[-4deg] rounded-2xl border border-line bg-paper-glow p-2 shadow-lg">
             <img src={resultUrl(hero.key, "garment.jpg")} alt="The product photo" className="aspect-square w-full rounded-lg object-contain" />
-            <p className="mt-1 text-center font-mono text-[10px] text-ink-3">product photo</p>
+            <p className="mt-1 text-center font-mono text-2xs text-ink-3">product photo</p>
           </div>
         </div>
         <figcaption className="mt-8 text-center text-xs text-ink-3">A real result from this studio · drag to compare</figcaption>
@@ -212,13 +212,13 @@ function HeroShowcase({ hero, setup }: { hero: ResultMeta | undefined; setup: Se
         ) : (
           <Placeholder title="product" className="aspect-square" />
         )}
-        <p className="text-center font-mono text-[10px] text-ink-3">your product</p>
+        <p className="text-center font-mono text-2xs text-ink-3">your product</p>
         {preset ? (
           <img src={`/presets/${preset.file}`} alt={preset.label} className="aspect-[3/4] w-full rounded-2xl border border-line object-cover" />
         ) : (
           <Placeholder title="model" className="aspect-[3/4]" />
         )}
-        <p className="text-center font-mono text-[10px] text-ink-3">a model</p>
+        <p className="text-center font-mono text-2xs text-ink-3">a model</p>
       </div>
       <span className="font-display text-3xl font-bold text-ink-3" aria-hidden>
         →
@@ -271,7 +271,7 @@ function SizesDiagram() {
           <div className="grid place-items-center rounded-lg border-2 border-ink bg-paper-glow" style={{ width: f.w, height: f.h }}>
             <div className="h-3/5 w-2/5 rounded-full bg-paper-3" />
           </div>
-          <span className="font-mono text-[10px] text-ink-3">{f.label}</span>
+          <span className="font-mono text-2xs text-ink-3">{f.label}</span>
         </div>
       ))}
     </div>
@@ -280,7 +280,7 @@ function SizesDiagram() {
 
 function ExampleCard({ r }: { r: ResultMeta }) {
   return (
-    <Link href={`/studio?r=${r.key}`} className="group block">
+    <Link href={`/studio?r=${r.key}`} className="group block" aria-label="Open this example in the studio">
       <div className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-line bg-paper-2">
         <img src={resultUrl(r.key, "result.png")} alt="Try-on result" loading="lazy" className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
         <img

@@ -52,6 +52,7 @@ const NAV = [
   { href: "/#examples", label: "Examples" },
   { href: "/research", label: "Market research" },
   { href: "/#under-the-hood", label: "Under the hood" },
+  { href: "/design", label: "Design" },
 ] as const;
 
 /** Header for the working pages: the three tools, and whether generation is on. */
@@ -62,14 +63,14 @@ export function StudioHeader({ setup }: { setup: Setup }) {
     <header className="sticky top-0 z-40 border-b border-line/70 bg-paper/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <div className="flex items-center gap-5">
-          <Link href="/" aria-label="Haat Studio — home">
+          <Link href="/" aria-label="Haat Studio — home" className="inline-flex min-h-11 items-center">
             <HaatWord className="text-2xl" suffix="studio" />
           </Link>
-          <nav className="hidden items-center gap-4 text-sm sm:flex">
-            <Link href="/studio" className="text-ink-2 hover:text-ink">
+          <nav aria-label="Tools" className="hidden items-center gap-2 text-sm sm:flex">
+            <Link href="/studio" className="inline-flex min-h-11 items-center px-2 text-ink-2 hover:text-ink">
               Try-on
             </Link>
-            <Link href="/research" className="text-ink-2 hover:text-ink">
+            <Link href="/research" className="inline-flex min-h-11 items-center px-2 text-ink-2 hover:text-ink">
               Research
             </Link>
           </nav>
@@ -82,9 +83,13 @@ export function StudioHeader({ setup }: { setup: Setup }) {
           {!ready ? "Demo mode" : test ? "Test engine · no try-on" : "Free GPU · ready"}
         </span>
       </div>
-      <nav className="flex gap-5 border-t border-line/50 px-4 py-2 text-sm sm:hidden">
-        <Link href="/studio">Try-on</Link>
-        <Link href="/research">Research</Link>
+      <nav aria-label="Tools" className="flex gap-2 border-t border-line/50 px-2 text-sm sm:hidden">
+        <Link href="/studio" className="inline-flex min-h-11 items-center px-2">
+          Try-on
+        </Link>
+        <Link href="/research" className="inline-flex min-h-11 items-center px-2">
+          Research
+        </Link>
       </nav>
     </header>
   );
@@ -94,12 +99,12 @@ export function SiteNav({ cta = true }: { cta?: boolean }) {
   return (
     <header className="sticky top-0 z-40 border-b border-line/70 bg-paper/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Link href="/" aria-label="Haat Studio — home">
+        <Link href="/" aria-label="Haat Studio — home" className="inline-flex min-h-11 items-center">
           <HaatWord className="text-2xl" suffix="studio" />
         </Link>
-        <nav className="hidden items-center gap-7 text-sm md:flex">
+        <nav aria-label="Sections" className="hidden items-center gap-7 text-sm md:flex">
           {NAV.map((i) => (
-            <Link key={i.href} href={i.href} className="text-ink-2 transition-colors hover:text-ink">
+            <Link key={i.href} href={i.href} className="inline-flex min-h-11 items-center text-ink-2 transition-colors hover:text-ink">
               {i.label}
             </Link>
           ))}
@@ -130,11 +135,18 @@ export function SiteFooter() {
             (Apache-2.0) on Hugging Face&rsquo;s free GPUs.
           </p>
         </div>
-        <nav className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-ink-2">
-          <Link href="/studio">Try-on studio</Link>
-          <Link href="/research">Market research</Link>
-          <Link href="/#under-the-hood">Under the hood</Link>
-          <a href="https://github.com/AmrendraTheCoder/haat-studio" target="_blank" rel="noreferrer">
+        <nav aria-label="Footer" className="flex flex-wrap gap-x-6 text-sm text-ink-2">
+          {[
+            ["/studio", "Try-on studio"],
+            ["/research", "Market research"],
+            ["/design", "How it's designed"],
+            ["/#under-the-hood", "Under the hood"],
+          ].map(([href, label]) => (
+            <Link key={href} href={href} className="inline-flex min-h-11 items-center hover:text-ink">
+              {label}
+            </Link>
+          ))}
+          <a href="https://github.com/AmrendraTheCoder/haat-studio" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center hover:text-ink">
             Source on GitHub
           </a>
         </nav>

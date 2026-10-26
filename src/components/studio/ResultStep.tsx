@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BeforeAfter } from "@/components/shared/BeforeAfter";
 import { resultUrl } from "@/lib/client/check";
+import { canShareFiles, shareImage } from "@/lib/client/share";
 import { TEST_ENGINES } from "@/lib/engines";
 import { EXPORT_SIZES, type ExportSize } from "@/lib/limits";
 import type { ResultMeta } from "@/lib/tryon/types";
@@ -157,7 +158,7 @@ function ProductChip({ src }: { src: string }) {
   return (
     <div className="pointer-events-none absolute -bottom-4 -left-3 w-24 rotate-[-4deg] rounded-xl border border-line bg-white p-1.5 shadow-lg sm:-left-5">
       <img src={src} alt="Your product photo" className="aspect-square w-full object-contain" />
-      <p className="text-center font-mono text-[9px] text-ink-3">product</p>
+      <p className="text-center font-mono text-2xs text-ink-3">product</p>
     </div>
   );
 }
@@ -185,6 +186,25 @@ function Done({
   const [featureError, setFeatureError] = useState<string | null>(null);
   const live = run.log.some((l) => l.e.type === "accepted");
   const startedAt = run.log[0]?.at ?? 0;
+  const heading = useRef<HTMLHeadingElement>(null);
+  const [shareable, setShareable] = useState(false);
+  const [shareNote, setShareNote] = useState<string | null>(null);
+
+  // Keyboard and screen-reader users land on the result, not on whatever
+  // button they last pressed several screens ago.
+  useEffect(() => {
+    heading.current?.focus({ preventScroll: true });
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- feature detection needs the browser
+    setShareable(canShareFiles());
+  }, [r.key]);
+
+  async function share() {
+    setShareNote(null);
+    const res = await fetch(resultUrl(r.key, "post.jpg")).catch(() => null);
+    if (!res?.ok) return setShareNote("Couldn't prepare the photo to share. Use Download instead.");
+    const outcome = await shareImage(await res.blob(), `haat-${r.key.slice(0, 8)}-post.jpg`);
+    if (outcome === "failed") setShareNote("Sharing didn't work on this device. Use Download instead.");
+  }
 
   return (
     <Layout
@@ -213,7 +233,9 @@ function Done({
       <div className="space-y-6">
         <div>
           <p className="kicker">{run.cached ? "Saved photo" : "Your photo is ready"}</p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-[-0.04em] sm:text-4xl">Ready to post.</h1>
+          <h1 ref={heading} tabIndex={-1} className="mt-2 text-3xl font-extrabold tracking-[-0.04em] outline-none sm:text-4xl">
+            Ready to post.
+          </h1>
           {run.cached && <span className="chip mt-3 !border-good/40 !text-good">No GPU used — loaded from saved photos</span>}
           {TEST_ENGINES.has(r.engine) && (
             <div className="mt-3">
@@ -225,31 +247,6 @@ function Done({
           )}
         </div>
 
-        <div>
-          <p className="mb-2 text-sm font-semibold">Download</p>
-          <div className="grid grid-cols-2 gap-2">
-            {(Object.keys(EXPORT_SIZES) as ExportSize[]).map((size) => {
-              const s = EXPORT_SIZES[size];
-              return (
-                <a key={size} href={`${resultUrl(r.key, `${size}.jpg`)}?download`} download className="rounded-xl border border-line bg-paper-glow px-3 py-2.5 hover:border-ink">
-                  <span className="block text-sm font-semibold">{s.label}</span>
-                  <span className="font-mono text-[11px] text-ink-3">
-                    {s.ratio} · {s.width}×{s.height}
-                  </span>
-                </a>
-              );
-            })}
-            <a href={`${resultUrl(r.key, "result.png")}?download`} download className="rounded-xl border border-line bg-paper-glow px-3 py-2.5 hover:border-ink">
-              <span className="block text-sm font-semibold">Original</span>
-              <span className="font-mono text-[11px] text-ink-3">PNG · as generated</span>
-            </a>
-          </div>
-          <p className="mt-2 text-[11px] leading-relaxed text-ink-3">
-            Instagram sizes fit the whole photo on a blurred backdrop — nothing is cropped off. The model generates about 576 px wide, so large sizes are
-            enlarged; sharper output is planned.
-          </p>
-        </div>
-
         <Link
           href={`/studio/post?r=${r.key}`}
           className="flex items-center justify-between rounded-2xl bg-ink px-5 py-4 text-paper transition-colors hover:bg-ink-2"
@@ -259,6 +256,40 @@ function Done({
             <span className="text-sm text-paper/70">Add your shop name, price and offer, then get a caption.</span>
           </span>
         </Link>
+
+        <div>
+          <p className="mb-2 text-sm font-semibold">Or download just the photo</p>
+          <div className="grid grid-cols-2 gap-2">
+            {(Object.keys(EXPORT_SIZES) as ExportSize[]).map((size) => {
+              const s = EXPORT_SIZES[size];
+              return (
+                <a key={size} href={`${resultUrl(r.key, `${size}.jpg`)}?download`} download className="rounded-xl border border-line bg-paper-glow px-3 py-2.5 hover:border-ink">
+                  <span className="block text-sm font-semibold">{s.label}</span>
+                  <span className="font-mono text-2xs text-ink-3">
+                    {s.ratio} · {s.width}×{s.height}
+                  </span>
+                </a>
+              );
+            })}
+            <a href={`${resultUrl(r.key, "result.png")}?download`} download className="rounded-xl border border-line bg-paper-glow px-3 py-2.5 hover:border-ink">
+              <span className="block text-sm font-semibold">Original</span>
+              <span className="font-mono text-2xs text-ink-3">PNG · as generated</span>
+            </a>
+            {shareable && (
+              <button type="button" onClick={share} className="col-span-2 min-h-11 rounded-xl bg-accent-strong px-3 py-2.5 text-left text-paper hover:opacity-90">
+                <span className="block text-sm font-semibold">Share to Instagram, WhatsApp…</span>
+                <span className="font-mono text-2xs opacity-80">opens your phone&rsquo;s share sheet · 4:5 post size</span>
+              </button>
+            )}
+          </div>
+          {shareNote && <p className="mt-2 text-xs text-danger">{shareNote}</p>}
+          <p className="mt-2 text-2xs leading-relaxed text-ink-3">
+            Instagram sizes fit the whole photo on a blurred backdrop — nothing is cropped off. The model generates about 576 px wide, so large sizes are
+            enlarged; sharper output is planned.
+          </p>
+        </div>
+
+
 
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-ghost" onClick={() => onVariation(r)} title="Same product and model, a new random seed">
@@ -286,7 +317,7 @@ function Done({
             >
               {featured ? "★ Featured on the home page — remove" : "☆ Feature on the home page"}
             </button>
-            <p className="mt-1 text-[11px] text-ink-3">Only feature results that faithfully show the product. Featured photos load instantly in demos.</p>
+            <p className="mt-1 text-2xs text-ink-3">Only feature results that faithfully show the product. Featured photos load instantly in demos.</p>
             {featureError && <p className="mt-1 text-xs text-danger">{featureError}</p>}
           </div>
         )}

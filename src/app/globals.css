@@ -8,18 +8,19 @@
 @theme {
   --color-ink: oklch(15% 0.012 60);
   --color-ink-2: oklch(30% 0.018 60);
-  --color-ink-3: oklch(52% 0.024 70);
+  --color-ink-3: oklch(46% 0.024 70); /* 5.6:1 on paper — was 52% (4.4:1, failed AA) */
   --color-paper: oklch(92% 0.028 88);
   --color-paper-2: oklch(88% 0.032 86);
   --color-paper-3: oklch(84% 0.036 84);
   --color-paper-glow: oklch(95% 0.045 88);
   --color-accent: oklch(70% 0.18 12);
-  --color-accent-strong: oklch(58% 0.22 8);
+  --color-accent-strong: oklch(52% 0.22 8); /* cream text on it ≥4.5:1 — was 58% */
   --color-accent-wash: oklch(87% 0.05 12);
   --color-marigold: oklch(72% 0.14 70);
-  --color-good: oklch(55% 0.14 145);
+  --color-marigold-wash: oklch(93% 0.06 80); /* background of warnings and "heads up" notes */
+  --color-good: oklch(45% 0.14 145); /* 5.5:1 — was 55% (3.6:1) */
   --color-good-wash: oklch(90% 0.05 145);
-  --color-danger: oklch(55% 0.2 30);
+  --color-danger: oklch(48% 0.2 30); /* 5.2:1 on its wash — was 55% */
   --color-danger-wash: oklch(90% 0.05 30);
   --color-line: oklch(76% 0.038 80);
   --color-line-strong: oklch(50% 0.05 70);
@@ -28,6 +29,9 @@
   --font-sans: "Inter Variable", "Inter", system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 
+  /* Smallest text in the app — mono labels, hints. Never go below it on a phone. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1.35;
   --text-mega: clamp(2.75rem, 12vw, 6rem);
   --text-giant: clamp(2.5rem, 7vw, 5.5rem);
 
@@ -54,6 +58,11 @@ body {
   outline: 2px solid var(--color-ink);
   outline-offset: 2px;
   border-radius: 4px;
+}
+/* Headings the app moves focus to (so screen readers announce the new step)
+   aren't controls; a focus ring around them only looks like a bug. */
+[tabindex="-1"]:focus {
+  outline: none;
 }
 h1,
 h2,
@@ -125,8 +134,9 @@ p {
 }
 
 @layer components {
+  /* Every control is at least 44×44 px (WCAG 2.5.5) — sellers use phones, often one-handed. */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-colors
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-colors
       disabled:pointer-events-none disabled:opacity-40;
     background: var(--color-ink);
     color: var(--color-paper);
@@ -134,7 +144,7 @@ p {
   .btn-primary:hover { background: var(--color-ink-2); }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border px-5 py-2.5 text-sm font-medium transition-colors
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-5 py-2.5 text-sm font-medium transition-colors
       disabled:pointer-events-none disabled:opacity-40;
     border-color: var(--color-line-strong);
     color: var(--color-ink);
@@ -154,14 +164,18 @@ p {
   }
 
   .input {
-    @apply w-full rounded-lg border px-3 py-2 text-sm transition-colors;
+    @apply min-h-11 w-full rounded-lg border px-3 py-2 text-base transition-colors sm:text-sm;
     background: var(--color-paper-glow);
     border-color: var(--color-line);
     color: var(--color-ink);
   }
-  .input:focus {
+  .input:focus-visible {
     border-color: var(--color-ink);
-    outline: none;
+    outline: 2px solid var(--color-ink);
+    outline-offset: 1px;
+  }
+  .input[aria-invalid="true"] {
+    border-color: var(--color-danger);
   }
   .input::placeholder {
     color: var(--color-ink-3);

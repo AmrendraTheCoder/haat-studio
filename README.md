@@ -13,6 +13,8 @@
 Everything runs on free services. It follows the architecture of
 [stiche-v2](https://github.com/AmrendraTheCoder/stiche-v2) without sharing code with it.
 For a plain-language overview to present, see [docs/project-summary.md](docs/project-summary.md);
+for the UX — users, journeys, screen-by-screen rationale, design system, testing and
+accessibility — see [docs/ux/](docs/ux/README.md) (and `/design` in the app);
 to put it online, see [docs/deploy.md](docs/deploy.md).
 
 ## How it works
@@ -53,6 +55,7 @@ browser ◀──NDJSON progress── queued → running → done  (saved to da
 | `/studio/post?r=<key>` | Post maker for that photo: Post 4:5 / Square / Story, three templates, three palettes, caption |
 | `/research` | The ten-question shop questionnaire |
 | `/research/<id>` | The saved report — printable, and used by the post maker for captions |
+| `/design` | How it's designed: users, journey, principles, what testing changed, accessibility, the look |
 
 **Post maker (Phase 4).** Text is drawn by our own layout code on a canvas, never
 by an image model, so the shop name and price are spelled exactly and look the same

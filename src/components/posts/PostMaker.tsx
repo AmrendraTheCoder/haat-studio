@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { cloneElement, useEffect, useId, useMemo, useRef, useState } from "react";
 import { PasscodeField } from "@/components/shared/Passcode";
 import { resultUrl } from "@/lib/client/check";
 import { passcodeHeaders } from "@/lib/client/passcode";
+import { radioKeyDown, rovingTabIndex } from "@/lib/client/roving";
+import { canShareFiles, shareImage } from "@/lib/client/share";
 import { TEST_ENGINES } from "@/lib/engines";
 import { loadFonts, renderPost, type Draft, type Look } from "@/lib/posts/render";
 import { CTAS, FORMATS, LANGUAGES, PALETTES, TEMPLATES, TONES, postSchema, type Cta, type PostFormat } from "@/lib/posts/spec";
@@ -50,6 +52,10 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
   const [captionError, setCaptionError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [shareable, setShareable] = useState(false);
+  const [shareNote, setShareNote] = useState<string | null>(null);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- feature detection needs the browser
+  useEffect(() => setShareable(canShareFiles()), []);
 
   // Remembered shop details and the latest research, from this browser.
   const hydrated = useRef(false);
@@ -156,6 +162,19 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
     }, "image/png");
   }
 
+  /** Phone share sheet with the post and, if written, its caption — the shortest path to posting. */
+  async function share() {
+    if (!canvas.current || !img || downloadReason) return;
+    setShareNote(null);
+    renderPost(canvas.current, img, draft, look);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.current!.toBlob(resolve, "image/png"));
+    if (!blob) return setShareNote("Couldn't prepare the image. Use Download instead.");
+    if (caption) await navigator.clipboard?.writeText(caption.text).catch(() => {});
+    const outcome = await shareImage(blob, `haat-post-${result.key.slice(0, 8)}-${look.format}.png`, caption?.text);
+    if (outcome === "shared" && caption) setShareNote("Shared. The caption is also on your clipboard — paste it into Instagram.");
+    if (outcome === "failed") setShareNote("Sharing didn't work on this device. Use Download instead.");
+  }
+
   async function writeCaption() {
     if (!parsed.success) {
       setTouched({ product: true, price: true, mrp: true, handle: true, offer: true, shopName: true });
@@ -184,7 +203,7 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
   return (
     <main className="mx-auto max-w-6xl px-4 pt-6 pb-20 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href={`/studio?r=${result.key}`} className="text-sm text-ink-2 hover:text-ink">
+        <Link href={`/studio?r=${result.key}`} className="inline-flex min-h-11 items-center text-sm text-ink-2 hover:text-ink">
           ← Back to the photo
         </Link>
         <span className="kicker">Phase 4 · Post maker</span>
@@ -194,7 +213,7 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
         Your shop name, price and offer are set as real text — always spelled right. Nothing is drawn over the garment.
       </p>
       {TEST_ENGINES.has(result.engine) && (
-        <p className="mt-3 rounded-xl border border-marigold/50 bg-[oklch(93%_0.06_80)] px-4 py-2 text-sm">This photo came from the echo test engine, not a real try-on.</p>
+        <p className="mt-3 rounded-xl border border-marigold/50 bg-marigold-wash px-4 py-2 text-sm">This photo came from the echo test engine, not a real try-on.</p>
       )}
       <div className="mt-4">
         <PasscodeField required={setup.passcodeRequired} />
@@ -217,16 +236,18 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
             )}
           </div>
           <div role="radiogroup" aria-label="Size" className="mt-3 grid grid-cols-3 gap-2">
-            {(Object.keys(FORMATS) as PostFormat[]).map((f) => (
+            {(Object.keys(FORMATS) as PostFormat[]).map((f, i) => (
               <button
                 key={f}
                 type="button"
                 role="radio"
                 aria-checked={look.format === f}
+                tabIndex={rovingTabIndex(look.format === f, i, true)}
+                onKeyDown={radioKeyDown}
                 onClick={() => setLook((l) => ({ ...l, format: f }))}
-                className={`rounded-xl border px-3 py-2 text-sm ${look.format === f ? "border-ink bg-ink text-paper" : "border-line bg-paper-glow hover:border-ink"}`}
+                className={`min-h-11 rounded-xl border px-3 py-2 text-sm ${look.format === f ? "border-ink bg-ink text-paper" : "border-line bg-paper-glow hover:border-ink"}`}
               >
-                <span className="font-semibold">{FORMATS[f].label}</span> <span className="font-mono text-[11px] opacity-70">{FORMATS[f].ratio}</span>
+                <span className="font-semibold">{FORMATS[f].label}</span> <span className="font-mono text-2xs opacity-70">{FORMATS[f].ratio}</span>
               </button>
             ))}
           </div>
@@ -271,30 +292,34 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
           <section className="card space-y-3 p-5">
             <h2 className="text-lg font-bold tracking-tight">Look</h2>
             <div role="radiogroup" aria-label="Template" className="grid grid-cols-3 gap-2">
-              {(Object.keys(TEMPLATES) as (keyof typeof TEMPLATES)[]).map((t) => (
+              {(Object.keys(TEMPLATES) as (keyof typeof TEMPLATES)[]).map((t, i) => (
                 <button
                   key={t}
                   type="button"
                   role="radio"
                   aria-checked={look.template === t}
+                  tabIndex={rovingTabIndex(look.template === t, i, true)}
+                  onKeyDown={radioKeyDown}
                   onClick={() => setLook((l) => ({ ...l, template: t }))}
                   className={`rounded-xl border px-2 py-2 text-left ${look.template === t ? "border-ink bg-ink text-paper" : "border-line bg-paper-glow hover:border-ink"}`}
                 >
                   <span className="block text-sm font-semibold">{TEMPLATES[t].label}</span>
-                  <span className="block text-[11px] leading-tight opacity-70">{TEMPLATES[t].hint}</span>
+                  <span className="block text-2xs leading-tight opacity-70">{TEMPLATES[t].hint}</span>
                 </button>
               ))}
             </div>
             {badgeHint && <p className="text-xs text-ink-2">{badgeHint}</p>}
             <div role="radiogroup" aria-label="Colours" className="flex flex-wrap gap-2">
-              {(Object.keys(PALETTES) as (keyof typeof PALETTES)[]).map((p) => (
+              {(Object.keys(PALETTES) as (keyof typeof PALETTES)[]).map((p, i) => (
                 <button
                   key={p}
                   type="button"
                   role="radio"
                   aria-checked={look.palette === p}
+                  tabIndex={rovingTabIndex(look.palette === p, i, true)}
+                  onKeyDown={radioKeyDown}
                   onClick={() => setLook((l) => ({ ...l, palette: p }))}
-                  className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${look.palette === p ? "border-ink ring-2 ring-ink" : "border-line hover:border-ink"}`}
+                  className={`flex min-h-11 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm ${look.palette === p ? "border-ink ring-2 ring-ink" : "border-line hover:border-ink"}`}
                 >
                   <span className="flex">
                     <span className="size-4 rounded-full border border-black/10" style={{ background: PALETTES[p].bg }} />
@@ -307,7 +332,13 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
             <button type="button" onClick={download} disabled={Boolean(downloadReason) || downloading} className="btn-primary w-full !py-3 !text-base">
               {downloading ? "Preparing…" : `Download ${FORMATS[look.format].label.toLowerCase()} (${fmt.width}×${fmt.height})`}
             </button>
+            {shareable && (
+              <button type="button" onClick={share} disabled={Boolean(downloadReason)} className="btn-ghost w-full !border-accent-strong !py-3 !text-base !text-accent-strong">
+                Share to Instagram, WhatsApp…
+              </button>
+            )}
             {downloadReason && <p className="text-center text-xs text-ink-3">{downloadReason}</p>}
+            {shareNote && <p className="text-center text-xs text-ink-2">{shareNote}</p>}
           </section>
 
           <section className="card space-y-3 p-5">
@@ -367,7 +398,7 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
                   aria-label="Caption"
                 />
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-ink-3">
+                  <span className="text-2xs text-ink-3">
                     {caption.via === "template" ? "Template caption — only your own words. Add a free AI key for tailored ones." : `Written by ${caption.via}. Read it before posting.`}
                   </span>
                   <button
@@ -391,18 +422,28 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
   );
 }
 
-function Field({ label, hint, required, error, children }: { label: string; hint?: string; required?: boolean; error?: string; children: React.ReactNode }) {
+function Field({ label, hint, required, error, children }: { label: string; hint?: string; required?: boolean; error?: string; children: React.ReactElement<Record<string, unknown>> }) {
+  const errorId = useId();
   return (
     <label className="block">
       <span className="mb-1 flex items-baseline justify-between text-sm font-semibold">
         <span>
           {label}
-          {required && <span className="text-accent-strong"> *</span>}
+          {required && (
+            <span className="text-accent-strong" aria-hidden>
+              {" "}
+              *
+            </span>
+          )}
         </span>
-        {hint && <span className="font-mono text-[10px] font-normal text-ink-3">{hint}</span>}
+        {hint && <span className="font-mono text-2xs font-normal text-ink-3">{hint}</span>}
       </span>
-      {children}
-      {error && <span className="mt-1 block text-xs text-danger">{error}</span>}
+      {cloneElement(children, { "aria-invalid": Boolean(error), "aria-describedby": error ? errorId : undefined, "aria-required": required || undefined })}
+      {error && (
+        <span id={errorId} className="mt-1 block text-xs text-danger">
+          {error}
+        </span>
+      )}
     </label>
   );
 }

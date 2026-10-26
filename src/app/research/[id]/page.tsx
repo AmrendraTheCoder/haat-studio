@@ -30,7 +30,7 @@ export default async function ReportPage({ params }: PageProps<"/research/[id]">
       </div>
       <main className="mx-auto max-w-4xl px-4 pt-8 pb-24 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-          <Link href="/research" className="text-sm text-ink-2 hover:text-ink">
+          <Link href="/research" className="inline-flex min-h-11 items-center text-sm text-ink-2 hover:text-ink">
             ← Edit answers
           </Link>
           <PrintButton />
@@ -45,7 +45,7 @@ export default async function ReportPage({ params }: PageProps<"/research/[id]">
           {a.product} · {CATEGORIES[a.category]} · ₹{a.priceMin.toLocaleString("en-IN")}–{a.priceMax.toLocaleString("en-IN")} · {a.channels.map((c) => CHANNELS[c]).join(", ")} · Goal: {GOALS[a.goal].toLowerCase()}
         </p>
 
-        <div className={`mt-5 rounded-xl border px-4 py-3 text-sm ${ai ? "border-line bg-paper-glow" : "border-marigold/50 bg-[oklch(93%_0.06_80)]"}`}>
+        <div className={`mt-5 rounded-xl border px-4 py-3 text-sm ${ai ? "border-line bg-paper-glow" : "border-marigold/50 bg-marigold-wash"}`}>
           {ai ? (
             <>
               <strong>Written by AI ({report.via})</strong> from general knowledge — it has no live internet access. Treat it as informed suggestions and
@@ -181,7 +181,7 @@ export default async function ReportPage({ params }: PageProps<"/research/[id]">
           {(["broad", "niche", "local"] as const).map((k) =>
             f.hashtags[k].length ? (
               <p key={k} className="mt-3 text-sm">
-                <span className="mr-2 font-mono text-[11px] text-ink-3 uppercase">{k}</span>
+                <span className="mr-2 font-mono text-2xs text-ink-3 uppercase">{k}</span>
                 {f.hashtags[k].join(" ")}
               </p>
             ) : null,

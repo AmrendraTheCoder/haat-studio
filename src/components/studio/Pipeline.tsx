@@ -164,8 +164,15 @@ export function Pipeline({
   // Server timestamps, when present, beat the client's idea of when it started.
   const base = log[0]?.at ?? startedAt;
   const stages = deriveStages(log, base, now, settings, failed);
+  // One polite announcement per stage change for screen readers — the
+  // visual list updates every 250 ms, which would be noise if read aloud.
+  const current = stages.find((s) => s.state === "active" || s.state === "failed") ?? [...stages].reverse().find((s) => s.state === "done");
+  const announcement = current ? `${current.title}${current.state === "failed" ? " — failed" : current.state === "done" ? " — done" : ""}` : "";
   return (
     <div>
+      <p className="sr-only" aria-live="polite">
+        {announcement}
+      </p>
       <div className="flex items-baseline justify-between">
         <p className="kicker">{live ? "How it’s being made" : "Step by step"}</p>
         {log.length > 0 && (
@@ -175,13 +182,13 @@ export function Pipeline({
       <ol className="mt-4 space-y-3.5">
         {stages.map((s, i) => (
           <li key={s.id} className="flex gap-3">
-            <span className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-full font-mono text-[10px] ${DOT[s.state]}`}>
+            <span className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-full font-mono text-2xs ${DOT[s.state]}`}>
               {s.state === "done" ? "✓" : s.state === "failed" ? "!" : s.state === "skipped" ? "–" : i + 1}
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-2">
                 <p className={`text-sm font-semibold ${s.state === "todo" || s.state === "skipped" ? "text-ink-3" : "text-ink"}`}>{s.title}</p>
-                {s.took !== undefined && s.state === "done" && <span className="font-mono text-[11px] text-ink-3 tabular-nums">{secs(s.took)}</span>}
+                {s.took !== undefined && s.state === "done" && <span className="font-mono text-2xs text-ink-3 tabular-nums">{secs(s.took)}</span>}
               </div>
               {s.detail && <p className="mt-0.5 text-xs leading-relaxed text-ink-2">{s.detail}</p>}
             </div>

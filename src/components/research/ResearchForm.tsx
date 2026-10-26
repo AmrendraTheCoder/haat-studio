@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { PasscodeField } from "@/components/shared/Passcode";
 import { passcodeHeaders } from "@/lib/client/passcode";
 import { AGES, CATEGORIES, CHANNELS, GOALS, answersSchema } from "@/lib/research/schema";
@@ -110,7 +110,7 @@ export function ResearchForm({ setup }: { setup: Setup }) {
 
       <div className="mt-5 space-y-3">
         {!setup.llm && (
-          <p className="rounded-xl border border-marigold/50 bg-[oklch(93%_0.06_80)] px-4 py-3 text-sm">
+          <p className="rounded-xl border border-marigold/50 bg-marigold-wash px-4 py-3 text-sm">
             <strong>AI research is off on this server.</strong> You&rsquo;ll get a starter plan built only from your answers, clearly labelled. To switch on
             tailored research (free, no card): add <code className="font-mono">GROQ_API_KEY</code> to <code className="font-mono">.env</code>.
           </p>
@@ -213,14 +213,28 @@ function Section({ n, title, children }: { n: number; title: string; children: R
 }
 
 function Text({ label, hint, value, onChange, placeholder, max, numeric, error }: { label: string; hint?: string; value: string; onChange: (v: string) => void; placeholder?: string; max?: number; numeric?: boolean; error?: string }) {
+  const errorId = useId();
   return (
     <label className="block">
       <span className="mb-1 flex items-baseline justify-between text-sm font-semibold">
         {label}
-        {hint && <span className="font-mono text-[10px] font-normal text-ink-3">{hint}</span>}
+        {hint && <span className="font-mono text-2xs font-normal text-ink-3">{hint}</span>}
       </span>
-      <input className="input" value={value} onChange={(ev) => onChange(ev.target.value)} placeholder={placeholder} maxLength={max} inputMode={numeric ? "numeric" : undefined} />
-      {error && <span className="mt-1 block text-xs text-danger">{error}</span>}
+      <input
+        className="input"
+        value={value}
+        onChange={(ev) => onChange(ev.target.value)}
+        placeholder={placeholder}
+        maxLength={max}
+        inputMode={numeric ? "numeric" : undefined}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? errorId : undefined}
+      />
+      {error && (
+        <span id={errorId} className="mt-1 block text-xs text-danger">
+          {error}
+        </span>
+      )}
     </label>
   );
 }
@@ -229,10 +243,14 @@ function Choice({ label, hint, error, children }: { label: string; hint?: string
   return (
     <fieldset>
       <legend className="mb-2 text-sm font-semibold">
-        {label} {hint && <span className="font-mono text-[10px] font-normal text-ink-3">{hint}</span>}
+        {label} {hint && <span className="font-mono text-2xs font-normal text-ink-3">{hint}</span>}
       </legend>
       <div className="flex flex-wrap gap-2">{children}</div>
-      {error && <span className="mt-1.5 block text-xs text-danger">{error}</span>}
+      {error && (
+        <span role="alert" className="mt-1.5 block text-xs text-danger">
+          {error}
+        </span>
+      )}
     </fieldset>
   );
 }
@@ -243,7 +261,7 @@ function Pick({ on, onClick, children }: { on: boolean; onClick: () => void; chi
       type="button"
       aria-pressed={on}
       onClick={onClick}
-      className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${on ? "border-ink bg-ink text-paper" : "border-line bg-paper-glow hover:border-ink"}`}
+      className={`min-h-11 rounded-full border px-4 py-2 text-sm transition-colors ${on ? "border-ink bg-ink text-paper" : "border-line bg-paper-glow hover:border-ink"}`}
     >
       {children}
     </button>

@@ -15,7 +15,7 @@ export function Placeholder({ title, children, className = "" }: { title: string
           <path d="m3 16 5-5 4 4 3-3 6 6" strokeLinejoin="round" />
           <circle cx="15.5" cy="8.5" r="1.5" />
         </svg>
-        <p className="mt-2 font-mono text-[11px] tracking-[0.06em] text-ink-2 uppercase">{title}</p>
+        <p className="mt-2 font-mono text-2xs tracking-[0.06em] text-ink-2 uppercase">{title}</p>
         {children && <p className="mt-1.5 text-xs leading-relaxed text-ink-3">{children}</p>}
       </div>
     </div>

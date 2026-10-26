@@ -35,6 +35,9 @@ src/lib/llm/        completeJSON(): the only text-AI call site — provider chai
 src/lib/posts/      spec.ts (shared schema, templates, palettes), render.ts (canvas, browser-only), caption.ts
 src/lib/research/   schema.ts (shared), build.ts (prompt, calculated economics + moments, template fallback, storage)
 src/lib/guard.ts    requirePasscode() for every creating route (STUDIO_PASSCODE)
+src/lib/client/roving.ts  radioKeyDown/rovingTabIndex — every role="radio" group uses them
+src/lib/client/share.ts   Web Share (files) for phones; feature-detected
+src/app/design            "How it's designed" page; docs/ux/ is the long form
 src/app/studio/post           post maker (?r=<key>)
 src/app/research, research/[id]  questionnaire and saved report
 src/app/api/caption, api/research  POST, passcode-gated
@@ -69,6 +72,10 @@ tests/              vitest, no network
   the events the server sent (server-timestamped via `at`). Don't add timers that
   advance stages on their own.
 - **Every disabled button shows why.** Steps pass a `reason` to `ActionBar`.
+- **Accessibility is a rule, not a pass:** controls ≥ 44 px (`min-h-11`), text
+  from tokens only (no raw colours; nothing below `text-2xs`, 11 px), option
+  groups use `radioKeyDown` + `rovingTabIndex`, field errors set `aria-invalid`
+  and `aria-describedby`. docs/ux/06-accessibility.md has the audit method.
 - **Text on images is a layout problem.** Post text is drawn on a canvas by
   `render.ts`, never by an image model, and never across the garment.
 - **Every text-AI call goes through `completeJSON`,** and every caller has a

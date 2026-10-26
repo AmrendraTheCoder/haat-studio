@@ -5,6 +5,7 @@ import { BeforeAfter } from "@/components/shared/BeforeAfter";
 import { resultUrl } from "@/lib/client/check";
 import { TEST_ENGINES } from "@/lib/engines";
 import { ACCEPT_ATTR } from "@/lib/limits";
+import { radioKeyDown, rovingTabIndex } from "@/lib/client/roving";
 import type { ResultMeta } from "@/lib/tryon/types";
 import type { View } from "./types";
 
@@ -44,12 +45,12 @@ export function Stepper({
               onClick={() => onGo(s.id)}
               aria-current={active ? "step" : undefined}
               title={lockedReason ?? (reachable[s.id] ? undefined : "Finish the earlier step first")}
-              className={`flex min-w-0 items-center gap-2 rounded-full py-1 pr-3 pl-1 text-sm transition-colors ${
+              className={`flex min-h-11 min-w-0 items-center gap-2 rounded-full py-1 pr-3 pl-1.5 text-sm transition-colors ${
                 active ? "bg-ink text-paper" : enabled ? "text-ink hover:bg-paper-2" : "text-ink-3"
               } disabled:cursor-default`}
             >
               <span
-                className={`grid size-6 shrink-0 place-items-center rounded-full font-mono text-[11px] ${
+                className={`grid size-6 shrink-0 place-items-center rounded-full font-mono text-2xs ${
                   active ? "bg-paper text-ink" : done ? "bg-ink text-paper" : "border border-line-strong/50"
                 }`}
               >
@@ -127,6 +128,7 @@ export function Dropzone({
         accept={ACCEPT_ATTR}
         className="sr-only"
         tabIndex={-1}
+        aria-hidden="true"
         onChange={(e) => {
           take(e.target.files);
           e.target.value = ""; // choosing the same file again should still fire
@@ -152,7 +154,7 @@ export function Dropzone({
               <path d="M12 16V4m0 0-4 4m4-4 4 4M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <p className={`font-semibold text-ink ${compact ? "text-xs" : ""}`}>{title}</p>
-            <p className={`mt-1 text-ink-3 ${compact ? "text-[10px] leading-tight" : "text-xs"}`}>{hint}</p>
+            <p className={`mt-1 text-ink-3 ${compact ? "text-2xs leading-tight" : "text-xs"}`}>{hint}</p>
           </div>
         </div>
       )}
@@ -177,7 +179,7 @@ export function Choices<T extends string>({
 }) {
   return (
     <div role="radiogroup" aria-label={label} className={`grid gap-2 ${columns === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
-      {options.map((o) => {
+      {options.map((o, i) => {
         const active = o.value === value;
         return (
           <button
@@ -185,6 +187,8 @@ export function Choices<T extends string>({
             type="button"
             role="radio"
             aria-checked={active}
+            tabIndex={rovingTabIndex(active, i, value !== null)}
+            onKeyDown={radioKeyDown}
             onClick={() => onChange(o.value)}
             className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 text-center transition-colors ${
               active ? "border-ink bg-ink text-paper" : "border-line bg-paper-glow text-ink hover:border-ink"
@@ -192,7 +196,7 @@ export function Choices<T extends string>({
           >
             {o.icon}
             <span className="text-sm font-semibold leading-tight">{o.title}</span>
-            {o.hint && <span className={`text-[11px] leading-tight ${active ? "text-paper/70" : "text-ink-3"}`}>{o.hint}</span>}
+            {o.hint && <span className={`text-2xs leading-tight ${active ? "text-paper/70" : "text-ink-3"}`}>{o.hint}</span>}
           </button>
         );
       })}
@@ -226,7 +230,7 @@ export function ActionBar({ children, reason }: { children: ReactNode; reason?: 
 
 export function Notice({ tone, children }: { tone: "warn" | "error" | "info"; children: ReactNode }) {
   const styles = {
-    warn: "border-marigold/50 bg-[oklch(93%_0.06_80)]",
+    warn: "border-marigold/50 bg-marigold-wash",
     error: "border-danger/40 bg-danger-wash",
     info: "border-line bg-paper-glow",
   }[tone];
@@ -243,20 +247,37 @@ export function Lightbox({ result, onClose }: { result: ResultMeta; onClose: () 
   const close = useRef<HTMLButtonElement>(null);
   const [compare, setCompare] = useState(false);
 
+  const dialog = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const prev = document.body.style.overflow;
+    const opener = document.activeElement as HTMLElement | null;
     document.body.style.overflow = "hidden";
     close.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") return onClose();
+      // Keep Tab inside the dialog: the page behind is inert while it's open.
+      if (e.key !== "Tab" || !dialog.current) return;
+      const items = [...dialog.current.querySelectorAll<HTMLElement>("button, [href], [tabindex]:not([tabindex='-1'])")];
+      if (items.length === 0) return;
+      const [first, last] = [items[0], items[items.length - 1]];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
       window.removeEventListener("keydown", onKey);
+      opener?.focus(); // back to the button that opened it
     };
   }, [onClose]);
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Full-screen photo" className="fixed inset-0 z-50 flex flex-col bg-ink/95" onClick={onClose}>
+    <div ref={dialog} role="dialog" aria-modal="true" aria-label="Full-screen photo" className="fixed inset-0 z-50 flex flex-col bg-ink/95" onClick={onClose}>
       <div className="flex items-center justify-between gap-3 p-3 text-paper" onClick={(e) => e.stopPropagation()}>
         <button type="button" onClick={() => setCompare((c) => !c)} className="rounded-full border border-paper/30 px-4 py-1.5 text-sm hover:bg-paper/10">
           {compare ? "Show result only" : "Compare before / after"}
@@ -322,15 +343,15 @@ export function RecentGrid({
                 <img src={resultUrl(r.key, "result.png")} alt="" loading="lazy" className="size-full object-cover transition-transform group-hover:scale-[1.03]" />
                 <img src={resultUrl(r.key, "garment.jpg")} alt="" loading="lazy" className="absolute right-1.5 bottom-1.5 size-10 rounded-lg border border-line bg-white object-contain p-0.5" />
                 {TEST_ENGINES.has(r.engine) && (
-                  <span className="absolute inset-x-0 top-0 bg-marigold py-0.5 text-center font-mono text-[9px] text-ink uppercase">test engine</span>
+                  <span className="absolute inset-x-0 top-0 bg-marigold py-0.5 text-center font-mono text-2xs text-ink uppercase">test engine</span>
                 )}
                 {featured.includes(r.key) && (
-                  <span className="absolute top-1.5 left-1.5 rounded-full bg-accent-strong px-1.5 py-0.5 text-[10px] text-paper" title="Featured on the home page">
+                  <span className="absolute top-1.5 left-1.5 rounded-full bg-accent-strong px-1.5 py-0.5 text-2xs text-paper" title="Featured on the home page">
                     ★
                   </span>
                 )}
               </div>
-              <p className="mt-1 font-mono text-[10px] text-ink-3">{ago(r.createdAt)}</p>
+              <p className="mt-1 font-mono text-2xs text-ink-3">{ago(r.createdAt)}</p>
             </button>
           ))}
         </div>

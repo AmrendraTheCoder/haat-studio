@@ -63,10 +63,10 @@ export function BeforeAfter({
         className="absolute inset-0 size-full object-cover"
         style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}
       />
-      <span className="pointer-events-none absolute top-3 left-3 rounded-full bg-ink/75 px-2.5 py-1 font-mono text-[11px] text-paper">
+      <span className="pointer-events-none absolute top-3 left-3 rounded-full bg-ink/75 px-2.5 py-1 font-mono text-2xs text-paper">
         {beforeLabel}
       </span>
-      <span className="pointer-events-none absolute top-3 right-3 rounded-full bg-accent-strong px-2.5 py-1 font-mono text-[11px] text-paper">
+      <span className="pointer-events-none absolute top-3 right-3 rounded-full bg-accent-strong px-2.5 py-1 font-mono text-2xs text-paper">
         {afterLabel}
       </span>
       <div className="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-paper shadow" style={{ left: `${pos}%` }} />

@@ -46,3 +46,7 @@ next-env.d.ts
 /public/presets/
 /public/samples/
 /eval/reports/
+
+# BTP report: photos and build output are not committed (see "Don't commit photos")
+/docs/btp-report/figures/*.jpg
+/docs/btp-report/report.filled.html

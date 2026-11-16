@@ -1,0 +1,16 @@
+# FASHN VTON 1.5 pinned to the commit this code was written against.
+fashn-vton @ git+https://github.com/fashn-AI/fashn-vton-1.5.git@7c0f10af3f91ad4048fe9729c470a13ef905d25a
+fashn-human-parser>=0.1.1
+torch>=2.5
+torchvision
+safetensors
+huggingface_hub
+pillow
+numpy
+opencv-python-headless
+einops
+tqdm
+matplotlib
+# CPU/Apple: onnxruntime. On a CUDA machine use onnxruntime-gpu instead.
+onnxruntime
+pytest

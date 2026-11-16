@@ -1,0 +1,8 @@
+.venv/
+weights/
+.hf/
+.mpl/
+runs/
+data/
+__pycache__/
+.pytest_cache/

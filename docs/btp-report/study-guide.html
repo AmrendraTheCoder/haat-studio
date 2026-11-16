@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Study Guide: Garment-to-Model Virtual Try-On</title>
+<style>
+  @page { size: A4; margin: 18mm 17mm 18mm 17mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Georgia, "Times New Roman", serif; font-size: 11pt; line-height: 1.5; color: #14272a; margin: 0; }
+  h1 { font-size: 24pt; line-height: 1.15; margin: 0 0 4pt; color: #0f2a2e; }
+  h2 { font-size: 15pt; margin: 22pt 0 6pt; color: #0f2a2e; border-bottom: 2px solid #f2a900; padding-bottom: 3pt; break-after: avoid; }
+  h3 { font-size: 12pt; margin: 14pt 0 3pt; color: #0e7c7b; break-after: avoid; }
+  p { margin: 0 0 7pt; }
+  ul, ol { margin: 0 0 8pt; padding-left: 18pt; }
+  li { margin-bottom: 3pt; }
+  .sub { color: #4a5e61; font-size: 11pt; margin-bottom: 14pt; }
+  table { border-collapse: collapse; width: 100%; margin: 6pt 0 10pt; font-family: Helvetica, Arial, sans-serif; font-size: 9.5pt; line-height: 1.35; break-inside: avoid; }
+  th { background: #0f2a2e; color: #fff; text-align: left; padding: 5pt 7pt; }
+  td { padding: 5pt 7pt; border-bottom: 1px solid #d9e4e2; vertical-align: top; }
+  tr:nth-child(even) td { background: #f5f8f7; }
+  .say { background: #fff7e0; border-left: 4px solid #f2a900; padding: 8pt 11pt; margin: 8pt 0 10pt; break-inside: avoid; }
+  .say b:first-child { color: #8a5f00; }
+  .warn { background: #fbeeea; border-left: 4px solid #c8553d; padding: 8pt 11pt; margin: 8pt 0 10pt; break-inside: avoid; }
+  .note { background: #eef3f2; border-left: 4px solid #0e7c7b; padding: 8pt 11pt; margin: 8pt 0 10pt; break-inside: avoid; }
+  code { font-family: Menlo, Consolas, monospace; font-size: 9.5pt; background: #eef3f2; padding: 0 3pt; border-radius: 2pt; }
+  .q { font-weight: bold; margin: 9pt 0 2pt; break-after: avoid; }
+  .toc { columns: 2; font-family: Helvetica, Arial, sans-serif; font-size: 10pt; margin: 6pt 0 0; padding-left: 16pt; }
+  .num { text-align: right; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<h1>Garment-to-Model Virtual Try-On</h1>
+<p class="sub">Personal study guide for the one-to-one discussion · Mini Project, 5th Semester · LNMIIT Jaipur · Guide: Dr. Nishant Gupta · Prepared 12 November 2026</p>
+
+<div class="note">This guide is for you, not for submission. It explains the whole project in plain English, in the order you would tell it. Every number in it is measured and comes from a file in the project. Where something was not done, it says so, so that you can say it first.</div>
+
+<ol class="toc">
+  <li>The project in one minute</li>
+  <li>Whose work is whose</li>
+  <li>Background ideas, from zero</li>
+  <li>How the model works, step by step</li>
+  <li>What I did, in order</li>
+  <li>Why each decision made sense</li>
+  <li>Results: every number in one place</li>
+  <li>How it differs from existing things</li>
+  <li>How it will be upgraded</li>
+  <li>How long it took</li>
+  <li>Studies and references I used</li>
+  <li>Limits to state yourself</li>
+  <li>Likely questions and answers</li>
+  <li>Glossary</li>
+</ol>
+
+<h2>1. The project in one minute</h2>
+<p>Small clothing sellers usually have only a flat photo of a garment, taken on a bed or a hanger. Buyers want to see it worn. A virtual try-on model takes a photo of a person and a photo of a garment and produces a photo of that person wearing that garment.</p>
+<p>I took the strongest open model for this, FASHN VTON 1.5, which has 972 million parameters. It was released with the weights and the code to <i>run</i> it, but with no code to <i>train</i> it and no paper. So nobody outside the company can adapt it to new kinds of clothing, such as sarees and lehengas.</p>
+<p>My project has three parts:</p>
+<ol>
+  <li><b>Understand it.</b> I documented the model layer by layer from its source code.</li>
+  <li><b>Make it trainable.</b> I worked out the missing training method from the inference code, proved on the real weights that it is correct, and built a LoRA fine-tuning framework on top of it.</li>
+  <li><b>Use it and measure it.</b> I built a web application that serves the model for free, and measured the quality of its output.</li>
+</ol>
+<div class="say"><b>Say this:</b> "The model is not mine. My work is understanding it, rebuilding its missing training method and proving it is right, building the tools to fine-tune it, and building and measuring a working system around it. The actual fine-tune on Indian garments is not done yet, because it needs data and a GPU I do not have."</div>
+
+<h2>2. Whose work is whose</h2>
+<table>
+  <tr><th style="width:42%">FASHN AI's work</th><th>My work</th></tr>
+  <tr><td>The network design</td><td>The layer-by-layer analysis and documentation</td></tr>
+  <tr><td>The pretrained weights (trained by them on about 18 million pairs, according to their model card)</td><td>The reconstructed training objective, and the proof that it matches the weights</td></tr>
+  <tr><td>The inference code (package <code>fashn-vton</code> 1.5.0)</td><td>The LoRA framework: adapters, data preparation, training loop, evaluation, new categories</td></tr>
+  <tr><td></td><td>Running the model in 8 GB of memory (loader, chunked attention)</td></tr>
+  <tr><td></td><td>The finding that the human parser is unused in our mode</td></tr>
+  <tr><td></td><td>The web application, the baseline evaluation and the skirt fix</td></tr>
+</table>
+<div class="warn"><b>Avoid these two sentences:</b> "I improved the model" and "I added layers to the model". The accurate version is: "I added small trainable adapter layers beside 96 of its existing layers. The original weights stay frozen. I have shown the training works, and I have not yet shown that it improves the pictures."</div>
+
+<h2>3. Background ideas, from zero</h2>
+
+<h3>3.1 A neural network and its parameters</h3>
+<p>A neural network is a long chain of simple calculations. Each calculation uses numbers called parameters, or weights. Training means adjusting those numbers until the output is right. This model has 971,813,808 of them.</p>
+
+<h3>3.2 Generating an image by removing noise</h3>
+<p>The model does not draw a picture in one go. It starts from pure random noise and improves it in small steps until it becomes a photo. This family of methods is called diffusion. This model uses a newer and simpler version called <b>rectified flow</b>.</p>
+<p>The idea of rectified flow: draw a straight line between a noise image and the real photo. At any point on that line, the model is asked one question: "which direction do I move to get from the noise to the photo?" That direction is called the velocity. To generate, you start at the noise end and take 30 small steps along the predicted direction. Each step is called an Euler step, after the simplest method of following a direction step by step.</p>
+
+<h3>3.3 Tokens, transformers and attention</h3>
+<p>A transformer cannot read an image directly. The image is cut into small squares called patches, here 12 × 12 pixels each. Each patch is turned into a list of 1,280 numbers called a token. An 864 × 576 image gives 72 × 48 = 3,456 tokens.</p>
+<p><b>Attention</b> is the operation where every token looks at every other token and takes information from the ones that matter to it. This is the heart of the project. A token on the person's chest can look at the garment token that holds the logo, and copy what it sees.</p>
+
+<h3>3.4 Guidance</h3>
+<p>At each step the model is run twice: once with the garment and person photos, and once with them blanked out. The difference between the two answers shows what the photos contribute. The model then pushes a bit further in that direction, by a factor of 1.5. This is called classifier-free guidance, and it makes the result follow the garment more closely. It is also why one photo costs 60 runs of the network, not 30.</p>
+
+<h3>3.5 Pose and parsing</h3>
+<ul>
+  <li><b>Pose estimation</b> finds the body joints (shoulders, elbows, hips and so on) and draws them as a stick figure. The model receives this drawing so it knows where the body is. Two models do this: YOLOX finds the person, DWPose finds the joints.</li>
+  <li><b>Human parsing</b> labels each pixel as hair, face, upper clothes, skirt and so on. A SegFormer model does this. It is only needed in the mode where the old clothes are masked out first.</li>
+</ul>
+
+<h3>3.6 LoRA</h3>
+<p>Fine-tuning means continuing the training of an existing model on new data. Doing that to all 972 million parameters with only a few hundred photos would damage what the model already knows.</p>
+<p>LoRA (Low-Rank Adaptation) avoids this. The original layer, call it <code>W</code>, is frozen. Beside it you add two small matrices, <code>A</code> and <code>B</code>, and only those are trained:</p>
+<p style="text-align:center"><code>output = W·x + (α / r) · B·A·x</code></p>
+<p>Here <code>r</code> is the rank, which sets how small the added matrices are (16 in this project), and <code>α</code> is a scaling number (also 16). <code>B</code> starts as all zeros, so at the start the added part contributes nothing and the model behaves exactly like the original.</p>
+
+<h2>4. How the model works, step by step</h2>
+<ol>
+  <li><b>Prepare the photos.</b> Both photos are resized and padded to 864 × 576 pixels. The pose is detected and drawn as a skeleton.</li>
+  <li><b>Build two streams.</b> The person stream has 7 channels: the noisy image (3), the person photo (3) and the pose drawing (1). The garment stream has 4 channels: the garment photo (3) and a pose drawing (1). For a flat-lay garment that pose drawing is blank.</li>
+  <li><b>Cut into patches.</b> Each stream becomes 3,456 tokens, so 6,912 tokens in total.</li>
+  <li><b>Mix within each image.</b> 4 patch-mixer blocks let each image's tokens exchange information.</li>
+  <li><b>Double-stream blocks (8).</b> The two streams keep separate weights but share one attention operation, so person tokens and garment tokens can read each other.</li>
+  <li><b>Single-stream blocks (16).</b> The two streams are joined into one sequence and processed with shared weights.</li>
+  <li><b>Final layer.</b> The person tokens are turned back into pixels. The output is the predicted velocity.</li>
+  <li><b>Repeat.</b> Steps 4 to 7 run 60 times per photo: 30 denoising steps, each run twice for guidance. The very last step is run without guidance.</li>
+</ol>
+<table>
+  <tr><th>Property</th><th>Value</th></tr>
+  <tr><td>Hidden size</td><td>1,280 numbers per token</td></tr>
+  <tr><td>Attention heads</td><td>10 heads of 128 dimensions each</td></tr>
+  <tr><td>Position information</td><td>Rotary position embedding (RoPE), which tells each token where its patch sits in the image</td></tr>
+  <tr><td>Conditioning</td><td>The time step and the garment category (tops, bottoms, one-pieces) adjust every block through its normalisation layers</td></tr>
+  <tr><td>Working space</td><td>Raw pixels, with no compression stage</td></tr>
+  <tr><td>Output size</td><td>864 × 576 pixels at most</td></tr>
+</table>
+<div class="say"><b>If he asks "how does the dress get onto the person?":</b> "There is no cutting, warping or pasting. The garment's tokens and the person's tokens sit in the same attention operation in 24 blocks. Each body token reads from the garment tokens that are relevant to it, and the picture is built up over 30 denoising steps."</div>
+<div class="say"><b>If he asks about colour correction:</b> "There is no separate colour-correction step. Colour stays true because the model works on raw pixels, because guidance pushes each step towards the garment, and because the last step is unguided, which avoids over-saturated colour."</div>
+
+<h2>5. What I did, in order</h2>
+
+<h3>Step 1: Survey of options (September 2026)</h3>
+<p>I compared the available try-on models and hosted services: FASHN VTON 1.5, Leffa, IDM-VTON, CatVTON, OOTDiffusion, FitDiT, StableVITON and FastFit, plus paid APIs. I compared what each needs as input, its licence, its memory need and whether a free hosted demo exists. The notes are in the <code>research/</code> folder.</p>
+
+<h3>Step 2: The application (October 2026)</h3>
+<p>I built a web application (Next.js, TypeScript, about 7,700 lines) that sends a garment photo and a person photo to the model, which runs on Hugging Face's free shared GPUs. The engineering problems it solves:</p>
+<ul>
+  <li><b>Cache:</b> the same request is never computed twice. The key is a hash of both images and the settings.</li>
+  <li><b>One at a time:</b> a lock stops two jobs from using the free GPU at once.</li>
+  <li><b>Quota meter:</b> the free tier allows 5 GPU-minutes a day and refused requests after the 8th photo, so the application tracks what is left.</li>
+  <li><b>Clear errors:</b> each failed attempt is reported, not only the last one.</li>
+</ul>
+
+<h3>Step 3: Baseline measurement (26 October 2026)</h3>
+<p>I generated real try-ons and scored them on six criteria, five points each: colour, print, neckline, length, shape and artefacts. Tops scored well. The skirt failed on a model wearing a dress, because there was no separate bottom garment to replace. I changed the system so that each preset model records what it is wearing, and bottoms are paired with a model wearing separates. The skirt score went from 36.7% to 96.7%.</p>
+
+<h3>Step 4: Model analysis (late October 2026)</h3>
+<p>I read the inference source code and wrote down every stage: the input channels, the patch size, the block counts, the attention layout, the sampling loop and its settings.</p>
+
+<h3>Step 5: Reconstructing the training method</h3>
+<p>The training code was never published. A sampler and a training objective have to agree with each other, so the sampler reveals the objective. From the sampling loop I derived:</p>
+<ul>
+  <li>The noisy input is a straight-line mix: <code>x_t = (1 − t)·noise + t·photo</code>.</li>
+  <li>The model must predict <code>photo − noise</code>.</li>
+  <li>Time steps are drawn from a shifted distribution, so more training happens at the noisy end.</li>
+  <li>Both conditions are blanked together 10% of the time, which is what makes guidance possible.</li>
+</ul>
+<p>I added one design choice of my own: errors on garment pixels count double, and padding counts zero, because a wrong print is a wrong product.</p>
+
+<h3>Step 6: The LoRA framework (by 31 October 2026)</h3>
+<p>17 Python files, about 1,600 lines, with 12 automated tests. It contains the adapters, data preparation, the training loop, sampling, evaluation metrics, and a way to add new garment categories.</p>
+<ul>
+  <li><b>Where the adapters go:</b> the attention and MLP layers of the 8 double-stream and 16 single-stream blocks, 96 layers in total.</li>
+  <li><b>How much is trained:</b> 9,830,400 parameters, which is 1.01% of the model.</li>
+  <li><b>Three decisions specific to this model:</b> the adapters are kept in 32-bit precision although the model is 16-bit, because small updates vanish in 16-bit; the layers that control every sampling step are left frozen; and in the single-stream blocks one adapter on the combined layer covers both attention and MLP.</li>
+  <li><b>New categories:</b> saree and lehenga can be added as categories 4 and 5, starting as copies of the one-pieces category.</li>
+</ul>
+
+<h3>Step 7: Fitting it into an 8 GB laptop</h3>
+<ul>
+  <li><b>Loader:</b> my loader keeps the weights in 16-bit from the start. Memory after loading is 2.04 GB against 3.9 GB with FASHN's loader, 48% less.</li>
+  <li><b>Chunked attention:</b> attention is computed two heads at a time, not ten, which lowers the peak memory.</li>
+  <li><b>Gradient checkpointing:</b> during training, intermediate results are recomputed when needed, not stored.</li>
+</ul>
+
+<h3>Step 8: Checks on the real weights (November 2026)</h3>
+<ul>
+  <li>My inference code and FASHN's give identical output: 0.00 difference out of 255.</li>
+  <li>The real model's loss under my reconstruction is about 0.006. Under the opposite convention it is about 5.1. That is 863 times lower, which shows my reconstruction is the one the model was trained with.</li>
+  <li>Replacing the human parser with a dummy changes the output by 0.00 out of 255 in our mode. The parser is the only part with a non-commercial licence.</li>
+</ul>
+
+<h3>Step 9: A real LoRA training run (12 November 2026)</h3>
+<p>I ran 100 training steps on the real model on my laptop. The loss on the two training samples fell by 27.1%. The saved adapter is 37.5 MB, which is 2.0% of the model's size. This is a test that the machinery works. It is not an improvement in picture quality, for reasons in section 12.</p>
+
+<h2>6. Why each decision made sense</h2>
+<table>
+  <tr><th style="width:30%">Decision</th><th>Reason</th></tr>
+  <tr><td>FASHN VTON 1.5 as the model</td><td>It accepts flat-lay photos, needs no mask, has an Apache-2.0 licence for model and code, has a free official hosted demo, and is small at about 2 GB. Most alternatives have non-commercial licences.</td></tr>
+  <tr><td>A model that works on pixels</td><td>Most try-on models compress the image 8 times before working on it, which blurs small printed text. This one does not.</td></tr>
+  <tr><td>LoRA, not full fine-tuning</td><td>A few hundred pairs would make a 972M model forget what it learned. LoRA trains 1.01%, fits a 16 GB GPU, and the adapter can be removed.</td></tr>
+  <tr><td>Rank 16</td><td>A common middle value: large enough to learn a new garment type, small enough to stay around 40 MB. It has not been tuned, because no real fine-tune has run.</td></tr>
+  <tr><td>Garment pixels count double</td><td>For a seller the garment is the product. A small error in the background does not matter; a wrong print does.</td></tr>
+  <tr><td>Proving the objective before training</td><td>If the training method were wrong, a fine-tune would damage the model and waste the data. The proof costs minutes; a wrong fine-tune costs days.</td></tr>
+  <tr><td>Hosted free GPU for serving</td><td>The laptop needs about 22 minutes per photo. The hosted GPU needs 13.5 seconds.</td></tr>
+  <tr><td>Cache and lock in the application</td><td>The free quota is about 8 photos a day, so no run may be wasted.</td></tr>
+</table>
+
+<h2>7. Results: every number in one place</h2>
+<table>
+  <tr><th>What</th><th>Value</th><th>Where it comes from</th></tr>
+  <tr><td>Model parameters</td><td class="num">971,813,808</td><td>Counted on the real model</td></tr>
+  <tr><td>Tokens per pass</td><td class="num">6,912</td><td>2 × 72 × 48</td></tr>
+  <tr><td>Network passes per photo</td><td class="num">60</td><td>30 steps × 2</td></tr>
+  <tr><td>LoRA layers / parameters</td><td class="num">96 / 9,830,400 (1.01%)</td><td>Counted on the real model</td></tr>
+  <tr><td>Adapter file</td><td class="num">37.5 MB (2.0% of 1,854 MB)</td><td><code>ml/runs/microrun</code></td></tr>
+  <tr><td>My code against FASHN's</td><td class="num">0.00 / 255 difference</td><td><code>ml/runs/real-check</code></td></tr>
+  <tr><td>Loss: my convention against reversed</td><td class="num">0.006 against 5.14 (863×)</td><td><code>ml/runs/real-check</code></td></tr>
+  <tr><td>Small test model, sampled by FASHN's sampler</td><td class="num">error 0.80 → 0.005 (−99.4%)</td><td>Automated test</td></tr>
+  <tr><td>Parser replaced by a dummy</td><td class="num">0.00 / 255 change</td><td><code>ml/runs/real-check</code></td></tr>
+  <tr><td>Memory after loading: mine against FASHN's</td><td class="num">2.04 GB against 3.9 GB (−48%)</td><td>Measured on the laptop</td></tr>
+  <tr><td>Time per photo, hosted GPU</td><td class="num">13.5 s warm, about 31 s cold</td><td>Baseline, 26 Oct</td></tr>
+  <tr><td>Time per photo, laptop</td><td class="num">1,344 s (about 22 min)</td><td><code>ml/runs/real-check</code></td></tr>
+  <tr><td>Rubric: logo tee</td><td class="num">30/30 (100%)</td><td>Baseline</td></tr>
+  <tr><td>Rubric: crop top</td><td class="num">28/30 (93.3%)</td><td>Baseline</td></tr>
+  <tr><td>Rubric: skirt, before and after the fix</td><td class="num">36.7% → 96.7%</td><td>Baseline</td></tr>
+  <tr><td>LoRA run: loss on trained samples</td><td class="num">0.00510 → 0.00372 (−27.1%)</td><td><code>ml/runs/microrun</code></td></tr>
+  <tr><td>LoRA run: loss on the unseen sample</td><td class="num">0.01067 → 0.01079 (+1.1%)</td><td><code>ml/runs/microrun</code></td></tr>
+  <tr><td>LoRA run: speed and memory</td><td class="num">7.3 s/step, 3.26 GB, 13.4 min</td><td><code>ml/runs/microrun</code></td></tr>
+  <tr><td>Automated tests</td><td class="num">12/12 framework, 54/54 application</td><td>Test runs</td></tr>
+</table>
+
+<h2>8. How it differs from existing things</h2>
+
+<h3>8.1 Older try-on methods (2018 to 2022)</h3>
+<p>VITON, CP-VTON and VITON-HD work in three stages: erase the clothing area on the person, bend the garment image to fit the body shape (a warp), and blend the two. They keep texture well when the warp is right. They fail when an arm covers the garment or when the shape changes a lot, because a flat image cannot be bent into every pose. The model I studied has no warp at all. It uses attention.</p>
+
+<h3>8.2 Other diffusion try-on models (2023 to 2024)</h3>
+<table>
+  <tr><th style="width:24%">Model</th><th>How it works</th><th style="width:36%">Difference from FASHN VTON 1.5</th></tr>
+  <tr><td>TryOnDiffusion</td><td>Two U-Net networks that pass information to each other</td><td>Not publicly released</td></tr>
+  <tr><td>OOTDiffusion, IDM-VTON</td><td>A separate garment encoder feeds features into the denoiser</td><td>Compressed latent space, a mask is needed, non-commercial licence</td></tr>
+  <tr><td>CatVTON</td><td>Garment and person are placed side by side in the input</td><td>Compressed latent space, non-commercial licence</td></tr>
+  <tr><td><b>FASHN VTON 1.5</b></td><td>A transformer where the garment sits in the place of the text prompt</td><td>Raw pixels, no mask needed, flat-lay accepted, Apache-2.0</td></tr>
+</table>
+
+<h3>8.3 ChatGPT and other general image models</h3>
+<ul>
+  <li><b>Purpose:</b> a general model makes any image from a description. This model does one task.</li>
+  <li><b>Goal:</b> a general model aims for a good-looking picture. A try-on model is trained to keep the exact product.</li>
+  <li><b>Control:</b> a general model is steered with words and results vary. This one has fixed settings and a seed.</li>
+  <li><b>Access:</b> ChatGPT's weights are closed and a user cannot retrain it. This model is open and I can fine-tune it.</li>
+  <li><b>Cost:</b> ChatGPT is paid per use on the provider's servers. This model runs free on a shared GPU or on your own machine.</li>
+</ul>
+<div class="warn"><b>State this yourself:</b> I have not tested ChatGPT side by side with this model. General models are improving quickly. The difference I can defend is in design, openness and control, not "mine gives better pictures".</div>
+
+<h3>8.4 Paid try-on APIs</h3>
+<p>FASHN and others sell try-on as an API. FASHN's listed price was $0.075 per image for its v1.6 endpoint when I checked in September 2026. Those models are newer than the open one, and closed. The open model costs nothing per image but you must supply the compute.</p>
+
+<h3>8.5 What is new in my own work</h3>
+<ul>
+  <li>A public, tested reconstruction of this model's training objective did not exist as far as I could find. It is what makes fine-tuning possible.</li>
+  <li>A LoRA framework written for this specific architecture, including new garment categories.</li>
+  <li>The measured finding that the non-commercial parser can be skipped in segmentation-free, flat-lay mode.</li>
+  <li>Running and training the model inside 8 GB.</li>
+</ul>
+
+<h2>9. How it will be upgraded</h2>
+<h3>Next phase: prove the gain</h3>
+<ol>
+  <li><b>Collect data.</b> 300 to 500 pairs from local sellers, with consent. A pair is the garment alone and the same garment worn.</li>
+  <li><b>Fine-tune at full resolution</b> on a CUDA GPU with at least 16 GB (college server or Kaggle), using the framework as it is.</li>
+  <li><b>Measure properly.</b> Garments the model never saw, base model against fine-tuned model, two raters, plus automatic metrics: PSNR and SSIM (how close two images are) and the error on garment pixels.</li>
+  <li><b>Add categories</b> for saree and lehenga.</li>
+</ol>
+<h3>After that: a usable product</h3>
+<ul>
+  <li>My own hosted copy of the model with the adapter loaded and the unused parser removed.</li>
+  <li>An upscaling stage, because the output is 864 × 576 at most and Instagram wants larger.</li>
+  <li>Checks that reject blurry or cropped garment photos before GPU time is spent.</li>
+  <li>Batch mode for a whole catalogue.</li>
+</ul>
+<h3>Longer term: research directions</h3>
+<ul>
+  <li>Several garments at once, such as top, bottom and dupatta.</li>
+  <li>Different body shapes and sizes, so buyers can judge fit.</li>
+  <li>Short try-on videos.</li>
+  <li>Fewer sampling steps through distillation, to make it faster.</li>
+</ul>
+<div class="say"><b>Closing line on future scope:</b> "The framework is ready. The missing piece is data. With a few hundred photo pairs and a few GPU-hours I can fine-tune on Indian garments and measure the gain on unseen garments."</div>
+
+<h2>10. How long it took</h2>
+<p>These dates come from the commit history and file dates in the project folders.</p>
+<table>
+  <tr><th style="width:26%">When</th><th>What</th></tr>
+  <tr><td>19 to 22 August 2026</td><td>An earlier try-on prototype (<code>stiche-v2</code>, 28 commits). Its lessons shaped the application design.</td></tr>
+  <tr><td>21 September 2026</td><td>Survey of open models and hosted services (three research notes)</td></tr>
+  <tr><td>2 October 2026</td><td>First version of the application on FASHN VTON 1.5</td></tr>
+  <tr><td>26 October 2026</td><td>First real try-ons, the baseline evaluation and the skirt fix</td></tr>
+  <tr><td>By 31 October 2026</td><td>Model analysis and the fine-tuning framework</td></tr>
+  <tr><td>12 November 2026</td><td>Checks on the real weights, the LoRA run, the report and the presentation</td></tr>
+</table>
+<p>From the survey to the report is 52 days, about seven and a half weeks. Counting the earlier prototype it is about twelve weeks.</p>
+<table>
+  <tr><th>Measured computer time</th><th class="num">Duration</th></tr>
+  <tr><td>One photo on the hosted GPU</td><td class="num">13.5 s</td></tr>
+  <tr><td>One photo on the laptop</td><td class="num">about 22 min</td></tr>
+  <tr><td>100-step LoRA run on the laptop</td><td class="num">13.4 min</td></tr>
+  <tr><td>One full-resolution training step on the laptop</td><td class="num">did not finish in 8 min</td></tr>
+</table>
+<div class="warn"><b>What is not recorded:</b> the hours you personally spent each week. Nothing in the project logs them. If he asks, give your own honest estimate and the calendar dates above. Do not quote a figure from this guide.</div>
+
+<h2>11. Studies and references I used</h2>
+<p>The numbers in square brackets match the reference list in the report.</p>
+<table>
+  <tr><th style="width:36%">Source</th><th>What I took from it</th></tr>
+  <tr><td>[1] FASHN VTON 1.5 model card and source code, 2026</td><td>The main object of study. Everything about the architecture comes from reading this code.</td></tr>
+  <tr><td>[2] VITON, Han et al., CVPR 2018</td><td>The original try-on method: erase, warp, blend</td></tr>
+  <tr><td>[3] CP-VTON, Wang et al., ECCV 2018</td><td>Learning the warp, not hand-designing it</td></tr>
+  <tr><td>[4] VITON-HD, Choi et al., CVPR 2021</td><td>High resolution and the standard benchmark dataset</td></tr>
+  <tr><td>[5] Dress Code, Morelli et al., ECCV 2022</td><td>Lower-body garments and dresses as separate categories</td></tr>
+  <tr><td>[6] DDPM, Ho et al., NeurIPS 2020</td><td>The basic idea of generating by removing noise</td></tr>
+  <tr><td>[7] Latent diffusion, Rombach et al., CVPR 2022</td><td>Working in a compressed space, and why that blurs fine detail</td></tr>
+  <tr><td>[8] TryOnDiffusion, Zhu et al., CVPR 2023</td><td>The first strong diffusion try-on</td></tr>
+  <tr><td>[9] OOTDiffusion, Xu et al., 2024<br>[10] IDM-VTON, Choi et al., ECCV 2024</td><td>Feeding garment features into the denoiser through a separate encoder</td></tr>
+  <tr><td>[11] CatVTON, Chong et al., 2024</td><td>Simply placing garment and person together is enough</td></tr>
+  <tr><td>[12] Diffusion Transformer, Peebles and Xie, ICCV 2023</td><td>Replacing the U-Net with a transformer over patches</td></tr>
+  <tr><td>[13] Rectified flow, Liu et al., ICLR 2023<br>[14] Flow matching, Lipman et al., ICLR 2023</td><td>The straight-line path from noise to data. This is the basis of my reconstructed objective.</td></tr>
+  <tr><td>[15] Stable Diffusion 3, Esser et al., ICML 2024</td><td>The MMDiT design and the shifted time-step sampling I used</td></tr>
+  <tr><td>[16] FLUX.1, Black Forest Labs, 2024</td><td>The double-stream and single-stream block design that FASHN adapted</td></tr>
+  <tr><td>[17] Classifier-free guidance, Ho and Salimans, 2022</td><td>Why conditions are dropped during training, and guidance at sampling</td></tr>
+  <tr><td>[18] LoRA, Hu et al., ICLR 2022</td><td>The adapter method the framework is built on</td></tr>
+  <tr><td>[19] YOLOX, Ge et al., 2021<br>[20] DWPose, Yang et al., ICCV Workshops 2023</td><td>Person detection and pose estimation in the preprocessing</td></tr>
+  <tr><td>[21] SegFormer, Xie et al., NeurIPS 2021</td><td>The human parser</td></tr>
+  <tr><td>[22] Hugging Face ZeroGPU documentation, 2026</td><td>How the free shared GPU and its quota work</td></tr>
+  <tr><td>[23] SSIM, Wang et al., IEEE TIP 2004</td><td>The image-similarity metric in the evaluation script</td></tr>
+</table>
+<div class="note"><b>If you have time to read only three:</b> the LoRA paper [18] (short and readable), the rectified flow paper [13] for the straight-line idea, and the FASHN model card [1]. Be ready to describe each of these in two sentences.</div>
+
+<h2>12. Limits to state yourself</h2>
+<ol>
+  <li><b>No real fine-tune has been run.</b> No improvement in output quality from LoRA has been measured.</li>
+  <li><b>The LoRA run is a memorisation test.</b> Its training targets were the model's own outputs, so there was nothing new to learn. The unseen sample did not improve (+1.1%), as expected.</li>
+  <li><b>It ran at half resolution</b> (432 × 288), because a full-resolution step filled 8 GB of memory plus 8.6 GB of swap and did not finish in 8 minutes.</li>
+  <li><b>It used 2 training samples and 1 unseen sample.</b></li>
+  <li><b>The quality scores are a baseline, not a benchmark:</b> four images, one rater, scored by eye.</li>
+  <li><b>The skirt improvement came from how the model is used,</b> not from changing the model, and it is one garment.</li>
+  <li><b>The laptop result and the hosted result differ in pixels</b> for the same seed (PSNR 22.4 dB). I think the random noise differs between the two kinds of GPU. That is a guess I have not checked.</li>
+  <li><b>No Indian garments have been tested yet.</b></li>
+</ol>
+
+<h2>13. Likely questions and answers</h2>
+
+<p class="q">Did fine-tuning improve the output?</p>
+<p>Not measured. The framework is built and verified. Improvement needs real paired data and a 16 GB GPU, which is the next phase.</p>
+
+<p class="q">Then what is your contribution?</p>
+<p>The model shipped with no way to train it. I reconstructed the training objective and proved it against the released weights, with 863 times lower loss than the opposite convention, and built the full fine-tuning framework. I also built the serving system and measured a baseline.</p>
+
+<p class="q">How do you know your training method matches theirs?</p>
+<p>Two ways. The real pretrained model has very low loss under my version and very high loss under the reversed one. And a small model trained with my loss is sampled correctly by FASHN's own unchanged sampler.</p>
+
+<p class="q">Why did the loss fall 27% if nothing was learned?</p>
+<p>The adapters memorised the two training samples. That shows gradients flow through the 96 adapters and the saved file works. It says nothing about new garments, and the unseen sample confirms that.</p>
+
+<p class="q">Why does the model need so much computation?</p>
+<p>Attention compares every token with every other token. With 6,912 tokens that is about 48 million comparisons per head, in 24 joint blocks, 60 times per photo.</p>
+
+<p class="q">Why not train on the laptop?</p>
+<p>Training has to remember intermediate results for every layer to compute gradients, which needs far more memory than generating. A full-resolution step did not fit in 8 GB.</p>
+
+<p class="q">What is the rank in LoRA, and why 16?</p>
+<p>The rank is the inner size of the two added matrices. A higher rank can learn more and costs more parameters. 16 is a common starting point. I have not tuned it, because that needs a real fine-tune.</p>
+
+<p class="q">What data do you need, exactly?</p>
+<p>Pairs: a photo of the garment alone, and a photo of a person wearing that same garment. A few hundred pairs, with the sellers' consent.</p>
+
+<p class="q">Is it legal to use commercially?</p>
+<p>The model and code are Apache-2.0, which allows commercial use. The human parser has a non-commercial licence, and I showed it has no effect in our mode, so it can be left out.</p>
+
+<p class="q">How is this different from ChatGPT?</p>
+<p>ChatGPT is a general assistant that can draw. This is a specialist built to keep the exact garment. It is open, so I can study and fine-tune it. I have not benchmarked them side by side.</p>
+
+<h2>14. Glossary</h2>
+<table>
+  <tr><th style="width:26%">Term</th><th>Meaning</th></tr>
+  <tr><td>Parameter / weight</td><td>One adjustable number inside the network</td></tr>
+  <tr><td>Inference</td><td>Using a trained model to produce an output</td></tr>
+  <tr><td>Fine-tuning</td><td>Continuing to train an existing model on new data</td></tr>
+  <tr><td>Token</td><td>The list of numbers that represents one image patch</td></tr>
+  <tr><td>Attention</td><td>Each token taking information from the other tokens that matter to it</td></tr>
+  <tr><td>MLP</td><td>A small ordinary neural network inside each block, applied after attention</td></tr>
+  <tr><td>MMDiT</td><td>Multimodal diffusion transformer: a transformer with two input streams that share attention</td></tr>
+  <tr><td>Rectified flow</td><td>Generating by following a straight path from noise to image</td></tr>
+  <tr><td>Velocity</td><td>The direction from noise to image that the model predicts</td></tr>
+  <tr><td>Guidance scale</td><td>How strongly each step is pushed towards the conditions (1.5 here)</td></tr>
+  <tr><td>VAE</td><td>A network that compresses images into a smaller space. This model does not use one.</td></tr>
+  <tr><td>Flat-lay</td><td>A photo of a garment laid flat, with nobody wearing it</td></tr>
+  <tr><td>Segmentation-free</td><td>The mode where the old clothes are not masked out first</td></tr>
+  <tr><td>Loss</td><td>The number that measures how wrong the model's prediction is. Lower is better.</td></tr>
+  <tr><td>bf16 / float32</td><td>16-bit and 32-bit number formats. 16-bit halves the memory and is less precise.</td></tr>
+  <tr><td>Gradient checkpointing</td><td>Saving memory in training by recomputing intermediate results</td></tr>
+  <tr><td>PSNR, SSIM</td><td>Two standard measures of how similar two images are. Higher means closer.</td></tr>
+  <tr><td>CUDA</td><td>NVIDIA's system for running calculations on its GPUs</td></tr>
+  <tr><td>ZeroGPU</td><td>Hugging Face's free shared-GPU service, with a daily quota</td></tr>
+  <tr><td>Apache-2.0</td><td>An open licence that allows commercial use</td></tr>
+</table>
+
+</body>
+</html>

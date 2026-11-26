@@ -7,11 +7,17 @@ puts the shop name and ₹ price on it as a ready-to-post image, writes the capt
 plans the week's posts. The whole app works in **English or हिन्दी**, and everything
 runs on free services.
 
+**Live:** [haat-studio-peach.vercel.app](https://haat-studio-peach.vercel.app) (creating photos and reports needs the site's passcode)
+
 | | Feature | What the seller gets |
 |---|---|---|
-| 1 | **Try-on studio** | Garment photo in, on-model photo out, sized for an Instagram post, square or story |
+| 1 | **Try-on studio** | Garment photo in, on-model photo out, sized for an Instagram post, square or story. Choose the try-on AI: **Standard** (FASHN VTON 1.5) or **Haat-tuned** (with this project's LoRA adapter) |
 | 2 | **Post maker** | Shop name, price, MRP and offer drawn on the photo as real text, plus a caption and hashtags in English, Hinglish or Hindi |
-| 3 | **Market research** | Ten questions about the shop give back who buys, trends, what to charge, a 7-day post plan, upcoming selling days and the exact profit per piece |
+| 3 | **Market research** | Ten questions about the shop give back who buys, trends, what to charge, a 7-day post plan, upcoming selling days and the exact profit per piece; optionally a price band, listing title, hashtags and positioning worked out from real marketplace listings |
+
+Every photo goes through five automatic quality checks (colour measured in CIEDE2000)
+before it is shown. The tuned AI runs on the seller's own computer in about a minute and
+spends no shared GPU quota.
 
 ---
 
@@ -328,6 +334,7 @@ Locally, `./run.sh --prod` builds and starts the same standalone server that Doc
 
 ## Licensing
 
+- This project's code: [Apache-2.0](LICENSE).
 - FASHN VTON 1.5 code and weights: Apache-2.0.
 - Its default pipeline also loads the FASHN Human Parser, whose model card points to
   NVIDIA's SegFormer licence (non-commercial research and evaluation only). This project
@@ -335,6 +342,9 @@ Locally, `./run.sh --prod` builds and starts the same standalone server that Doc
   or licensed.
 - Preset model photos and sample garments come from FASHN's Space examples. `npm run
   setup` downloads them; this repo doesn't redistribute them.
+- The marketplace catalogue used for the market engines and for training pairs is not in
+  this repository (`retail/` and `data/` are ignored). Only aggregate results derived from
+  it appear in the report.
 
 ---
 
@@ -342,13 +352,15 @@ Locally, `./run.sh --prod` builds and starts the same standalone server that Doc
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | UI + demo mode: landing, guided studio, before/after, Instagram sizes, live pipeline, featured examples | Done |
+| 1 | UI: landing, guided studio with review step, before/after, Instagram sizes, live pipeline, library, help | Done |
 | 2 | First real results and a scored baseline | Done ([baseline](docs/eval-2026-10-26-baseline.md)) |
 | 3 | Quality: model suitability per garment type done; next are photo checks, sharper output, Indian models, kurta/saree tests | In progress (needs real garments from sellers) |
 | 4 | Post maker: real text on the photo, three templates × three sizes, checked AI captions | Done |
 | 5 | Market research: questionnaire → report with calculated profit and selling days | Done |
 | 6 | Deployment: production build, Docker image, passcode, [deploy guide](docs/deploy.md) | Done; accounts and cloud storage are next |
-| – | Hindi: header toggle across every screen, the post canvas, captions and reports | Done; wording not yet reviewed by a native speaker |
+| 7 | Haat-tuned AI: LoRA adapter trained and evaluated (PSNR +2.6 dB, 55% less pose drift on unseen garments), served in the app by `local-lora` | Done on the laptop; a hosted GPU Space is next |
+| 8 | Market engines from real listings in research reports; AI advice grounded in the same numbers | Done |
+| – | Hindi: language switch in the sidebar and footer, every screen, the post canvas, captions and reports | Done; wording not yet reviewed by a native speaker |
 
 More reading: [docs/project-summary.md](docs/project-summary.md) (plain-language overview) ·
 [docs/ux/](docs/ux/README.md) (users, journeys, design system, accessibility) ·

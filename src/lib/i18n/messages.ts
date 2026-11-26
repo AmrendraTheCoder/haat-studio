@@ -39,6 +39,14 @@ const en = {
     library: "Library",
     help: "Help",
     design: "How it's designed",
+    descriptions: {
+      studio: "Turn one photo of your garment into an on-model photo, sized for Instagram. Pick a model, review the cost, then create. Free.",
+      post: "Make an Instagram post from your try-on photo: price, MRP, offer and a caption in English, Hinglish or Hindi.",
+      research: "A free market plan for your shop: price band from real listings, buyers, hashtags, a listing title and a 7-day posting plan.",
+      library: "Every photo you have made, ready to open, download or turn into a post.",
+      help: "How Haat Studio works: photos, models, quality checks, the free GPU quota, posts and market research.",
+      design: "Who Haat Studio is for, the journey it supports, the principles behind every screen, and how it was tested.",
+    },
   },
   common: {
     switchLanguage: "Switch to Hindi",
@@ -806,6 +814,14 @@ const hi: Messages = {
     library: "लाइब्रेरी",
     help: "मदद",
     design: "इसे कैसे डिज़ाइन किया गया",
+    descriptions: {
+      studio: "अपने कपड़े की एक फ़ोटो से मॉडल पर पहनी हुई फ़ोटो बनाएँ, Instagram के साइज़ में। मॉडल चुनें, ख़र्च देखें, फिर बनाएँ। मुफ़्त।",
+      post: "ट्राई-ऑन फ़ोटो से Instagram पोस्ट बनाएँ: क़ीमत, MRP, ऑफ़र और अंग्रेज़ी, हिंग्लिश या हिन्दी में कैप्शन।",
+      research: "आपकी दुकान के लिए मुफ़्त मार्केट प्लान: असली लिस्टिंग से क़ीमत की रेंज, ख़रीदार, हैशटैग, लिस्टिंग टाइटल और 7 दिन का पोस्ट प्लान।",
+      library: "आपकी बनाई हर फ़ोटो, खोलने, डाउनलोड करने या पोस्ट बनाने के लिए तैयार।",
+      help: "Haat Studio कैसे काम करता है: फ़ोटो, मॉडल, क्वालिटी जाँच, मुफ़्त GPU कोटा, पोस्ट और मार्केट रिसर्च।",
+      design: "Haat Studio किसके लिए है, कौन-सा सफ़र आसान बनाता है, हर स्क्रीन के पीछे के सिद्धांत, और इसे कैसे परखा गया।",
+    },
   },
   common: {
     switchLanguage: "अंग्रेज़ी में बदलें",

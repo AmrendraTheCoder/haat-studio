@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import { connection } from "next/server";
 import { getMessages } from "@/lib/i18n/server";
 import { StudioApp } from "@/components/studio/StudioApp";
@@ -6,7 +7,8 @@ import { readRecent, readSetup } from "@/lib/site";
 import { store } from "@/lib/tryon";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getMessages()).t.meta.studio };
+  const { t } = await getMessages();
+  return pageMeta({ title: t.meta.studio, description: t.meta.descriptions.studio, path: "/studio" });
 }
 
 /** `?r=<key>` opens a photo — finished, or still being made — so a reload or a shared link lands back on it. */

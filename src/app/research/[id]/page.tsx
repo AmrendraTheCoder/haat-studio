@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PRIVATE } from "@/lib/seo";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
@@ -14,7 +15,12 @@ import { readSetup } from "@/lib/site";
 
 export async function generateMetadata({ params }: PageProps<"/research/[id]">): Promise<Metadata> {
   const [{ t }, report] = await Promise.all([getMessages(), params.then(({ id }) => readReport(id))]);
-  return { title: report ? t.meta.report(report.answers.shopName || report.answers.product) : t.meta.research };
+  // A seller's report is their own: reachable by link, never listed in search results.
+  return {
+    title: report ? t.meta.report(report.answers.shopName || report.answers.product) : t.meta.research,
+    robots: PRIVATE,
+    alternates: { canonical: report ? `/research/${report.id}` : "/research" },
+  };
 }
 
 const FORMAT_ICON = { reel: "▶", carousel: "▦", post: "▢", story: "◷" } as const;

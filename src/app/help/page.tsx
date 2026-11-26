@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import { connection } from "next/server";
 import { HelpContent } from "@/components/shared/HelpTip";
 import { HELP_SECTIONS } from "@/lib/ui/help";
@@ -8,7 +9,8 @@ import { getMessages } from "@/lib/i18n/server";
 import { readSetup } from "@/lib/site";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getMessages()).t.meta.help };
+  const { t } = await getMessages();
+  return pageMeta({ title: t.meta.help, description: t.meta.descriptions.help, path: "/help" });
 }
 
 export default async function HelpPage() {

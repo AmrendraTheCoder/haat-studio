@@ -39,6 +39,7 @@ Figure~\ref{fig:mmdit} shows the network and Table~\ref{tab:layers} lists its la
 
 \begin{figure}[!htbp]
 \centering
+\begin{adjustbox}{max width=\linewidth,center}
 \begin{tikzpicture}[node distance=4mm]
 \node[box=cA,text width=32mm] (pin) {Person stream\\\scriptsize 7 ch → 3{,}456 tokens};
 \node[box=cD,text width=32mm,right=22mm of pin] (gin) {Garment stream\\\scriptsize 4 ch → 3{,}456 tokens};
@@ -50,6 +51,7 @@ Figure~\ref{fig:mmdit} shows the network and Table~\ref{tab:layers} lists its la
 \draw[arr] (pin)--(mix); \draw[arr] (mix.south)--(mix.south|-dbl.north); \draw[arr] (gin.south)--(gin.south|-dbl.north);
 \draw[arr] (dbl)--(sgl); \draw[arr] (sgl)--(fin); \draw[arr,dashed] (cond.west)--(dbl.east); \draw[arr,dashed] (cond.south)|-(sgl.east);
 \end{tikzpicture}
+\end{adjustbox}
 \caption{The try-on transformer (an MMDiT adapted from FLUX.1). Red blocks are where our LoRA adapters attach (Chapter~5).}
 \label{fig:mmdit}
 \end{figure}

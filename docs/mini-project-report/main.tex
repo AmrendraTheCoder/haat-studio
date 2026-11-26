@@ -13,7 +13,16 @@
 \newfontfamily\codefont{DejaVuSansMono}[Extension=.ttf,UprightFont=*,BoldFont=*-Bold,Scale=0.82]
 
 \usepackage{setspace}
-\setstretch{1.42}
+\setstretch{1.4}
+\usepackage{microtype}
+\usepackage{longtable}
+\usepackage{adjustbox}
+\usepackage[htt]{hyphenat}
+\setlength{\emergencystretch}{2.5em}
+\setlength{\parindent}{1.5em}
+\setlength{\parskip}{0pt plus 1pt}
+\widowpenalty=10000 \clubpenalty=10000 \displaywidowpenalty=10000
+\raggedbottom
 \usepackage[hidelinks]{hyperref}
 \usepackage{graphicx,booktabs,tabularx,multirow,array,float,enumitem,xcolor}
 \usepackage[labelfont=sc,labelsep=colon,font=small,skip=6pt]{caption}
@@ -28,13 +37,15 @@
 \input{generated/values.tex}
 
 % ---------- headings: "Chapter N" over a large title, as in the sample
-\titleformat{\chapter}[display]{\bfseries}{\fontsize{22}{26}\selectfont\chaptertitlename\ \thechapter}{28pt}{\fontsize{30}{34}\selectfont}
-\titlespacing*{\chapter}{0pt}{60pt}{40pt}
-\titleformat{\section}{\fontsize{15}{18}\selectfont\bfseries}{\thesection}{1em}{}
-\titleformat{\subsection}{\fontsize{13}{16}\selectfont\bfseries}{\thesubsection}{1em}{}
+\titleformat{\chapter}[display]{\bfseries\setstretch{1.1}}{\fontsize{20}{24}\selectfont\chaptertitlename\ \thechapter}{18pt}{\fontsize{26}{31}\selectfont\raggedright\hyphenpenalty=10000}[\vspace{6pt}{\color{black!70}\titlerule[0.8pt]}]
+\titleformat{name=\chapter,numberless}[display]{\bfseries\setstretch{1.1}}{}{0pt}{\fontsize{26}{31}\selectfont\raggedright\hyphenpenalty=10000}[\vspace{6pt}{\color{black!70}\titlerule[0.8pt]}]
+\titlespacing*{\chapter}{0pt}{30pt}{30pt}
+\titleformat{\section}{\fontsize{14.5}{18}\selectfont\bfseries\raggedright}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\fontsize{12.5}{15}\selectfont\bfseries\raggedright}{\thesubsection}{0.8em}{}
 \titleformat{\paragraph}[runin]{\bfseries}{}{}{}[.]
-\titlespacing*{\section}{0pt}{22pt}{10pt}
-\titlespacing*{\subsection}{0pt}{16pt}{8pt}
+\titlespacing*{\section}{0pt}{20pt plus 4pt minus 2pt}{8pt}
+\titlespacing*{\subsection}{0pt}{14pt plus 3pt minus 2pt}{6pt}
+\titlespacing*{\paragraph}{0pt}{8pt plus 2pt}{0.6em}
 \setcounter{secnumdepth}{2}
 \setcounter{tocdepth}{2}
 
@@ -50,8 +61,21 @@
 \renewcommand{\chaptermark}[1]{\renewcommand{\markname}{chapter: \twodigit{\value{chapter}}}}
 
 % ---------- lists, captions, tables
-\setlist{itemsep=2pt,topsep=4pt}
+\setlist{itemsep=3pt,parsep=0pt,topsep=6pt,leftmargin=2em}
+\setlist[enumerate]{label=\arabic*.,leftmargin=2em}
+\makeatletter
+\setlength{\@fptop}{0pt}\setlength{\@fpsep}{12pt}\setlength{\@fpbot}{0pt plus 1fil}
+\makeatother
+\renewcommand{\topfraction}{0.85}\renewcommand{\bottomfraction}{0.6}
+\renewcommand{\textfraction}{0.12}\renewcommand{\floatpagefraction}{0.75}
+\setcounter{topnumber}{3}\setcounter{totalnumber}{4}
+\setlength{\textfloatsep}{16pt plus 4pt minus 4pt}
+\setlength{\intextsep}{14pt plus 4pt minus 4pt}
+\setlength{\abovecaptionskip}{6pt}
 \renewcommand{\cftchapfont}{\bfseries}
+\renewcommand{\cftchapleader}{\cftdotfill{\cftdotsep}}
+\setlength{\cftbeforechapskip}{8pt}
+\renewcommand{\cftfigpresnum}{}\renewcommand{\cfttabpresnum}{}
 \renewcommand{\cftchappagefont}{\bfseries}
 \renewcommand{\cftfigfont}{\figurename~}
 \renewcommand{\cfttabfont}{\tablename~}
@@ -109,6 +133,8 @@
 {\large The LNM Institute of Information Technology, Jaipur\par}
 \vspace{4mm}
 {\large November 2026\par}
+\ifLive\vspace{5mm}
+{\normalsize Live application: \url{\vLiveUrl}\par}\fi
 \end{titlepage}
 
 \thispagestyle{empty}
@@ -117,7 +143,7 @@
 \vspace{20mm}
 \clearpage
 
-\pagenumbering{roman}
+\pagenumbering{roman}\pagestyle{plain}
 \setcounter{page}{3}
 \renewcommand{\markname}{}
 
@@ -142,7 +168,7 @@ Guide: Dr. Nishant Gupta
 
 % ================================================================== acknowledgments
 \chapter*{Acknowledgments}
-\thispagestyle{plain}
+\addcontentsline{toc}{chapter}{Acknowledgments}
 We thank our guide, Dr.\ Nishant Gupta, for taking on a project that sits between computer vision, systems engineering and small-business marketing, and for the questions that shaped how we report it: what exactly is ours, what was measured, and what is still only a plan.
 
 We thank the Department of Electronics and Communication Engineering and the Department of Computer Science and Engineering at LNMIIT for the opportunity to work on an open-ended problem in the fifth semester.
@@ -156,8 +182,7 @@ Parts of the code and of this write-up were drafted with the help of an AI codin
 
 % ================================================================== abstract
 \chapter*{Abstract}
-\thispagestyle{plain}
-\renewcommand{\markname}{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
 Small clothing sellers in India usually have one flat photograph of each garment, while buyers decide faster when they see it worn. This project builds a free system that puts a garment photograph onto a model, turns the result into an Instagram post and advises the seller on price, wording and timing.
 
 The try-on model is FASHN VTON 1.5, an open 972-million-parameter diffusion transformer that combines a person photograph and a garment photograph through joint attention, directly in pixel space. We did not train it. We built the system around it: a single orchestration function that checks a content-addressed cache and a running-job table before it queues for the shared GPU, a photo-cleaning stage, live progress streaming, and a ledger that learns the free GPU quota. Over \vNRuns{} real generations a new photo took a median of \vMedTotal{}~s, of which \vMedGpu{}~s was GPU time; a repeat request was answered from the cache in \vCacheMs{}~ms.
@@ -166,50 +191,62 @@ The model was released without training code. We reconstructed its training obje
 
 The content side calls free language models through one validated function and keeps all arithmetic and dates in code. \ifMarket From \vMkTotalClean{} cleaned listings (T-shirts and tops from Amazon.in, sarees and kurta sets from Myntra) it derives price bands, demand shares and title keywords; median discounts of \vMkTeeDisc{}--\vMkKurtaDisc{}\% turn out to be at most weakly related to demand. Pricing, title, hashtag, positioning and location engines use these statistics; for a kurta-set seller in Jaipur they recommend \rupee\vExBandLo{}--\rupee\vExBandHi{} among \vExComparables{} comparable listings.\fi
 
+\ifLive The running application is available at \url{\vLiveUrl} and the source code at \url{https://github.com/AmrendraTheCoder/haat-studio}.\fi
+
 \vspace{6pt}\noindent\textbf{Keywords:} virtual try-on, diffusion transformer, rectified flow, LoRA, parameter-efficient fine-tuning, pose estimation, caching, e-commerce analytics, small businesses.
 
 % ================================================================== lists
-\clearpage
-\renewcommand{\markname}{CONTENTS}
+\cleardoublepage
 \tableofcontents
 \clearpage
-\renewcommand{\markname}{LIST OF FIGURES}
+\phantomsection\addcontentsline{toc}{chapter}{List of Figures}
 \listoffigures
 \clearpage
-\renewcommand{\markname}{LIST OF TABLES}
+\phantomsection\addcontentsline{toc}{chapter}{List of Tables}
 \listoftables
 \clearpage
-\renewcommand{\markname}{List of Abbreviations}
 \chapter*{List of Abbreviations}
 \addcontentsline{toc}{chapter}{List of Abbreviations}
-\thispagestyle{plain}
-\begin{tabular}{@{}p{30mm}p{110mm}@{}}
-API & Application programming interface\\
-CFG & Classifier-free guidance\\
-CI & Confidence interval\\
-DiT & Diffusion transformer\\
-DWPose & Whole-body pose estimator used by FASHN VTON\\
-EXIF & Exchangeable image file format (photo metadata)\\
-GEO & Geographic targeting (city and regional calendar)\\
-GPU & Graphics processing unit\\
-HHI & Herfindahl--Hirschman index of concentration\\
-IQR & Interquartile range\\
-LLM & Large language model\\
-LoRA & Low-rank adaptation\\
-MLP & Multi-layer perceptron\\
-MMDiT & Multimodal diffusion transformer\\
-MRP & Maximum retail price\\
-NDJSON & Newline-delimited JSON\\
-PSNR & Peak signal-to-noise ratio\\
-RoPE & Rotary position embedding\\
-SEO & Search engine optimisation\\
-SSIM & Structural similarity index\\
-VAE & Variational autoencoder\\
-VTON & Virtual try-on\\
-ZeroGPU & Hugging Face's shared, on-demand GPU service\\
-\end{tabular}
+{\setstretch{1.25}
+\begin{longtable}{@{}p{32mm}@{\hspace{6mm}}p{\dimexpr\textwidth-38mm\relax}@{}}
+\textbf{API} & Application programming interface\\
+\textbf{bf16} & Brain floating-point format, 16 bits\\
+\textbf{CFG} & Classifier-free guidance\\
+\textbf{CI} & Confidence interval\\
+\textbf{CIE} & Commission Internationale de l''Eclairage (International Commission on Illumination)\\
+\textbf{CIELAB} & CIE 1976 $L^*a^*b^*$ colour space\\
+\textbf{CIEDE2000} & CIE colour-difference formula of 2000 ($\Delta E_{00}$)\\
+\textbf{CUDA} & NVIDIA's GPU programming platform\\
+\textbf{DiT} & Diffusion transformer\\
+\textbf{DWPose} & Whole-body pose estimator used by FASHN VTON\\
+\textbf{$\Delta E$} & Colour difference between two colours in CIELAB\\
+\textbf{EXIF} & Exchangeable image file format (photo metadata)\\
+\textbf{GEO} & Geographic targeting (city and regional calendar)\\
+\textbf{GPU} & Graphics processing unit\\
+\textbf{HHI} & Herfindahl--Hirschman index of concentration\\
+\textbf{IQR} & Interquartile range\\
+\textbf{JSON} & JavaScript Object Notation\\
+\textbf{LLM} & Large language model\\
+\textbf{LoRA} & Low-rank adaptation\\
+\textbf{MLP} & Multi-layer perceptron\\
+\textbf{MMDiT} & Multimodal diffusion transformer\\
+\textbf{MPS} & Metal Performance Shaders (Apple GPU back end of PyTorch)\\
+\textbf{MRP} & Maximum retail price\\
+\textbf{NDJSON} & Newline-delimited JSON\\
+\textbf{PSNR} & Peak signal-to-noise ratio\\
+\textbf{RGB} & Red, green, blue colour channels\\
+\textbf{RoPE} & Rotary position embedding\\
+\textbf{SEO} & Search engine optimisation\\
+\textbf{sRGB} & Standard RGB colour space of screens and phone cameras\\
+\textbf{SSIM} & Structural similarity index\\
+\textbf{VAE} & Variational autoencoder\\
+\textbf{VTON} & Virtual try-on\\
+\textbf{YOLOX} & Single-stage object detector used to find the person\\
+\textbf{ZeroGPU} & Hugging Face's shared, on-demand GPU service\\
+\end{longtable}}
 
 \clearpage
+\pagestyle{fancy}
 \pagenumbering{arabic}
 \input{chapters/ch1-introduction}
 \input{chapters/ch2-literature}

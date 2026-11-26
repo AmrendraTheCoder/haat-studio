@@ -48,6 +48,19 @@ describe("output guardrails (quality.ts)", () => {
     expect(byId(q, "colour").severity).toBe("warn");
   });
 
+  it("warns when the garment and the old outfit are the same colour (colour cannot confirm the change)", async () => {
+    const cream = { r: 235, g: 225, b: 205 };
+    const q = await checkQuality({ result: await person({ r: 240, g: 236, b: 225 }), person: await person(cream), garment: await garment({ r: 245, g: 242, b: 232 }), settings });
+    expect(byId(q, "colour").ok).toBe(false);
+    expect(byId(q, "colour").detail?.garmentVsOld).toBeLessThan(8);
+  });
+
+  it("does not warn on a correct colour with a different lightness (shade or exposure)", async () => {
+    const q = await checkQuality({ result: await person({ r: 160, g: 25, b: 35 }), person: await person(BLUE), garment: await garment(RED), settings });
+    expect(byId(q, "colour").ok).toBe(true);
+    expect(byId(q, "colour").value).toBeLessThanOrEqual(12);
+  });
+
   it("warns when the aspect ratio does not match the model photo", async () => {
     const q = await checkQuality({ result: await person(RED, 400, 300), person: await person(BLUE), garment: await garment(RED), settings });
     expect(byId(q, "size").ok).toBe(false);

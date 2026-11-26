@@ -32,6 +32,7 @@ The project ran over the fifth semester in three tracks that share one codebase 
 
 \begin{figure}[!htbp]
 \centering
+\begin{adjustbox}{max width=\linewidth,center}
 \begin{tikzpicture}[node distance=5mm and 6mm]
 \node[box=cA,text width=30mm] (a1) {Survey of 8 open\\try-on models};
 \node[box=cA,text width=30mm,right=of a1] (a2) {Serving system on\\free GPUs};
@@ -49,6 +50,7 @@ The project ran over the fifth semester in three tracks that share one codebase 
 \node[grp=green!50!black,fit=(c1)(c3),label={[note]above:Track 3: turning the photograph into a sale}] {};
 \end{scope}
 \end{tikzpicture}
+\end{adjustbox}
 \caption{The three tracks of the project and the order in which each was built.}
 \label{fig:roadmap}
 \end{figure}
@@ -82,6 +84,7 @@ Figure~\ref{fig:arch} shows the complete system. The browser sends the garment p
 
 \begin{figure}[!htbp]
 \centering
+\begin{adjustbox}{max width=\linewidth,center}
 \begin{tikzpicture}[node distance=4.5mm]
 \node[box=black!6,text width=40mm] (br) {\textbf{Browser}\\garment photo, model, settings};
 \node[box=cA,text width=40mm,below=of br] (rt) {\textbf{API route}\\passcode, settings, photos};
@@ -108,6 +111,7 @@ Figure~\ref{fig:arch} shows the complete system. The browser sends the garment p
 \node[grp=red!50,fit=(bp)(ad),label={[note]above:adaptation (Chapter 5)}] {};
 \end{scope}
 \end{tikzpicture}
+\end{adjustbox}
 \caption{End-to-end architecture. Blue: serving the try-on; green: text and market intelligence; red: offline adaptation of the model. Dashed arrows are links that are designed but not yet live.}
 \label{fig:arch}
 \end{figure}

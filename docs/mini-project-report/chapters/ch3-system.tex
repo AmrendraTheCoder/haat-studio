@@ -8,10 +8,11 @@ Figure~\ref{fig:journey} shows the life of one request.
 
 \begin{figure}[!htbp]
 \centering
+\begin{adjustbox}{max width=\linewidth,center}
 \begin{tikzpicture}[node distance=3.2mm]
 \node[box,text width=19mm] (b) {Browser\\\scriptsize garment, model, settings};
 \node[box=cA,text width=19mm,right=of b] (r) {API route\\\scriptsize passcode, zod, photos};
-\node[box=cA,text width=19mm,right=of r] (p) {prepareImage\\\scriptsize clean both photos};
+\node[box=cA,text width=19mm,right=of r] (p) {prepare\-Image\\\scriptsize clean both photos};
 \node[box=cA,text width=19mm,right=of p] (s) {studio.start\\\scriptsize key, share, cache, lock};
 \node[box=cD,text width=19mm,right=of s] (f) {FASHN on\\ZeroGPU\\\scriptsize via Gradio};
 \node[box=cA,text width=19mm,right=of f] (v) {Save\\\scriptsize temp → rename};
@@ -22,6 +23,7 @@ Figure~\ref{fig:journey} shows the life of one request.
 \node[box=cB,text width=27mm,below=7mm of r.south,anchor=north east,xshift=2mm] (e) {bad input → 400\\plain message, no GPU};
 \draw[arr,dashed] (r.south) -- (r.south|-e.north);
 \end{tikzpicture}
+\end{adjustbox}
 \caption{The journey of one try-on request. Input problems are answered at once with a plain error; only valid requests start the stream.}
 \label{fig:journey}
 \end{figure}
@@ -70,6 +72,7 @@ Figure~\ref{fig:studio} shows the decisions inside the entry point. They are ord
 
 \begin{figure}[!htbp]
 \centering
+\begin{adjustbox}{max width=\linewidth,center}
 \begin{tikzpicture}[node distance=4.5mm]
 \node[box,text width=36mm] (k) {1. Compute the key\\\scriptsize sha256 of photos + settings};
 \node[box=cA,shape=diamond,aspect=2.4,inner sep=1pt,text width=24mm,below=of k] (r) {2. running\\now?};
@@ -83,6 +86,7 @@ Figure~\ref{fig:studio} shows the decisions inside the entry point. They are ord
 \node[note,right=4mm of k] {memory};
 \node[note,right=4mm of l] {GPU, about \vMedTotal{} s};
 \end{tikzpicture}
+\end{adjustbox}
 \caption{Decisions inside \texttt{studio().start()}, cheapest first.}
 \label{fig:studio}
 \end{figure}
@@ -140,7 +144,57 @@ and the margins are filled with a blurred ($\sigma = 40$), slightly darkened cop
 
 The response is an NDJSON stream: one JSON event per line, each stamped with the server's time. The events are \texttt{accepted}, \texttt{prepared}, \texttt{checked} (with whether the cache was hit), \texttt{waiting}, \texttt{queued} (with the position in the Space's queue), \texttt{running}, and finally \texttt{done} or \texttt{error}. The progress panel is computed from these events only; it never advances on a timer, so it shows real stages and real durations instead of an invented progress bar.
 
-Each job keeps every event it has emitted. When a page reconnects with \texttt{/studio?r=<key>}, the route \texttt{GET /api/tryon/[key]} replays all events of a running job and then continues live; for a finished job it returns the saved result; otherwise it answers 404 and the studio offers to try again.
+Each job keeps every event it has emitted. When a page reconnects with \texttt{/studio?r=<key>}, the route \texttt{GET\allowbreak{} /api/\allowbreak tryon/\allowbreak[key]} replays all events of a running job and then continues live; for a finished job it returns the saved result; otherwise it answers 404 and the studio offers to try again.
+
+\section{How the System Measures Colour}
+\label{sec:colour}
+
+A seller's first question about a try-on photograph is whether the garment still has its colour. Answering it with a number needs some colour science, because the obvious method, comparing red, green and blue values, is wrong in several ways.
+
+\paragraph{What a camera records} The colour of a piece of cloth is not a property of the cloth alone. The light that reaches the camera is the light falling on the cloth multiplied, wavelength by wavelength, by the cloth's reflectance: $C(\lambda) = I(\lambda)\,R(\lambda)$. The human eye has three kinds of cone cells, sensitive to long, medium and short wavelengths, so every colour we see is reduced to three numbers; a camera imitates this with red, green and blue filters, and the phone then applies its own white balance, tone curve and JPEG compression. The same saree therefore gives different RGB values under tube light, in shade and in sunlight, and different values again on two phones.
+
+\paragraph{Hue, chroma and lightness} RGB is a description of a screen, not of what we see: equal steps in RGB are not equal steps to the eye. People describe a colour by its \emph{hue} (red, yellow, green, blue), its \emph{chroma} (how vivid it is compared with a grey of the same lightness) and its \emph{lightness}. In a photograph of a garment these are not equally reliable. Hue survives a change of light best, which makes it the right basis for a ``same colour family'' test; chroma is moderately stable; lightness is the least reliable, because folds, shine, shadows and the camera's exposure change it across a single piece of cloth.
+
+\paragraph{CIELAB and the colour difference $\Delta E$} The CIE 1976 $L^*a^*b^*$ space~\cite{cie15} was designed so that distances approximate perceived differences: $L^*$ is lightness, $a^*$ runs from green to red and $b^*$ from blue to yellow, so hue is the angle $h = \operatorname{atan2}(b^*, a^*)$ and chroma the radius $C^* = \sqrt{a^{*2} + b^{*2}}$. The first colour difference, CIE76, is the straight-line distance $\Delta E_{76} = \sqrt{\Delta L^{*2} + \Delta a^{*2} + \Delta b^{*2}}$. It is known to exaggerate differences between saturated colours and to misjudge blues. The CIEDE2000 formula~\cite{ciede2000,sharma} corrects these errors:
+\begin{equation}
+\Delta E_{00} = \sqrt{\left(\frac{\Delta L'}{k_L S_L}\right)^{2} + \left(\frac{\Delta C'}{k_C S_C}\right)^{2} + \left(\frac{\Delta H'}{k_H S_H}\right)^{2} + R_T\,\frac{\Delta C'}{k_C S_C}\,\frac{\Delta H'}{k_H S_H}},
+\end{equation}
+where $S_L$, $S_C$ and $S_H$ scale each difference by where the colours lie (differences between vivid colours count less), $R_T$ rotates the blue region, and $k_L$, $k_C$, $k_H$ are weights set by the application. Because lightness is the least reliable part of a photographed garment, the guardrails use $k_L = 2$: a garment that is only darker in the shadow of a fold is not called a different colour. Our implementation (\texttt{colour.ts} in the application and the same formula in \texttt{guardrail\_eval.py}) reproduces the published test data of Sharma et al.~\cite{sharma} to three decimal places, checked by automated tests.
+
+\begin{table}[!htbp]
+\centering
+\caption{What a CIEDE2000 difference means, and the limits used here.}
+\label{tab:tolerance}
+\small
+\begin{tabularx}{\linewidth}{@{}L{26mm}Y@{}}
+\toprule
+\textbf{$\Delta E_{00}$} & \textbf{Meaning}\\
+\midrule
+below 1 & not visible side by side\\
+1--2 & the tolerance a dye house uses to accept a batch against its standard, under controlled light\\
+2--5 & visible side by side; the same colour for a buyer\\
+5--12 & the same shade in two \emph{photographs}: folds, shine, white balance and compression alone move a correct colour this far\\
+above 12 & a different shade; the guardrails' limit for ``same colour''\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Why the limit is loose} Industrial colour matching works at 1--2 units because it measures flat swatches in a light booth. A try-on result and a product photograph are taken in different light, with different cameras, and the garment in one is folded around a body. A strict limit would warn on every correct photograph, so the guardrails use 12 for ``the same shade'' (Table~\ref{tab:tolerance}), and on our real generations all correct results stayed below 10.
+
+\paragraph{Colour constancy} People see a white shirt as white in yellow light because the brain discounts the illuminant~\cite{fairchild}; a camera's white balance tries to do the same and often gets it partly wrong. The guardrails avoid most of this problem by comparing colours \emph{within the same photograph} wherever they can: the result's garment area is compared with the old outfit in the model photograph, which was taken in the same light, and not only with the product photograph.
+
+\paragraph{Palettes, not averages} A garment is rarely one colour. Averaging the pixels of a red saree with a green border gives brown, a colour that is in neither the saree nor the border, and averaging a box that includes skin or background does the same. Each region is therefore summarised as a \emph{palette}: the pixels are converted to $L^*a^*b^*$ and grouped by $k$-means into at most three colours, each with the share of pixels it covers (colours under 5\% are merged into their nearest neighbour). Two palettes are compared colour by colour: every colour of the garment finds its nearest colour in the result, and these $\Delta E_{00}$ values are averaged with the garment's coverage as weights,
+\begin{equation}
+D(\text{garment}, \text{result}) = \sum_i w_i \, \min_j \Delta E_{00}\!\left(g_i, r_j\right), \qquad \sum_i w_i = 1 .
+\end{equation}
+The main colour of the garment therefore decides most of the score, and a border or a print still counts in proportion to its size. Figure~\ref{fig:palettes} shows the palettes of four real results.
+
+\IfFileExists{generated/fig/palettes.pdf}{\begin{figure}[!htbp]
+\centering
+\includegraphics[width=\linewidth]{palettes.pdf}
+\caption{Colour palettes (three $k$-means colours in CIELAB, bar width = share of pixels) of the garment, of the model's old outfit and of the result's garment area, for one good result and the three that warn. $D$ is the CIEDE2000 palette distance with $k_L = 2$.}
+\label{fig:palettes}
+\end{figure}}{}
 
 \section{Output Guardrails on Every Photograph}
 \label{sec:guardrails}
@@ -152,20 +206,20 @@ A try-on model can fail silently: it can return a blank frame, return the model 
 \caption{The output guardrails.}
 \label{tab:guardchecks}
 \small
-\begin{tabularx}{\linewidth}{@{}L{18mm}YL{26mm}L{14mm}@{}}
+\begin{tabularx}{\linewidth}{@{}L{17mm}YL{37mm}L{11mm}@{}}
 \toprule
 \textbf{Check} & \textbf{Measure} & \textbf{Limit} & \textbf{Effect}\\
 \midrule
 blank & mean per-channel standard deviation of the result & below 6 & fail\\
 changed & mean absolute difference to the model photograph (0--255) & below 3 & fail\\
 size & relative difference of the aspect ratio to the model photograph & above 0.08 & warn\\
-colour & CIE76 $\Delta E$ of the result's garment area to the garment, minus $\Delta E$ to the old outfit in the same area & above 0, and $\Delta E$ to the garment above 15 & warn\\
+colour & palette distance $D$ (CIEDE2000, $k_L = 2$, Section~\ref{sec:colour}) from the garment to the result's garment area; also $D$ to the old outfit and between garment and old outfit & closer to the old outfit; or $D > 12$ in another colour family; or garment and old outfit under 8 apart & warn\\
 person & mean absolute difference in the head region (0--255) & above 45 & warn\\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The colour check is relative on purpose. A first version compared the garment's colour with a fixed box on the torso, and on our real results it warned on a correct navy crop top (the box reached the dress below it) while missing the actual failure. The relative version asks a sharper question: does the garment area now look more like the new garment, or still like what the model wore before? \ifAppGuard Table~\ref{tab:guardaudit} shows it on all \vAgN{} real generations (median \vAgMs{}~ms per photograph): it warns on both photographs of the skirt on a model in a dress, the failure that scored 11/30 in Section~7.3, and on one uploaded photograph where the garment was a phone screenshot, and on none of the others; no result fails.
+The colour check went through three versions, and the third is built on the colour science of Section~\ref{sec:colour}. A first version compared the mean colour of a fixed box on the torso with the garment; on our real results it warned on a correct navy crop top (the box reached the dress below it). The second asked a relative question in CIE76: is the garment area now closer to the new garment or still to the old outfit? It warned on the right photographs, but partly by luck: the mean of a box that mixes cloth, skin and background is a colour that is in none of them, the ``red saree with a green border averages to brown'' error. The third version compares palettes in CIEDE2000 and gives each warning a stated reason. \ifAppGuard Table~\ref{tab:guardaudit} shows it on all \vAgN{} real generations (median \vAgMs{}~ms per photograph). On the seven good results the garment's colours are matched within $D = $~\vAgGoodMin{}--\vAgGoodMax{}, well inside the ``same shade'' limit of 12. It warns on three photographs, each for a reason that can be read from the table: the uploaded phone screenshot, where the result is \vAgShotOld{} from the old outfit but \vAgShotNew{} from the garment (the old clothes still show); and both photographs of the white skirt on a model in a cream dress, where garment and old outfit are only \vAgSkirtAlike{} apart, so no colour measurement can tell whether anything changed and the seller is asked to look. That skirt is the failure that scored 11/30 in Section~7.3: the problem there is shape, not colour, and the check now says so honestly instead of catching it by accident. No result fails.
 
 \begin{table}[!htbp]
 \centering
@@ -173,7 +227,9 @@ The colour check is relative on purpose. A first version compared the garment's 
 \label{tab:guardaudit}
 \footnotesize
 \setlength{\tabcolsep}{3.5pt}
+\begin{adjustbox}{max width=\linewidth,center}
 \input{generated/app_guardrails.tex}
+\end{adjustbox}
 \end{table}
 \fi
 

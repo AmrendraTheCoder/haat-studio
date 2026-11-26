@@ -9,7 +9,7 @@
  */
 import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { checkQuality, LIMITS } from "../src/lib/tryon/quality";
+import { checkQuality, colourPalettes, LIMITS } from "../src/lib/tryon/quality";
 
 const root = path.resolve(process.env.DATA_DIR ?? "data", "results");
 const rows = [];
@@ -24,7 +24,9 @@ for (const key of (await readdir(root)).filter((d) => /^[0-9a-f]{32}$/.test(d)))
     await writeFile(`${file}.tmp`, JSON.stringify({ ...meta, quality: q }, null, 2));
     await rename(`${file}.tmp`, file);
   }
-  rows.push({ key: key.slice(0, 8), category: meta.settings.category, model: meta.personId, ms: Math.round(performance.now() - t0), passed: q.passed, checks: Object.fromEntries(q.checks.map((c) => [c.id, { value: c.value, ok: c.ok }])) });
+  const pal = await colourPalettes({ result, person, garment, settings: meta.settings });
+  const sw = (p: typeof pal.want) => p.map((s) => ({ lab: s.lab.map((v) => Math.round(v * 10) / 10), share: Math.round(s.share * 1000) / 1000 }));
+  rows.push({ palettes: { garment: sw(pal.want), old: sw(pal.old), result: sw(pal.got) }, key: key.slice(0, 8), category: meta.settings.category, model: meta.personId, ms: Math.round(performance.now() - t0), passed: q.passed, checks: Object.fromEntries(q.checks.map((c) => [c.id, { value: c.value, ok: c.ok, ...(c.detail ?? {}) }])) });
 }
 const out = path.resolve("docs/mini-project-report/results/app_guardrails.json");
 await mkdir(path.dirname(out), { recursive: true });

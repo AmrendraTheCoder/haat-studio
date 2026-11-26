@@ -19,6 +19,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Not the web app: the Python fine-tuning project (its .venv ships
+    // third-party JS) and the CommonJS scripts that build the BTP report.
+    "ml/**",
+    "docs/**",
   ]),
 ]);
 

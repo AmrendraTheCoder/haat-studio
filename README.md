@@ -103,6 +103,12 @@ in a demo, with no GPU.
 
 Requires Node 22+.
 
+**One command:** `./run.sh` installs, creates `.env` from `.env.example`, downloads the
+photos, runs the tests, typecheck and lint, then starts the app on <http://localhost:3100>.
+Options: `--no-checks`, `--prod`, `PORT=3300 ./run.sh`.
+
+Or step by step:
+
 ```bash
 npm install
 npm run setup          # downloads the preset model photos and sample garments

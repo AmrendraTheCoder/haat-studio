@@ -21,9 +21,11 @@ export interface Inputs {
   photoType: PhotoType;
   person: PersonChoice | null;
   quality: Quality;
+  /** Fixed by default so asking twice reuses the saved photo; "another variation" draws a new one. */
+  seed: number;
 }
 
-export type View = "product" | "model" | "result";
+export type View = "product" | "model" | "review" | "result";
 
 /** A client-side marker for the upload that happens before the server answers. */
 export type LogEvent = StreamEvent | { type: "uploading" };

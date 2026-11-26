@@ -1,0 +1,270 @@
+\chapter{Proposed Work: Adapting the Model with LoRA}
+
+\section{Overview}
+
+FASHN VTON 1.5 was trained mostly on Western garments. Kurtis, sarees, lehengas and dupattas have drapes, borders and lengths it has rarely seen, and the sellers we built the system for sell mostly these. Improving the model for them requires fine-tuning, and fine-tuning requires three things the release does not provide: a training objective, a way to train cheaply, and paired data. This chapter describes how each was built, how the result is to be evaluated, and what adapting the model costs. Figure~\ref{fig:lorapipe} shows the whole pipeline.
+
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}[node distance=4mm]
+\node[box=cD,text width=30mm] (cat) {Retail catalogue\\\scriptsize listings + photos};
+\node[box=cB,text width=30mm,right=of cat] (bp) {build\_pairs.py\\\scriptsize pose + image guardrails};
+\node[box=cB,text width=30mm,right=of bp] (pp) {prepare\_data.py\\\scriptsize FASHN preprocessing};
+\node[box=cB,text width=30mm,below=8mm of pp] (tr) {train\_lora.py\\\scriptsize 96 adapters, CUDA GPU};
+\node[box=cB,text width=30mm,left=of tr] (ev) {evaluate.py\\\scriptsize base and LoRA, same seed};
+\node[box=cB,text width=30mm,left=of ev] (cp) {compare\_lora.py\\\scriptsize CI, Wilcoxon, cost};
+\node[box=cC,text width=30mm,below=8mm of ev] (rep) {This report and slides\\\scriptsize filled automatically};
+\draw[arr] (cat)--(bp); \draw[arr] (bp)--(pp); \draw[arr] (pp)--(tr); \draw[arr] (tr)--(ev); \draw[arr] (ev)--(cp); \draw[arr] (cp.south)|-(rep.west);
+\node[note,above=1mm of bp] {pairs.csv, qc.json};
+\node[note,below=1mm of tr] {lora-best.safetensors};
+\node[note,below=1mm of cp,xshift=-4mm] {lora\_comparison.json};
+\end{tikzpicture}
+\caption{The adaptation pipeline, from catalogue to claimed result. Every arrow is a script in \texttt{ml/scripts}.}
+\label{fig:lorapipe}
+\end{figure}
+
+\section{Reconstructing the Training Objective}
+
+FASHN released no training code. A sampler and a training objective must agree, however, so the sampler in the released code determines the objective. Reading \texttt{\_sample} and the noise schedule gives three facts: generation starts from pure noise at $t = 0$ and ends at the image at $t = 1$; each step moves along the network's output, $x \leftarrow x + \Delta t \cdot v$; and the conditions are blanked all together for the unguided half of the batch. The only objective consistent with all three is the rectified-flow loss~\cite{rectflow,flowmatch} on the straight path from noise to the photograph:
+\begin{align}
+x_t &= (1 - t)\,\epsilon + t\,x_1, \qquad \epsilon \sim \mathcal{N}(0, I), \\
+v^{*} &= x_1 - \epsilon, \\
+\mathcal{L} &= \frac{\sum_i w_i \,\lVert v_\theta(x_t, t, c)_i - v^{*}_i \rVert^2}{\sum_i w_i}.
+\end{align}
+Time steps are drawn as $t = \sigma(z - \mu)$ with $z \sim \mathcal{N}(0, 1)$ and $\mu = 1.5$, which mirrors the sampler's shift towards the noise end, and with probability 0.1 all conditions are dropped together, so that guidance keeps working after fine-tuning.
+
+\paragraph{Garment-weighted loss (our design)} We weight each pixel by
+\begin{equation}
+w_i = m_i \big(1 + (\lambda - 1)\, g_i\big), \qquad \lambda = 2,
+\end{equation}
+where $m_i$ is 0 on padding and 1 elsewhere, and $g_i$ is 1 on the garment's pixels in the target photograph. An error on the product costs twice as much as an error on the background, because for a seller a wrong print is a wrong product. This choice is untested so far; the evaluation in Section~\ref{sec:eval} can compare $\lambda = 1$ and $\lambda = 2$.
+
+The reconstruction was confirmed in two independent ways (Chapter~7): a small model trained with this loss is sampled correctly by FASHN's unmodified sampler, and the released model has a loss \vLossRatio{} times lower under this convention than under the opposite one.
+
+\section{LoRA Adapters}
+
+Each adapted linear layer keeps its weight $W$ frozen and adds a low-rank path~\cite{lora}:
+\begin{equation}
+y = W x + \frac{\alpha}{r}\, B A x, \qquad r = 16,\ \alpha = 16,
+\end{equation}
+with $A$ initialised randomly and $B$ at zero, so that before training the adapted model is exactly the original one (this is one of the twelve automated tests). Table~\ref{tab:loralayers} shows where the adapters go and how the trainable parameters add up.
+
+\begin{table}[!htbp]
+\centering
+\caption{Placement of the LoRA adapters ($r = 16$). Trainable parameters of one adapter: $r\,(d_\text{in} + d_\text{out})$.}
+\label{tab:loralayers}
+\small
+\begin{tabularx}{\linewidth}{@{}L{33mm}YL{14mm}R{0mm}r@{}}
+\toprule
+\textbf{Blocks} & \textbf{Layers wrapped (each stream)} & \textbf{Adapters} & & \textbf{Parameters}\\
+\midrule
+8 double-stream & QKV 1280→3840, output 1280→1280, MLP 1280→5120, MLP 5120→1280; person and garment stream & 8 × 8 = 64 & & 5{,}242{,}880\\
+16 single-stream & fused \texttt{linear1} 1280→8960, \texttt{linear2} 6400→1280 & 16 × 2 = 32 & & 4{,}587{,}520\\
+\midrule
+Total & & \vLoraLayers{} & & \vTrainParams{}\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent The \vTrainParams{} trainable parameters are \vLoraPct{}\% of the model. The double-stream blocks were chosen because they are where garment detail is transferred to the body (Figure~\ref{fig:mmdit}), which is where knowledge of a new kind of garment has to go.
+
+Three decisions are specific to this model:
+\begin{enumerate}
+\item \textbf{Adapters in float32 over a bf16 model.} bf16 has an 8-bit mantissa; the small updates of early training vanish when added to a bf16 weight, so the adapters are kept and trained in float32.
+\item \textbf{Modulation layers stay frozen.} They turn the time step into the scale and shift of every block, so changing them would change the behaviour of every sampling step at once.
+\item \textbf{One adapter on the fused layer.} In single-stream blocks one linear layer computes both the attention inputs and the MLP input, so one adapter covers both.
+\end{enumerate}
+
+\paragraph{New garment categories} The category embedding has four rows. \texttt{extend\_categories} adds rows, for example saree as category~4 and lehenga as category~5, each initialised as a copy of ``one-pieces'', so that existing categories are unchanged (another automated test) and the new one starts from the nearest known behaviour.
+
+\section{Running the Model in 8~GB}
+
+The project's only machine was an Apple M3 laptop with 8~GB of memory, so the training code had to run there for development:
+\begin{itemize}
+\item a loader that builds the network on the meta device and loads the weights directly in bf16 (\vMemLoad{}~GB after loading, against 3.9~GB with FASHN's loader);
+\item attention computed two heads at a time instead of ten, which bounds the peak memory of the $6{,}912^2$ attention matrix;
+\item rotary embeddings in float32 on Apple GPUs, which lack float64 (shown equal to FASHN's float64 version by a test);
+\item gradient checkpointing~\cite{checkpoint}, which recomputes block activations during the backward pass.
+\end{itemize}
+Even so, a full-resolution training step did not fit: it filled memory and 8.6~GB of swap and did not finish one step in eight minutes. Training at full resolution needs a CUDA GPU with at least 16~GB.
+
+\section{From a Retail Catalogue to Training Pairs}
+\label{sec:pairs}
+
+\subsection{What a pair is}
+
+Each training example needs two photographs of the \emph{same} product: one of a person wearing it (the target the model must learn to produce) and one of the garment alone, either flat-lay or on a mannequin, or else worn in a different photograph. A product listing usually contains both kinds: a model shot from the front, and a product shot on a plain background. The listings are not labelled, however, and many photographs are back views, close-ups of a collar or a print, fabric swatches, or shared between several colour variants. Any of these, used as a training pair, would teach the model something wrong.
+
+\subsection{Pose and image guardrails}
+
+\texttt{build\_pairs.py} runs every photograph through FASHN's own person detector and pose estimator, and applies the rules in Table~\ref{tab:guard}. Each rule was added because a test run on a sample of the catalogue produced exactly the failure it prevents; Chapter~7 shows the resulting pairs.
+
+\begin{table}[!htbp]
+\centering
+\caption{Guardrails applied to catalogue photographs.}
+\label{tab:guard}
+\small
+\begin{tabularx}{\linewidth}{@{}L{48mm}Y@{}}
+\toprule
+\textbf{Rule} & \textbf{Failure it prevents}\\
+\midrule
+\multicolumn{2}{@{}l}{\textit{Every photograph}}\\
+Short side $\ge$ 384~px; sharpness (variance of the Laplacian~\cite{laplacian} at 512~px) $\ge$ 12 & unusably small or blurred photographs\\
+Perceptual hash: a photograph is used by one product only & colour variants sharing photos, which would pair a red product's photo with a blue one\\
+\multicolumn{2}{@{}l}{\textit{Target photograph (person wearing the product)}}\\
+Detector confidence $\ge$ 0.6 & the pose model ``finding'' a body in a print close-up\\
+One dominant person (a second one under 35\% of its height) & group shots\\
+Shoulders and hips visible and inside the frame & collar close-ups (the pose model guesses joints beyond the frame)\\
+Knees visible, for bottoms and one-pieces & cropped legs\\
+Face visible and body facing the camera (the person's left shoulder on the right of the photo) & back views; the face score alone is unreliable, the left--right order is not\\
+Shoulder width $\ge$ 0.45 × torso height; person $\ge$ 45\% of the photo height & side views and distant shots\\
+\multicolumn{2}{@{}l}{\textit{Garment-only photograph}}\\
+Plain, light border that differs from the centre; product touching at most two edges & fabric swatches and print close-ups that fill the frame\\
+\multicolumn{2}{@{}l}{\textit{Worn photograph used as the garment input}}\\
+Same front-view rules as a target & back views hiding the front of the garment\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Pairing and splitting}
+
+For each product the best target is the passing worn photograph with the most visible keypoints, the largest person and the highest sharpness. The garment input is the sharpest garment-only photograph (photo type \emph{flat-lay}); if there is none, a second passing front-view photograph (photo type \emph{model}). Products without a usable target or a usable garment photograph are skipped and counted, and products with fewer than two photographs on disk are skipped before any analysis, because most listings carry only their main photograph. The split into training and validation is made by product family (the parent listing that groups colour and size variants), using a hash of the family identifier, so no garment can appear on both sides; the script verifies this and reports the overlap, which must be zero~\cite{leakage}. All decisions are cached per photograph, so a long run can be resumed, and summarised in \texttt{qc.json}.
+
+\section{Training Configuration}
+
+Pairs are prepared with FASHN's own preprocessing in \emph{masked} mode: the human parser greys out the garment region of the person photograph and the model learns to fill it with the garment, which is how FASHN describes the first stage of its own training. The second stage, segmentation-free ``triplets'' in which the base model first dresses the person in a different garment, needs one generation per sample and therefore a CUDA GPU; \texttt{prepare\_data.py --triplets} implements it for the full run.
+
+\begin{table}[!htbp]
+\centering
+\caption{Training configuration (\texttt{haat\_ft/train.py}).}
+\label{tab:traincfg}
+\small
+\begin{tabularx}{\linewidth}{@{}L{55mm}Y@{}}
+\toprule
+\textbf{Setting} & \textbf{Value}\\
+\midrule
+Adapter rank, scale & $r = 16$, $\alpha = 16$, on attention and MLP layers\\
+Optimiser & AdamW~\cite{adamw}, learning rate $10^{-4}$, weight decay 0.01\\
+Schedule & 100 warm-up steps, then cosine decay to 10\%\\
+Batch & 1 with 4 accumulation steps (effective 4)\\
+Steps & 2{,}000 (validation every 200, best adapter kept)\\
+Condition dropout & 0.1, all conditions together\\
+Garment weight $\lambda$ & 2\\
+Gradient clipping & 1.0\\
+Memory & gradient checkpointing; bf16 base, float32 adapters\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Evaluation Protocol}
+\label{sec:eval}
+
+The base model and the adapted model are run on every validation pair with the same inputs, the same seed and the same sampler settings (30 steps, guidance 1.5), and each output is compared with the real photograph:
+\begin{itemize}
+\item \textbf{PSNR} over the unpadded image (higher is better);
+\item \textbf{SSIM}~\cite{ssim} over the unpadded image (higher is better);
+\item \textbf{garment L1}: the mean absolute error on the garment's pixels only, the number a seller cares about (lower is better);
+\item generation time for each model;
+\item \textbf{model guardrails} (\texttt{guardrail\_eval.py}): \emph{pose drift}, the mean distance between the body keypoints of the output and of the real photograph found by FASHN's own pose estimator, as a fraction of the image diagonal; \emph{garment colour error}, the CIE76 $\Delta E$ between output and real photograph on the garment's pixels; and blank or unchanged outputs. An output passes the guardrail when it is neither blank nor unchanged, its pose drift is at most 0.05 and its colour error at most 20; the pass rate of each model is reported.
+\end{itemize}
+For each metric \texttt{compare\_lora.py} computes the paired difference (adapter minus base), its 95\% bootstrap confidence interval over 10{,}000 resamples of the validation garments~\cite{bootstrap}, the share of garments on which the adapter is better, and a two-sided Wilcoxon signed-rank test~\cite{wilcoxon} (exact for up to 25 garments).
+
+\paragraph{When an improvement may be claimed} An improvement is reported only when the 95\% confidence interval of the difference excludes zero in the favourable direction \emph{and} the Wilcoxon test gives $p < 0.05$. With fewer than six garments the Wilcoxon test cannot reach that level, so very small comparisons can never claim an improvement. Otherwise the result is reported as ``no clear change'' or ``worse''. Because pixel metrics can miss a wrong logo, the side-by-side images (inputs, real photograph, base, adapter) are kept for every garment and a sample is shown in the report. A rubric score by two human raters, blind to which model produced which image, is planned on top of these numbers.
+
+\section{Compute Cost of the Adaptation}
+
+LoRA does not make the model cheaper to \emph{run}: a photograph still needs 60 passes through all 972 million parameters, and an unmerged adapter adds roughly one per cent to the work of the layers it wraps. Merged into the weights after training, it adds nothing. What LoRA makes cheaper is \emph{training} and \emph{shipping} the change (Table~\ref{tab:cost}).
+
+\begin{table}[!htbp]
+\centering
+\caption{Cost of adapting the model: full fine-tuning against LoRA. Training state counts weights, gradients and the two AdamW moments; activations are excluded because they are the same for both and are reduced by checkpointing.}
+\label{tab:cost}
+\small
+\begin{tabularx}{\linewidth}{@{}L{55mm}YY@{}}
+\toprule
+& \textbf{Full fine-tuning} & \textbf{LoRA (ours)}\\
+\midrule
+Trainable parameters & 971.8M (100\%) & \vTrainParamsM{}M (\vLoraPct{}\%)\\
+Training state in memory & \vFullStateGb{}~GB (16 bytes per parameter) & \vLoraStateGb{}~GB (bf16 base + float32 adapters)\\
+File to store or ship & \vBaseMb{}~MB & \vAdapterMb{}~MB (\vAdapterPct{}\%)\\
+Effect on a 972M model trained on $\sim$18M pairs, given a few hundred new pairs & likely to overwrite general knowledge & base frozen; adapter can be removed\\
+Inference cost & unchanged & unchanged when merged\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent The training state shrinks by a factor of about \vStateRatio{}, which is what makes a single 16~GB GPU sufficient. Figure~\ref{fig:compute} shows the same comparison.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.92\linewidth]{compute.pdf}
+\caption{Memory needed for the training state, and the size of what has to be stored, for full fine-tuning and for LoRA.}
+\label{fig:compute}
+\end{figure}
+
+\section{How a Photograph Will Be Produced after Integration}
+\label{sec:integration}
+
+Figure~\ref{fig:integration} shows how a request will flow once the adapter is part of the application, and Table~\ref{tab:layers-after} what each layer contributes before and after. The integration needs no change to the orchestration: an engine is one file plus one line in the registry (Section~3.5).
+
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}[node distance=3.6mm]
+\node[box,text width=26mm] (u) {Seller uploads\\\scriptsize garment + model};
+\node[box=cA,text width=26mm,right=of u] (g) {Guards\\\scriptsize passcode, settings,\\model suits the garment?};
+\node[box=cA,text width=26mm,right=of g] (c) {prepareImage\\\scriptsize upright, white, no GPS};
+\node[box=cA,text width=26mm,right=of c] (s) {studio.start\\\scriptsize cache, sharing, lock};
+\node[box=cB,text width=40mm,below=8mm of s] (l) {\textbf{fashn-lora engine (new)}\\\scriptsize our Space: base + merged adapter,\\parser removed, saree/lehenga categories};
+\node[box=cD,text width=34mm,left=6mm of l] (f) {fashn-space engine\\\scriptsize FASHN's Space (fallback)};
+\node[box=cA,text width=26mm,left=6mm of f] (v) {Save + stream\\\scriptsize result, timings};
+\node[box=cC,text width=26mm,left=6mm of v] (e) {Content engines\\\scriptsize price band, title,\\hashtags, calendar};
+\node[box=cC,text width=30mm,below=7mm of e] (cap) {Caption via completeJSON\\\scriptsize price check, template fallback};
+\node[box=black!6,text width=30mm,right=6mm of cap] (post) {Post + plan\\\scriptsize 4:5 / 1:1 / 9:16};
+\draw[arr] (u)--(g); \draw[arr] (g)--(c); \draw[arr] (c)--(s); \draw[arr] (s)--(l); \draw[arr] (l)--node[above,font=\scriptsize]{fails}(f); \draw[arr] (f)--(v); \draw[arr] (v)--(e); \draw[arr] (e)--(cap); \draw[arr] (cap)--(post);
+\draw[arr,dashed] (l.south) |- ++(0,-4mm) -| (v.south);
+\end{tikzpicture}
+\caption{The request path after integration. The adapted model is tried first; FASHN's own Space remains the fallback; the content engines turn the result into a post.}
+\label{fig:integration}
+\end{figure}
+
+\begin{table}[!htbp]
+\centering
+\caption{What each layer of the system contributes now and after integration.}
+\label{tab:layers-after}
+\small
+\begin{tabularx}{\linewidth}{@{}L{30mm}YY@{}}
+\toprule
+\textbf{Layer} & \textbf{Now (base model)} & \textbf{After integration}\\
+\midrule
+Input guards & passcode, settings, photo cleaning, model-suitability marks & same, plus garment-photo checks (blur, cut-off garment) before any GPU time\\
+Orchestration & cache, job sharing, GPU lock, error chain & unchanged; the chain gains a second real engine\\
+Try-on network & FASHN VTON 1.5 as released, on FASHN's Space & same network with the merged LoRA adapter on our own Space; categories 0--3 plus saree and lehenga\\
+Licence & human parser loaded although unused & parser removed: the whole pipeline is Apache-2.0\\
+Inference cost & 60 passes, $\sim$\vMedTotal{}~s on the free GPU & identical (a merged adapter adds no computation)\\
+Fallback & none in practice (one real engine) & FASHN's Space if our Space is down or out of quota\\
+Content & captions and research report & plus catalogue-driven price band, title, hashtags, positioning and calendar\\
+Evaluation & rubric on 4 images & base-vs-adapter comparison with confidence intervals on held-out garments (Section~\ref{sec:e6}), repeated for each new adapter\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Summary of Experiments}
+
+\begin{table}[!htbp]
+\centering
+\caption{Experiments of this project and their status.}
+\label{tab:experiments}
+\small
+\begin{tabularx}{\linewidth}{@{}L{8mm}YL{30mm}L{18mm}@{}}
+\toprule
+\textbf{ID} & \textbf{Question} & \textbf{Data} & \textbf{Status}\\
+\midrule
+E1 & Does our inference code reproduce FASHN's output exactly? & real weights, 1 pair & done\\
+E2 & Is the reconstructed objective the one the model was trained with? & real weights; tiny model & done\\
+E3 & Does the human parser affect the output in our mode? & real weights & done\\
+E4 & Does the training loop work on the real network? & 2 + 1 pairs, half resolution & done\\
+E5 & How many usable pairs does the catalogue give, and why are photos rejected? & retail catalogue & \ifPairs done\else running\fi\\
+E6 & Does the adapter improve held-out garments, and by how much? & catalogue pairs, CUDA GPU & \ifLora done\else pending\fi\\
+\bottomrule
+\end{tabularx}
+\end{table}

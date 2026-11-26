@@ -67,13 +67,13 @@ export function BeforeAfter({
         className="absolute inset-0 size-full object-cover"
         style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}
       />
-      <span className="pointer-events-none absolute top-3 left-3 rounded-full bg-ink/75 px-2.5 py-1 font-mono text-2xs text-paper">
+      <span className="pointer-events-none absolute top-3 left-3 rounded-md bg-ink/75 px-2 py-1 text-2xs font-semibold text-paper backdrop-blur-sm">
         {beforeLabel}
       </span>
-      <span className="pointer-events-none absolute top-3 right-3 rounded-full bg-accent-strong px-2.5 py-1 font-mono text-2xs text-paper">
+      <span className="pointer-events-none absolute top-3 right-3 rounded-md bg-accent-strong px-2 py-1 text-2xs font-semibold text-paper-glow">
         {afterLabel}
       </span>
-      <div className="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-paper shadow" style={{ left: `${pos}%` }} />
+      <div className="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-paper-glow shadow" style={{ left: `${pos}%` }} />
       <div
         role="slider"
         tabIndex={0}
@@ -82,7 +82,7 @@ export function BeforeAfter({
         aria-valuemax={100}
         aria-valuenow={Math.round(pos)}
         onKeyDown={onKey}
-        className="absolute top-1/2 grid size-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-line bg-paper text-ink shadow-lg"
+        className="absolute top-1/2 grid size-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-line bg-paper-glow text-ink shadow-[var(--shadow-raised)]"
         style={{ left: `${pos}%` }}
       >
         <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>

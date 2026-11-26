@@ -1,0 +1,143 @@
+\chapter{Introduction}
+
+\section{The Area of Work}
+
+A large share of India's clothing trade now happens through small sellers on Instagram, WhatsApp and marketplaces such as Meesho and Amazon. A typical seller works from home or a small shop, buys or makes a few dozen pieces at a time, and photographs each one on a bed, a hanger or a mannequin. Large brands show the same kind of garment on a professional model, shot in a studio and edited by a designer. A model shoot costs thousands of rupees a day, which a seller with forty kurtis to list cannot pay.
+
+The difference matters because buyers decide faster when they can see how a garment falls on a body. A flat photograph shows the colour and the print but not the length, the fit or the drape. Virtual try-on, the computer-vision task of generating a photograph of a given person wearing a given garment, addresses exactly this gap. Over the last two years diffusion models have made the generated images good enough to use, and in early 2026 an open model, FASHN VTON 1.5, was released that accepts the flat photographs these sellers actually have.
+
+A try-on photograph is only the first step. The seller still has to write a caption, choose a price, decide what to post and when, and pick hashtags that buyers search for. This project sits where generative image models, systems engineering for free compute, and the practical marketing questions of a small seller meet.
+
+\section{Problem Addressed}
+
+Three problems come together in this project.
+
+\begin{enumerate}
+\item \textbf{Generating the photograph for free.} The model needs a GPU with about 8~GB of memory. A seller has none, and neither did we: on our laptop one photograph took \vGenMinutes{} minutes. The only free option is a shared GPU service with a small, partly unpublished daily quota, which has to be protected from waste.
+\item \textbf{Adapting the model to Indian garments.} The model was trained mostly on Western clothing and was released without any training code, so nobody outside the company can teach it a kurti, a saree or a lehenga.
+\item \textbf{Turning the photograph into a sale.} A caption, a price and a posting plan written by a language model can contain invented prices, wrong arithmetic and made-up statistics, which harm a seller far more than a plain template would.
+\end{enumerate}
+
+\noindent The question we set out to answer is therefore:
+
+\begin{quote}\itshape
+Can a small seller's single flat garment photograph be turned, at no cost, into an on-model photograph and a trustworthy post and pricing plan, and can the try-on model be adapted to the seller's own garments in a way that can be measured?
+\end{quote}
+
+\paragraph{Scope of this report} The try-on network is FASHN AI's, and we did not train it from scratch. Our work is the system around it, the reconstruction of its training method, the adaptation pipeline with its guardrails and evaluation, and the content engines. \ifLora The adapter reported here was trained on our 8~GB laptop at half resolution for about an hour; it shows a measured improvement on held-out garments under a strict claim rule, but a full-resolution run on a CUDA GPU, and Indian garments, remain future work.\else The adapted model has not yet been trained, because that needs a CUDA GPU; every place where its results belong is marked \pending{}, and no improvement from fine-tuning is claimed in this version.\fi
+
+\section{How the Work Was Organised}
+
+The project ran over the fifth semester in three tracks that share one codebase (Figure~\ref{fig:roadmap}).
+
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}[node distance=5mm and 6mm]
+\node[box=cA,text width=30mm] (a1) {Survey of 8 open\\try-on models};
+\node[box=cA,text width=30mm,right=of a1] (a2) {Serving system on\\free GPUs};
+\node[box=cA,text width=30mm,right=of a2] (a3) {Baseline quality\\and the skirt fix};
+\node[box=cB,text width=30mm,below=9mm of a1] (b1) {Model analysis,\\layer by layer};
+\node[box=cB,text width=30mm,right=of b1] (b2) {Training objective\\reconstructed + proved};
+\node[box=cB,text width=30mm,right=of b2] (b3) {LoRA kit, data pipeline\\and evaluation};
+\node[box=cC,text width=30mm,below=9mm of b1] (c1) {Validated text-AI\\layer and captions};
+\node[box=cC,text width=30mm,right=of c1] (c2) {Market research\\with calculated parts};
+\node[box=cC,text width=30mm,right=of c2] (c3) {Catalogue analysis\\and content engines};
+\draw[arr] (a1)--(a2); \draw[arr] (a2)--(a3); \draw[arr] (b1)--(b2); \draw[arr] (b2)--(b3); \draw[arr] (c1)--(c2); \draw[arr] (c2)--(c3);
+\begin{scope}[on background layer]
+\node[grp=blue!50,fit=(a1)(a3),label={[note]above:Track 1: generating the photograph}] {};
+\node[grp=red!50,fit=(b1)(b3),label={[note]above:Track 2: adapting the model}] {};
+\node[grp=green!50!black,fit=(c1)(c3),label={[note]above:Track 3: turning the photograph into a sale}] {};
+\end{scope}
+\end{tikzpicture}
+\caption{The three tracks of the project and the order in which each was built.}
+\label{fig:roadmap}
+\end{figure}
+
+\section{How the Work Evolved}
+
+The project went through three stages: a first working studio, a measured and corrected version, and the present version with the adaptation pipeline and the content engines. Table~\ref{tab:evolution} summarises what changed at each stage and why.
+
+\begin{table}[!htbp]
+\centering
+\caption{Evolution of the project.}
+\label{tab:evolution}
+\small
+\begin{tabularx}{\linewidth}{@{}L{25mm}YYY@{}}
+\toprule
+\textbf{Aspect} & \textbf{First version (early Oct.)} & \textbf{After the baseline (late Oct.)} & \textbf{This report (Nov.)}\\
+\midrule
+Try-on & One call to the hosted model & One entry point with cache, job sharing and a GPU lock & Same, with a measured cache path\\
+Model photos & Any preset & Presets carry what they wear; bottoms go to a model in separates & Same\\
+Quality & Not measured & 4 try-ons scored on a 30-point rubric & Plus PSNR, SSIM and garment error in the LoRA evaluation\\
+Training & None possible & Objective reconstructed, LoRA kit with 12 tests & Checked on the real weights; 100-step run; catalogue-to-pairs pipeline\\
+Text & Captions from one model & Validated provider chain, price check, templates & Plus catalogue-driven pricing, title, hashtag and location engines\\
+Market data & None & Seller's answers, calendar in code, AI advice & Plus demand and price statistics from \ifMarket\vMkTeeClean{} + \vMkTopClean{}\else catalogue\fi{} listings\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Overall System Architecture}
+
+Figure~\ref{fig:arch} shows the complete system. The browser sends the garment photograph, the choice of model and the settings. The server cleans the photographs, decides whether any GPU work is needed at all, and sends the job to the try-on model on Hugging Face's free GPU service. The result is saved and streamed back while it is being made. The same server calls free language models for captions and research, always through one validating function, and the catalogue analysis supplies the numbers the content engines use. The adaptation pipeline on the right runs offline and produces an adapter file that a future engine would load.
+
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}[node distance=4.5mm]
+\node[box=black!6,text width=40mm] (br) {\textbf{Browser}\\garment photo, model, settings};
+\node[box=cA,text width=40mm,below=of br] (rt) {\textbf{API route}\\passcode, settings, photos};
+\node[box=cA,text width=40mm,below=of rt] (pi) {\textbf{prepareImage()}\\upright, white, $\le$1536 px, no GPS};
+\node[box=cA,text width=40mm,below=of pi] (st) {\textbf{studio.start()}\\key → running? → saved? → lock};
+\node[box=cD,text width=40mm,below=of st] (fa) {\textbf{FASHN VTON 1.5}\\Hugging Face ZeroGPU};
+\node[box=cA,text width=40mm,below=of fa] (sv) {\textbf{Save + stream}\\data/results/<key>, NDJSON};
+\draw[arr] (br)--(rt); \draw[arr] (rt)--(pi); \draw[arr] (pi)--(st); \draw[arr] (st)--(fa); \draw[arr] (fa)--(sv);
+\node[box=cC,text width=37mm,right=14mm of rt] (cj) {\textbf{completeJSON()}\\Groq → Gemini → template};
+\node[box=cC,text width=37mm,below=of cj] (cp) {\textbf{Captions + research}\\price check, maths in code};
+\node[box=cC,text width=37mm,below=of cp] (en) {\textbf{Content engines}\\pricing, title, hashtags, location};
+\node[box=cC,text width=37mm,below=of en] (mk) {\textbf{Catalogue analysis}\\prices, demand, keywords};
+\draw[arr] (cj)--(cp); \draw[arr] (mk)--(en); \draw[arr] (en)--(cp);
+\node[box=cB,text width=33mm,right=10mm of cj] (bp) {\textbf{build\_pairs.py}\\pose + image guardrails};
+\node[box=cB,text width=33mm,below=of bp] (tr) {\textbf{LoRA training}\\96 adapters, 1\% params};
+\node[box=cB,text width=33mm,below=of tr] (ev) {\textbf{evaluate + compare}\\base vs LoRA, 95\% CI};
+\node[box=cB,text width=33mm,below=of ev] (ad) {\textbf{Adapter file}\\\vAdapterMb{} MB};
+\draw[arr] (bp)--(tr); \draw[arr] (tr)--(ev); \draw[arr] (ev)--(ad);
+\draw[arr,dashed] (ad.south) |- ++(0,-6mm) -| node[note,pos=0.25,below]{future engine (one file)} (fa.east);
+\draw[arr,dashed] (mk.east) -- ++(4mm,0) |- (bp.west);
+\begin{scope}[on background layer]
+\node[grp=blue!50,fit=(br)(sv),label={[note]above:serving (Chapter 3--4)}] {};
+\node[grp=green!50!black,fit=(cj)(mk),label={[note]above:content (Chapter 6)}] {};
+\node[grp=red!50,fit=(bp)(ad),label={[note]above:adaptation (Chapter 5)}] {};
+\end{scope}
+\end{tikzpicture}
+\caption{End-to-end architecture. Blue: serving the try-on; green: text and market intelligence; red: offline adaptation of the model. Dashed arrows are links that are designed but not yet live.}
+\label{fig:arch}
+\end{figure}
+
+\section{Objectives}
+
+The specific objectives of the project were:
+
+\begin{enumerate}
+\item Serve an open try-on model to sellers at zero cost, without wasting the small free GPU quota, and with honest progress and error messages.
+\item Understand the try-on network layer by layer, from its released source code, well enough to explain where the garment's detail enters the person's image.
+\item Make the model trainable: recover the training objective it was trained with and prove it against the released weights.
+\item Build a parameter-efficient adaptation pipeline, from raw retail catalogue photographs to training pairs, with guardrails on pose and photo quality, and an evaluation protocol that decides when an improvement may be claimed.
+\item Give the seller trustworthy text: captions, a pricing band, a product title, hashtags and a posting calendar, with every number computed in code.
+\item Measure every part and report what was not done.
+\end{enumerate}
+
+\section{Contributions}
+
+The network and its weights are not our contribution. Our contributions are:
+
+\begin{itemize}
+\item \textbf{A serving system for a free, rate-limited GPU.} One entry point checks a content-addressed cache and a running-job table before it waits for the GPU, cancels abandoned queue places, and learns the provider's unpublished daily run limit from its refusal messages.
+\item \textbf{A verified training objective for a model released without one.} The rectified-flow objective was derived from the sampler and confirmed on the real weights; our inference code reproduces FASHN's output exactly (mean difference \vEquivDiff{} of 255).
+\item \textbf{A LoRA adaptation pipeline.} \vLoraLayers{} adapters (\vLoraPct{}\% of the parameters), a garment-weighted loss, new garment categories, a catalogue-to-pairs pipeline with pose guardrails, and a base-versus-adapter evaluation with confidence intervals.
+\item \textbf{Guardrails and evaluations for the model's output.} Five checks on every generated photograph in the application (two reject, three warn), calibrated on our real generations, and model-level evaluations of pose drift and garment colour error with pass rates for the base and the adapted model.
+\item \textbf{A finding about the licence.} The only non-commercial component, the human parser, has no effect on the output in the mode the application uses (difference \vParserDiff{} of 255), so it can be removed.
+\item \textbf{Catalogue-driven content engines} that keep language models away from numbers, with a demand analysis of real listings.
+\end{itemize}
+
+\section{Organisation of the Report}
+
+Chapter~2 reviews the literature behind each part. Chapter~3 describes the serving system and its pipeline. Chapter~4 explains the try-on model layer by layer. Chapter~5 presents the proposed adaptation work: the reconstructed objective, the LoRA adapters, the data pipeline with its guardrails, the evaluation protocol and the compute cost. Chapter~6 covers the text-AI layer, the market analysis and the content engines. Chapter~7 presents all results, and Chapter~8 concludes. Appendix~A lists the command behind every number, and Appendix~B the most important code.

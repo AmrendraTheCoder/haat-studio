@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Team Script: Haat Studio</title>
+<style>
+  @page { size: A4; margin: 16mm 16mm 16mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 10.8pt; line-height: 1.5; color: #1a1512; margin: 0; }
+  h1 { font-size: 22pt; margin: 0 0 3pt; }
+  .sub { color: #6b5e55; margin-bottom: 10pt; }
+  h2 { font-size: 14pt; margin: 18pt 0 6pt; padding: 5pt 9pt; color: #fff; background: #1a1512; break-after: avoid; }
+  h2.b { background: #8a5a00; }
+  h3 { font-size: 11.5pt; margin: 12pt 0 3pt; color: #c8105a; break-after: avoid; }
+  p { margin: 0 0 6pt; }
+  ul { margin: 0 0 7pt; padding-left: 16pt; }
+  li { margin-bottom: 2pt; }
+  .say { background: #fbf3e3; border-left: 4px solid #d98e04; padding: 6pt 10pt; margin: 4pt 0 7pt; break-inside: avoid; }
+  .say::before { content: "SAY: "; font-weight: bold; color: #8a5a00; }
+  .graph { background: #eef4f0; border-left: 4px solid #2f6f4e; padding: 6pt 10pt; margin: 4pt 0 7pt; break-inside: avoid; }
+  .graph::before { content: "THE GRAPH: "; font-weight: bold; color: #2f6f4e; }
+  .warn { background: #fbe9ef; border-left: 4px solid #c8105a; padding: 6pt 10pt; margin: 6pt 0 8pt; break-inside: avoid; }
+  table { border-collapse: collapse; width: 100%; font-size: 9.8pt; margin: 4pt 0 9pt; break-inside: avoid; }
+  th { background: #1a1512; color: #fff; text-align: left; padding: 4pt 6pt; }
+  td { padding: 4pt 6pt; border-bottom: 1px solid #e6dccb; vertical-align: top; }
+  code { font-family: Menlo, Consolas, monospace; font-size: 9pt; background: #f4eee3; padding: 0 2pt; }
+  .slide { break-inside: avoid-page; }
+</style>
+</head>
+<body>
+
+<h1>Team Script: Haat Studio</h1>
+<p class="sub">For the two-person presentation · 9 slides · Person A speaks first (slides 1 to 5), Person B second (slides 6 to 9) · about 12 to 15 minutes</p>
+
+<table>
+  <tr><th style="width:14%">Who</th><th style="width:14%">Slides</th><th>Topic</th><th style="width:14%">Time</th></tr>
+  <tr><td>Person A</td><td>1 to 5</td><td>The photo pipeline: request journey, studio.start(), photo cleaning, cache key, storage, live progress</td><td>6 to 7 min</td></tr>
+  <tr><td>Person B</td><td>6 to 9</td><td>The text AI, where research data comes from, how we compare, quota, security, tests</td><td>6 to 7 min</td></tr>
+</table>
+
+<div class="warn"><b>Rules for both of you.</b> Every number on the slides is real and the source is printed at the bottom of each slide. Never say "we scrape data" or "an API gives us market data": the app does neither. Never say "Groq writes our captions": on our setup only the Gemini key is set, so every AI answer so far came from Gemini 2.5 Flash.</div>
+
+<h2>Person A: the photo pipeline</h2>
+
+<div class="slide"><h3>Slide 1 · Title</h3>
+<div class="say">"Sir, our project is Haat Studio. A seller gives one photo of a garment, and the system makes an on-model photo, a caption for Instagram and a market plan, all on free services. I will explain how the photo gets made. My partner will explain the text AI, where the research data comes from, and how we keep it safe on free services."</div>
+<p>Point at the screenshot: it is from the running app. Left half is the original model photo, right half is our result.</p></div>
+
+<div class="slide"><h3>Slide 2 · A new photo takes about 32 seconds</h3>
+<div class="say">"This top row is one request, left to right. The route checks the passcode, the settings and the photos. Bad input comes back at once as a plain error. Only a valid request starts the live stream."</div>
+<div class="graph">Each bar is one of our 10 real photos. Amber is time waiting in Hugging Face's queue, magenta is the model running on the GPU. The median is 32 s in total, 26 s of it on the GPU. Two photos took only 13.5 s: speed varies on the shared free GPU, and we do not know the exact reason.</div></div>
+
+<div class="slide"><h3>Slide 3 · studio.start(): one way in</h3>
+<div class="say">"Every try-on goes through this one function, so no route can skip these protections. It checks in order of cost: a double-click joins the job already running, a repeat request comes from disk, and only then do we wait for the GPU."</div>
+<div class="graph">Two bars on a log scale, because the gap is about a hundred thousand times. A saved result answers in 0.32 ms, measured by looking it up 25 times. A new photo takes 32,022 ms. The screenshot shows what the seller sees: "No GPU used".</div>
+<p>On errors: a bad photo stops the chain, because every engine would reject it. Any other error tries the next engine. After 240 s we cancel our place in the queue. Be honest that only one real engine exists today, so the fallback is built but has nothing to fall back to yet.</p></div>
+
+<div class="slide"><h3>Slide 4 · Every photo is cleaned first</h3>
+<div class="say">"Before any GPU time, prepareImage turns phone photos upright, puts transparent images on white, shrinks very large ones and removes metadata, because a phone photo can contain the GPS location of the seller's home."</div>
+<div class="graph">The doughnut is the 20 photos in our 10 real runs: 17 were already clean and were not touched, 3 were changed. We do not re-save clean photos because re-saving changes the bytes, which changes the cache key, which misses the cache.</div>
+<p>Cache key: a hash of both photos and the settings. Same request, same key, instant result. Changing only the seed (42 to 43) gives a new key, which is how "Another variation" works.</p></div>
+
+<div class="slide"><h3>Slide 5 · Saved safely, real progress</h3>
+<div class="graph">This timeline is one real photo, the T-shirt. The first three events happen at once, then 4.3 s in the queue and 26.5 s running. Each event is one line of the stream with the server's own timestamp. The panel shows only these events, never a fake progress bar.</div>
+<div class="say">"Results are written to a temporary folder and renamed into place, meta.json last, so a crash never leaves half a result. If the seller closes the tab, the job keeps running and the photo is still saved."</div>
+<div class="say">Handoff: "Every new photo spends free GPU time. My partner will now show how we track it, and how the text AI works."</div></div>
+
+<h2 class="b">Person B: intelligence, and running safely</h2>
+
+<div class="slide"><h3>Slide 6 · One function talks to the text AI</h3>
+<div class="say">"Captions and market research both need a text AI. Only one function talks to it, completeJSON, so changing the model or the key is one place. It tries Groq first, then Gemini. Both are free and use the same OpenAI-style API. On our setup only the Gemini key is set, so every AI answer so far came from Gemini 2.5 Flash."</div>
+<p>Each answer is sent in JSON mode, the JSON is pulled out, and zod checks its shape. A badly shaped answer counts as a failure, the same as a network error.</p>
+<div class="graph">Two real reports for the same seller and the same answers. The AI report has 4 trends against 2 and 15 hashtags against 7. When no AI answers, the seller still gets a template plan made only from their own answers, clearly labelled.</div>
+<p>Safety: a caption mentioning any price the seller didn't give is rejected. A real problem we found: Gemini spent its token budget on hidden "thinking" and returned empty answers, so for Gemini only we send <code>reasoning_effort: "none"</code>.</p></div>
+
+<div class="slide"><h3>Slide 7 · Where the research data comes from</h3>
+<div class="say">"Sir, the research feature does not scrape anything and calls no market-data API. That was a deliberate decision. The report has three sources: the seller's own answers, fixed facts in our code, and the AI's general knowledge, which we only show as advice."</div>
+<div class="graph">Source 2 in action: for a report made on 26 October, the code listed the festivals in the next 75 days, Diwali in 13 days up to New Year's Eve in 66. These dates come from a list in our code, never from the AI.</div>
+<p>Why not scrape or use APIs: scraping Instagram or Meesho is against their terms, gets blocked, and collects other people's data. Instagram's hashtag API allows 30 hashtags a week and needs a business account and Meta's review. Google's Trends API is still in alpha. Paid tools break our free-only rule.</p>
+<p>Cleaning: the seller's input is checked by zod (a mistake returns 400 with a list of the wrong fields), and the AI's answer is checked and tidied before saving.</p></div>
+
+<div class="slide"><h3>Slide 8 · How we compare</h3>
+<div class="say">"This is a real report: cotton kurtis in Jaipur, ₹499 to ₹1,299, cost ₹400 a piece. The AI suggested ₹699 to ₹1,499."</div>
+<div class="graph">Margin at each price, calculated in code. At the seller's lowest price the margin is only 20%, below our 30% line (dashed), so the report warns "thin margin". At the AI's lowest price it would be 43%. The ruler on the right shows both ranges against the cost.</div>
+<p>The warning is saved as a code, <code>{code: "thin", pct: 20}</code>, so the same report shows in English or Hindi. Say plainly: we do not compare with competitors, because we have no legal source for their prices.</p></div>
+
+<div class="slide"><h3>Slide 9 · Running on free services</h3>
+<div class="graph">The amber line is how many photos the day's 300 GPU seconds allow, given 60 s reserved to start and about 26 s used per photo. The magenta line is the run limit. On 26 October Hugging Face refused our 9th photo with only 180 s used, saying "runs limit". The app read that message, learned the limit is 8, and shows the smaller of the two lines.</div>
+<div class="say">"There is no login. So every route that creates something checks a passcode first, compared in constant time, and the keys never leave the server. Not done yet: real accounts, locking saved report links, and encryption."</div>
+<p>Tests chart: Person B's parts have 26 of the app's 54 tests, all passing with no network (fake providers are passed in).</p>
+<div class="say">Close: "Three principles: protect the free resources, never trust the AI blindly, and keep working when something fails."</div></div>
+
+<h2>Questions the professor may ask</h2>
+<table>
+  <tr><th style="width:34%">Question</th><th style="width:12%">Who</th><th>Answer</th></tr>
+  <tr><td>Where does the market data come from?</td><td>B</td><td>The seller's own answers, fixed facts in our code, and the AI's general knowledge shown as advice. No scraping, no market API.</td></tr>
+  <tr><td>Then it isn't real market research?</td><td>B</td><td>Correct: it is a guided planning tool. It correctly answers a small seller's first questions: my margin, when to sell, who to sell to. Live data is future work.</td></tr>
+  <tr><td>How would you get real data legally?</td><td>B</td><td>The seller connects their own Instagram business account (their insights, with consent); the hashtag API after Meta's review; Google Trends when its API opens; or the seller uploads their own Meesho or Amazon sales CSV.</td></tr>
+  <tr><td>What if the AI is down?</td><td>B</td><td>Nothing breaks: the caller switches to the template, and the report says it was not written by AI.</td></tr>
+  <tr><td>What if the AI makes things up?</td><td>B</td><td>zod checks the shape; a caption with any price the seller didn't give is rejected; all maths and dates are code; the prompt forbids invented statistics and brand names.</td></tr>
+  <tr><td>Why files, not a database?</td><td>A or B</td><td>At this scale JSON files are enough, and writes are atomic (temp file, then rename). With many users we would move to a database.</td></tr>
+  <tr><td>What if two people press Create at once?</td><td>A</td><td>The same request joins the running job. Different requests wait for the GPU lock, one at a time.</td></tr>
+  <tr><td>What happens after a server restart?</td><td>A</td><td>Saved photos survive on disk. A job that was still running is lost, because running jobs live in memory. This is a known limit.</td></tr>
+  <tr><td>How many photos a day?</td><td>A or B</td><td>About 8 on the free account. The run limit, not the time, runs out first.</td></tr>
+</table>
+
+</body>
+</html>

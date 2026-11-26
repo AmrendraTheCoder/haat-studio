@@ -1,9 +1,13 @@
 # 04 · Design system
 
-Haat's look is ported from stiche-v2 (which took it from Marquee): **cream
-risograph paper, warm ink, one magenta splash.** It reads as a craft-market
-stall, not a tech dashboard — which is who it's for. Tokens live in
-`src/app/globals.css`; components in `src/components/`.
+**2026-11 redesign:** warm white surfaces, warm near-black ink and one brand
+colour, rani pink, for the main action and the payoff moments — a calm product
+look in the spirit of admin consoles, in Haat's own colours. The working pages sit
+in an app shell (sidebar: Try-on Studio, Post Maker, Market Research, Library,
+Help; top bar: breadcrumbs, free-GPU chip, language, Help drawer) and use the full
+width beside it. Tokens live in `src/app/globals.css`; components in
+`src/components/`. Token names are unchanged from the first (cream risograph)
+version, so every screen picked up the new values.
 
 ## Tokens
 
@@ -11,45 +15,36 @@ stall, not a tech dashboard — which is who it's for. Tokens live in
 
 | Token | Value | Use | Contrast |
 |---|---|---|---|
-| `paper` | oklch(92% .028 88) | Page background | — |
-| `paper-2` / `paper-3` | 88% / 84% | Cards, raised areas | — |
-| `paper-glow` | 95% | Inputs, chips, fields | — |
-| `ink` | oklch(15% .012 60) | Headings, body, primary buttons | 15.5:1 on paper |
-| `ink-2` | 30% | Secondary text | > 9:1 |
-| `ink-3` | 46% | Hints, labels, captions | 5.6:1 on paper (was 4.4:1 — fixed) |
-| `accent-strong` | oklch(52% .22 8) | "After", share, offer, required `*` | ≥ 4.5:1 with cream text |
-| `accent` / `accent-wash` | 70% / 87% | Decorative splash, drag-over state | not used for text |
-| `marigold` / `marigold-wash` | 72% / 93% | Warnings, "heads up" notes | text on it is ink |
-| `good` | 45% | "Ready", "no GPU used" | 5.5:1 |
-| `danger` / `danger-wash` | 48% / 90% | Errors | 5.2:1 |
-| `line` / `line-strong` | 76% / 50% | Borders | — |
-
-**Rules:** one accent per screen area; colour never carries meaning alone (✓/✗
-and words accompany green/red); fixed light theme so a projector and a phone
-look the same.
+| `paper` | oklch(98.4% .004 85) | Page background | — |
+| `paper-glow` | white | Cards, inputs, raised surfaces | — |
+| `paper-2` / `paper-3` | 96.4% / 92.8% | Subtle fills, image wells, skeletons | — |
+| `ink` | oklch(21% .012 60) | Headings, body | 16:1 on white |
+| `ink-2` | 38% | Secondary text | 10:1 |
+| `ink-3` | 50% | Hints, labels | 5.4:1 on white, 4.9:1 on paper-2 |
+| `accent-strong` | oklch(50% .19 358) | Primary buttons, links, kickers, selected options | 6:1 with white |
+| `accent-deep` / `accent-wash` | 43% / 96.5% | Primary hover / selected backgrounds | text on wash is ink |
+| `marigold` / `marigold-wash` | 76% / 97% | Warnings, "check" quality states | text on it is ink |
+| `good` / `danger` | 48% / 50% (+ washes) | Pass / fail, ready / error | 5.6:1 / 5.5:1 |
+| `line` / `line-strong` | 91% / 66% | Card borders / input borders (3:1, WCAG 1.4.11) | — |
 
 ### Type
 
-| Role | Font | Size |
-|---|---|---|
-| Display (hero, section heads) | Inter Variable 800, tracking −0.05em, lowercase | `--text-mega` clamp(44–96 px), `--text-giant` clamp(40–88 px) |
-| Headings | Inter 700–800 | 24–40 px |
-| Body | Inter 400–500 | 16 px (14 px on desktop forms) |
-| Labels, kickers, data | Geist Mono 500 | 12 px uppercase, tracked |
-| Smallest | `text-2xs` | **11 px** — nothing smaller anywhere |
-
-Fonts are bundled (no Google Fonts call), so the app renders identically offline.
+Calibri, with **Carlito** (its open, metric-compatible twin, `@fontsource/carlito`)
+bundled because Calibri may not be redistributed; Noto Sans Devanagari for Hindi.
+Scale: 11 (floor) · 12 · 14 · 16 · 20 · 24 · 32 · 40, plus one display size
+(clamp 40–60 px) for the landing hero. Weights 400 and 700. Figures are tabular in
+tables, chips, inputs and definition lists.
 
 ### Space, shape, motion
 
 - Spacing on Tailwind's 4 px scale; cards pad 20–24 px; page gutter 16 px on phones.
-- Radius: 12 px controls, 16 px cards, 24 px photos, pill buttons.
+- Radius: 8 px buttons and inputs, 12 px options, 16 px cards, 28 px photo frames.
 - Motion: one entrance (`rise`, 0.45 s spring), the marquee ticker, the scallop
   border, a scan shimmer while generating. All disabled under `prefers-reduced-motion`.
 
 ## Components
 
-### Button — `btn-primary`, `btn-ghost`
+### Button — `btn-primary` (rani pink), `btn-ghost` (white, bordered), `btn-light` (on dark bands)
 
 | Variant | Use when |
 |---|---|
@@ -143,3 +138,12 @@ returns focus to the opener; page scroll locked while open.
 | Text below 11 px | 13 places at 9–10 px | 0 — `text-2xs` (11 px) |
 | Text failing AA contrast | 4 tokens | 0 |
 | Controls under 44 px | 36+ | 0 (inline text links exempt) |
+
+## Added in the 2026-11 redesign
+
+- **App shell** (`src/components/site/AppShell.tsx`) — sidebar, breadcrumbs, quota chip, Help drawer.
+- **Review step** in the studio, the post maker ("Review and download") and research ("Review your answers"): every choice with an Edit link, then the one primary action.
+- **Help everywhere** — `HelpTip` "?" buttons (44 px hit area, `aria-describedby`, Esc closes) and the Help drawer / `/help` page, from `help.topics` in both languages.
+- **Library** (`/library`) — every saved photo, sort / filter / grid or list.
+- **Quality checks** on the result — pass / check / fail per output guardrail.
+- Pure UI logic in `src/lib/ui/` (filters, review values, quality summary, library sort) is unit-tested in `tests/ui.test.ts`.

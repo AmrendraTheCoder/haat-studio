@@ -92,6 +92,28 @@ describe("studio", () => {
     expect(fashn.calls).toBe(2);
   });
 
+  it("rejects a result that fails an output guardrail and tries the next engine", async () => {
+    const bad = engine("bad", succeed);
+    const good = engine("good", succeed);
+    let n = 0;
+    const quality = async () => ({
+      passed: n++ > 0,
+      checks: [{ id: "blank" as const, ok: n > 1, severity: "fail" as const, value: n > 1 ? 40 : 0, limit: 6 }],
+    });
+    const studio = createStudio({ engines: () => [bad, good], store: memoryStore(), timeoutMs: 1000, quality });
+    const end = await studio.start(request()).done;
+    expect(end).toMatchObject({ type: "done", result: { engine: "good", quality: { passed: true } } });
+    expect(bad.calls).toBe(1);
+  });
+
+  it("saves guardrail warnings with the result", async () => {
+    const fashn = engine("fashn", succeed);
+    const warn = { passed: true, checks: [{ id: "colour" as const, ok: false, severity: "warn" as const, value: 14.9, limit: 0 }] };
+    const studio = createStudio({ engines: () => [fashn], store: memoryStore(), timeoutMs: 1000, quality: async () => warn });
+    const end = await studio.start(request()).done;
+    expect(end).toMatchObject({ type: "done", result: { quality: warn } });
+  });
+
   it("skips unconfigured engines, falls through failures, and keeps every attempt", async () => {
     const unset = engine("unset", succeed, false);
     const busy = engine("busy", () => Promise.reject(new EngineError("quota gone", "quota", 60)));

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState } from "react";
+import { HelpTip, type HelpTopic } from "@/components/shared/HelpTip";
 import { PasscodeField } from "@/components/shared/Passcode";
 import { passcodeHeaders } from "@/lib/client/passcode";
 import { useI18n } from "@/lib/i18n/client";
@@ -36,6 +37,7 @@ export function ResearchForm({ setup }: { setup: Setup }) {
   const Q = t.research;
   const [form, setForm] = useState<Form>(EMPTY);
   const [showErrors, setShowErrors] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const [state, setState] = useState<"idle" | "working" | "error">("idle");
   const [serverError, setServerError] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState(0);
@@ -69,7 +71,24 @@ export function ResearchForm({ setup }: { setup: Setup }) {
   }, [parsed, form, Q]);
   const missing = Object.keys(errors).length;
   const e = (k: keyof Form) => (showErrors ? errors[k] : undefined);
-  const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends keyof Form>(k: K, v: Form[K]) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setReviewing(false);
+  };
+  const X = t.researchX;
+  const rupees = (v: string) => (v ? `₹${Number(v).toLocaleString("en-IN")}` : X.none);
+  const reviewRows: [string, string, number][] = [
+    [X.rows.shop, form.shopName || X.none, 1],
+    [X.rows.product, form.product || X.none, 1],
+    [X.rows.category, form.category ? Q.categories[form.category] : X.none, 1],
+    [X.rows.city, form.city || X.none, 2],
+    [X.rows.channels, form.channels.map((c) => Q.channelNames[c]).join(", ") || X.none, 2],
+    [X.rows.prices, `${rupees(form.priceMin)} – ${rupees(form.priceMax)}`, 3],
+    [X.rows.cost, rupees(form.costPerPiece), 3],
+    [X.rows.age, form.ages.join(", ") || X.none, 4],
+    [X.rows.gender, form.gender ? Q.genders[form.gender] : X.none, 4],
+    [X.rows.goal, form.goal ? Q.goals[form.goal] : X.none, 5],
+  ];
 
   async function submit() {
     setShowErrors(true);
@@ -106,21 +125,24 @@ export function ResearchForm({ setup }: { setup: Setup }) {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 pt-8 pb-24 sm:px-6">
+    <main className="app-page">
       <p className="kicker">{Q.kicker}</p>
-      <h1 className="mt-3 text-4xl font-extrabold tracking-[-0.05em] sm:text-5xl">{Q.h1}</h1>
-      <p className="mt-3 text-lg text-ink-2">{Q.lead}</p>
+      <div className="mt-2 flex items-center gap-2">
+        <h1 className="h-page sm:text-4xl">{Q.h1}</h1>
+        <HelpTip topic="research" />
+      </div>
+      <p className="mt-3 max-w-2xl text-lg leading-relaxed text-ink-2">{Q.lead}</p>
 
       <div className="mt-5 space-y-3">
         {!setup.llm && (
-          <p className="rounded-xl border border-marigold/50 bg-marigold-wash px-4 py-3 text-sm">
+          <p className="rounded-xl border border-marigold/60 bg-marigold-wash px-4 py-3 text-sm leading-relaxed">
             <strong>{Q.aiOffTitle}</strong> {Q.aiOffBody}
           </p>
         )}
         <PasscodeField required={setup.passcodeRequired} />
       </div>
 
-      <div className="mt-8 space-y-8">
+      <div className="mt-8 grid items-start gap-5 xl:grid-cols-2">
         <Section n={1} title={Q.sections[0]}>
           <div className="grid gap-3 sm:grid-cols-2">
             <Text label={Q.shopName} hint={t.common.optional} value={form.shopName} onChange={(v) => set("shopName", v)} placeholder={Q.shopPh} max={40} />
@@ -146,7 +168,7 @@ export function ResearchForm({ setup }: { setup: Setup }) {
           </Choice>
         </Section>
 
-        <Section n={3} title={Q.sections[2]}>
+        <Section n={3} title={Q.sections[2]} help="researchPrices">
           <div className="grid grid-cols-3 gap-3">
             <Text label={Q.priceMin} value={form.priceMin} onChange={(v) => set("priceMin", digits(v))} placeholder="499" numeric error={e("priceMin")} />
             <Text label={Q.priceMax} value={form.priceMax} onChange={(v) => set("priceMax", digits(v))} placeholder="1299" numeric error={e("priceMax")} />
@@ -183,10 +205,57 @@ export function ResearchForm({ setup }: { setup: Setup }) {
         </Section>
       </div>
 
-      <div className="sticky bottom-0 -mx-4 mt-10 border-t border-line bg-paper/95 px-4 py-4 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
+      {reviewing && parsed.success && (
+        <section id="research-review" aria-labelledby="research-review-title" className="card rise mt-8 scroll-mt-24 overflow-hidden">
+          <div className="border-b border-line px-5 py-4 sm:px-6">
+            <h2 id="research-review-title" className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+              {X.reviewTitle} <HelpTip topic="researchReview" />
+            </h2>
+            <p className="mt-0.5 text-sm text-ink-3">{X.reviewLead}</p>
+          </div>
+          <dl className="divide-y divide-line text-sm">
+            {reviewRows.map(([label, value, section]) => (
+              <div key={label} className="grid grid-cols-[minmax(0,8rem)_1fr_auto] items-center gap-3 px-5 py-1.5 sm:grid-cols-[10rem_1fr_auto] sm:px-6">
+                <dt className="text-ink-3">{label}</dt>
+                <dd className="min-w-0 font-medium break-words">{value}</dd>
+                <dd>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReviewing(false);
+                      requestAnimationFrame(() => document.getElementById(`research-${section}`)?.scrollIntoView({ behavior: "smooth" }));
+                    }}
+                    aria-label={`${X.edit}: ${label}`}
+                    className="inline-flex min-h-11 items-center rounded-lg px-2 font-semibold text-accent-strong hover:bg-accent-wash"
+                  >
+                    {X.edit}
+                  </button>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
+
+      <div className="sticky bottom-0 -mx-4 mt-8 border-t border-line bg-paper-glow/95 px-4 py-4 backdrop-blur sm:static sm:mx-0 sm:rounded-2xl sm:border sm:p-5 sm:shadow-[var(--shadow-card)]">
+        {!reviewing ? (
+          <button
+            type="button"
+            onClick={() => {
+              setShowErrors(true);
+              if (!parsed.success || missing > 0) return;
+              setReviewing(true);
+              setTimeout(() => document.getElementById("research-review")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+            }}
+            className="btn-primary w-full !py-3.5 !text-base"
+          >
+            {X.reviewButton} <span aria-hidden>→</span>
+          </button>
+        ) : (
         <button type="button" onClick={submit} disabled={state === "working"} className="btn-primary w-full !py-3.5 !text-base">
           {state === "working" ? Q.researching(Math.round((now - startedAt) / 1000)) : Q.submit}
         </button>
+        )}
         <p className="mt-2 text-center text-xs text-ink-3">
           {state === "working"
             ? setup.llm
@@ -202,12 +271,13 @@ export function ResearchForm({ setup }: { setup: Setup }) {
   );
 }
 
-function Section({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+function Section({ n, title, help, children }: { n: number; title: string; help?: HelpTopic; children: React.ReactNode }) {
   return (
-    <section className="card space-y-4 p-5 sm:p-6">
-      <h2 className="flex items-center gap-3 text-xl font-bold tracking-tight">
-        <span className="grid size-7 place-items-center rounded-full bg-ink font-mono text-xs text-paper">{n}</span>
+    <section id={`research-${n}`} className="card scroll-mt-24 space-y-5 p-5 sm:p-6">
+      <h2 className="flex items-center gap-3 text-lg font-semibold tracking-tight">
+        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent-wash text-xs font-semibold text-accent-strong">{n}</span>
         {title}
+        {help && <HelpTip topic={help} />}
       </h2>
       {children}
     </section>
@@ -218,9 +288,9 @@ function Text({ label, hint, value, onChange, placeholder, max, numeric, error }
   const errorId = useId();
   return (
     <label className="block">
-      <span className="mb-1 flex items-baseline justify-between text-sm font-semibold">
+      <span className="mb-1.5 flex items-baseline justify-between gap-2 text-sm font-medium">
         {label}
-        {hint && <span className="font-mono text-2xs font-normal text-ink-3">{hint}</span>}
+        {hint && <span className="text-2xs font-normal text-ink-3">{hint}</span>}
       </span>
       <input
         className="input"
@@ -244,8 +314,8 @@ function Text({ label, hint, value, onChange, placeholder, max, numeric, error }
 function Choice({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: React.ReactNode }) {
   return (
     <fieldset>
-      <legend className="mb-2 text-sm font-semibold">
-        {label} {hint && <span className="font-mono text-2xs font-normal text-ink-3">{hint}</span>}
+      <legend className="mb-2 text-sm font-medium">
+        {label} {hint && <span className="text-2xs font-normal text-ink-3">{hint}</span>}
       </legend>
       <div className="flex flex-wrap gap-2">{children}</div>
       {error && (
@@ -263,7 +333,7 @@ function Pick({ on, onClick, children }: { on: boolean; onClick: () => void; chi
       type="button"
       aria-pressed={on}
       onClick={onClick}
-      className={`min-h-11 rounded-full border px-4 py-2 text-sm transition-colors ${on ? "border-ink bg-ink text-paper" : "border-line bg-paper-glow hover:border-ink"}`}
+      className="option inline-flex min-h-11 items-center !rounded-full px-4 py-2 text-sm font-medium"
     >
       {children}
     </button>

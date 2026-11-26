@@ -49,14 +49,22 @@ for spec in a.new_category:
     add_category(name, int(label))
 
 root = os.path.dirname(os.path.abspath(a.csv))
+
+
+def resolve(path):
+    """Absolute, relative to the CSV, or relative to where the command runs (build_pairs.py output)."""
+    if os.path.isabs(path):
+        return path
+    near_csv = os.path.join(root, path)
+    return near_csv if os.path.exists(near_csv) else os.path.abspath(path)
 rows = list(csv.DictReader(open(a.csv)))
 os.makedirs(a.out, exist_ok=True)
 pipe = load_pipeline(a.weights_dir, a.device)
 index = []
 
 for i, r in enumerate(rows):
-    person = Image.open(os.path.join(root, r["person"])).convert("RGB")
-    garment = Image.open(os.path.join(root, r["garment"])).convert("RGB")
+    person = Image.open(resolve(r["person"])).convert("RGB")
+    garment = Image.open(resolve(r["garment"])).convert("RGB")
     meta = {k: r[k] for k in ("id", "category", "photo_type", "split")}
 
     prep = preprocess(pipe, person, garment, r["category"], r["photo_type"], segmentation_free=False, target=person)
@@ -69,7 +77,7 @@ for i, r in enumerate(rows):
         others = [o for o in rows if o["category"] == r["category"] and o["id"] != r["id"]]
         if others:
             other = others[i % len(others)]
-            swap = Image.open(os.path.join(root, other["garment"])).convert("RGB")
+            swap = Image.open(resolve(other["garment"])).convert("RGB")
             synthetic = generate(pipe, person, swap, r["category"], other["photo_type"], seed=i)[0]
             synthetic.save(os.path.join(a.out, f"{r['id']}-synthetic.jpg"), quality=95)
             prep = preprocess(pipe, synthetic.resize(person.size), garment, r["category"], r["photo_type"], segmentation_free=True, target=person)

@@ -1,0 +1,128 @@
+\chapter{Market Intelligence and Content Engines}
+
+\section{Overview}
+
+A try-on photograph sells nothing on its own. The seller still needs a caption, a price, a title buyers will search for, hashtags and a sense of when to post. This chapter describes the part of the system that produces them. It rests on one principle: \emph{language models write words, code computes numbers}. Language models are good at tone and phrasing and unreliable at arithmetic, prices and dates, so every number a seller sees is computed by code from the seller's own answers or from catalogue statistics, and every model answer is validated before use.
+
+The chapter has two halves. Sections~\ref{sec:llm}--\ref{sec:research} describe what runs in the application today: the text-AI layer, captions and the market-research report. Sections~\ref{sec:catalogue}--\ref{sec:engines} describe the catalogue analysis and the content engines built on it, which run as a Python module (\texttt{analysis/market.py}) and are not yet connected to the application's screens.
+
+\section{One Validated Function for All Text AI}
+\label{sec:llm}
+
+Every call to a language model in the application goes through one function, \texttt{completeJSON(schema, request)}. It receives a prompt and a zod schema that describes the exact shape the answer must have, and tries the providers listed in \texttt{LLM\_CHAIN} in order:
+
+\begin{enumerate}
+\item skip a provider whose API key is not set;
+\item send the request to its OpenAI-compatible \texttt{/chat/completions} endpoint in JSON mode, with a 45-second timeout;
+\item extract the JSON object from the reply, removing Markdown fences and any text around it;
+\item validate it against the schema; a wrongly shaped answer counts as a failure, exactly like a network error;
+\item return the data and the name of the model that produced it, or record the failure and try the next provider.
+\end{enumerate}
+
+\noindent If every provider fails, the function raises \texttt{LlmUnavailable} with the list of all attempts, and the caller falls back to a template built only from the seller's own input, clearly labelled as such. The default chain is Groq's Llama~3.3~70B~\cite{groq} followed by Gemini~2.5~Flash~\cite{gemini}; both are free and speak the same API, so one code path serves both. In our deployment only the Gemini key is configured, so Groq is skipped and every AI-written text so far came from Gemini~2.5~Flash, at about 9~s per research report.
+
+One problem found in testing shows why such details matter: Gemini~2.5~Flash spends its output budget on hidden ``thinking'' and returned empty answers to short requests. The function therefore sends \texttt{reasoning\_effort: "none"} to Gemini only (other providers reject the field).
+
+\section{Captions}
+
+A caption request carries the product name, price, MRP, offer line, call to action, tone and language (English, Hinglish or Hindi), and optionally the seller's saved research report. Three rules protect the seller:
+
+\begin{enumerate}
+\item \textbf{No invented prices.} \texttt{pricesMentioned()} finds every rupee amount in the caption, written as \rupee, Rs, INR or {\devafont रु}, including Devanagari digits. If any amount differs from the seller's price and MRP, the answer is rejected and the next provider (or the template) is used. A caption that omits the price gets it appended.
+\item \textbf{Hashtags in English letters.} Shoppers search \texttt{\#cottonkurti}, not its Devanagari spelling. This rule had to be placed in the system prompt; in the user prompt alone the model ignored it.
+\item \textbf{The template claims nothing.} Without a working model the caption uses only the fields the seller typed.
+\end{enumerate}
+\noindent Hashtags are cleaned (de-duplicated case-insensitively, capped at 30, Instagram's limit).
+
+\section{The In-App Research Report}
+\label{sec:research}
+
+The research report answers ten questions the seller fills in once (product, city, price range, cost per piece, buyers, goal and channels). It deliberately combines three sources:
+
+\begin{enumerate}
+\item \textbf{The seller's own answers}, validated by a zod schema; a mistake returns a list of the wrong fields.
+\item \textbf{Facts computed in code.} Profit and margin per piece,
+\begin{equation}
+\text{profit} = p - c, \qquad \text{margin} = \operatorname{round}\!\left(100 \cdot \frac{p - c}{p}\right)\%,
+\end{equation}
+at both ends of the seller's price range, with a ``loss'' warning when the profit at the lowest price is not positive and a ``thin'' warning below 30\%; and the selling occasions (festivals, sale weekends) in the next 75 days, from a fixed list of dates in the code. Festivals that follow the lunar calendar are left out rather than risk a wrong date.
+\item \textbf{The language model's general knowledge}: buyer persona, trends, content ideas, a seven-day plan, hashtags and risks. The model is told it has no internet access and must not invent statistics, follower counts or brand names, and the report says so to the seller.
+\end{enumerate}
+
+\noindent Warnings are stored as codes (for example \texttt{\{code: "thin", pct: 20\}}), not as sentences, so one saved report can be shown in English or Hindi. Reports are written to a temporary file and renamed into place, so a crash never leaves a broken file.
+
+\section{Catalogue Analysis}
+\label{sec:catalogue}
+
+The in-app report has no live market data. To give the content engines real numbers, we analysed a retail catalogue of \ifMarket\vMkTotalRaw{}\else about 280{,}000\fi{} listings from two marketplaces: men's T-shirts and women's tops from Amazon.in, and sarees and kurta sets from Myntra. Each listing has a selling price, MRP, discount, average star rating, number of ratings, brand, title and structured attributes (colour, fabric, neck, sleeve, pattern and fit for the Western categories; fabric, border, ornamentation and weave for sarees; pattern, neck and sleeve for kurta sets). The catalogue was collected from public product pages in October 2026 and is used here only for non-commercial academic analysis; no listing or photograph is redistributed with this report.
+
+\subsection{Cleaning}
+
+\begin{enumerate}
+\item \textbf{One listing per product family.} Colour and size variants share one parent listing and usually share its ratings; counting each variant would multiply the same demand. The variant with the most ratings represents the family.
+\item \textbf{Outlier prices.} Prices outside $[Q_1 - 3\,\mathrm{IQR},\ Q_3 + 3\,\mathrm{IQR}]$ are removed and counted.
+\item \textbf{Attribute spellings.} ``100\% Cotton'', ``Pure Cotton'' and ``Cotton'' become \emph{Cotton}; ``Crew Neck'' and ``Round Neck'' become \emph{Round/crew}; ``Art Silk'', ``Silk Blend'' and ``Pure Silk'' stay distinct because they sell at different prices; and so on for every attribute. Myntra listings flagged with a scraping error are dropped.
+\end{enumerate}
+
+\subsection{The demand signal}
+
+Units sold are not in the data. The number of ratings is visible and grows with sales~\cite{wom}, so it serves as the demand signal. Raw counts are dominated by a few bestsellers (in the women's tops a single listing holds \ifMarket\vMkTopTopOne\else a large share\fi{}\% of all ratings), so shares and lifts use a damped weight,
+\begin{equation}
+D(\ell) = \log\big(1 + n_\text{ratings}(\ell)\big),
+\end{equation}
+while totals use raw counts. A lifetime unit estimate is given only as a range, assuming that 1--3\% of buyers leave a rating; this rate is an assumption, not a measured value, and the range should be read as an order of magnitude.
+
+\subsection{Measures}
+
+\begin{itemize}
+\item \textbf{Price tiers}: value, mid and premium, cut at the 33rd and 67th price percentiles, with each tier's share of listings and of demand.
+\item \textbf{Attribute lift}: for an attribute value $a$,
+\begin{equation}
+\text{lift}(a) = \frac{\sum_{\ell : a} D(\ell) \,/\, \sum_\ell D(\ell)}{\left|\{\ell : a\}\right| / |\{\ell\}|},
+\end{equation}
+the share of demand over the share of listings. A lift above 1 means buyers want more of it than sellers offer; values with fewer than five listings are not reported.
+\item \textbf{Concentration}: the demand share of the ten largest brands and the Herfindahl--Hirschman index $\mathrm{HHI} = 10^4 \sum_b s_b^2$.
+\item \textbf{Associations}: Spearman rank correlations~\cite{spearman} between price, discount, star rating and number of ratings.
+\item \textbf{Search keywords}: title words and word pairs, brand names removed, scored by $\sum D(\ell)$ over the listings that use them.
+\end{itemize}
+
+\section{Content Engines}
+\label{sec:engines}
+
+Five engines turn these statistics into advice for one seller. They take the seller's category, attributes, cost, city and date, and every number they output comes from the catalogue statistics. Chapter~7 runs them on a worked example.
+
+\paragraph{Pricing engine} Comparable listings are those in the same category that match the seller's product on at least two of fabric, neck, sleeve, pattern and fit (at least 15 are required, otherwise the 30 closest are used). The engine reports their 25th, 50th and 75th price percentiles and recommends the band between the 40th and 60th percentiles, which places the seller in the middle of comparable products. It computes the margin at both ends of the band from the seller's cost, the lowest price that keeps a 30\% margin, $\lceil c / 0.7 \rceil$, and the tier the band falls in. It never suggests raising the MRP to make a discount look larger, although the median catalogue discount (above 50\%) shows how common that practice is.
+
+\paragraph{Title (SEO) engine} The product title is assembled from the seller's real attributes in the order buyers search for them (shop, audience, fabric and pattern, product, then neck, sleeve and fit), written in shoppers' words (``Round Neck'', ``3/4 Sleeve''). Its length is compared with the median title length of the best-selling quarter of listings, and the engine lists words that the best-selling comparable listings use and the title does not, to be added only if true.
+
+\paragraph{Hashtag engine} Tags come in four tiers: broad (the product noun and small-business tags), niche (attribute plus product, such as \texttt{\#embroideredtop}), local (the city) and occasion (the next selling moments). Two-word search keywords become tags only when they match the seller's own attributes, so a tag never claims a fabric or a feature the product does not have. Tags are in English letters, de-duplicated and capped at 30.
+
+\paragraph{Positioning and demographics} The engine states the audience (from the category's gender and the seller's channels), the tier, a one-sentence positioning statement that quotes the comparable median price, the most demanded value of each attribute, and the attributes with the highest lift.
+
+\paragraph{Location engine (GEO)} Here GEO means geographic targeting: local hashtags for the seller's city and the selling moments in the next 75 days from the same dated calendar the research report uses. The catalogue itself carries no location, so regional demand cannot yet be measured; this is listed as future work.
+
+\paragraph{Hooks and description} The first line of a caption is what a buyer sees before ``more''. The rules are: lead with the product and the occasion rather than the brand, put the price in the caption, state one benefit the seller can prove (fabric, fit), and end with the call to action. The description is built from the same attribute facts as the title.
+
+\section{Guardrails of the Content Side}
+
+\begin{table}[!htbp]
+\centering
+\caption{What could go wrong in generated text, and the rule that prevents it.}
+\label{tab:textguard}
+\small
+\begin{tabularx}{\linewidth}{@{}L{55mm}Y@{}}
+\toprule
+\textbf{Risk} & \textbf{Rule}\\
+\midrule
+A model invents a price or an offer & any rupee amount other than the seller's price or MRP rejects the answer\\
+Wrong arithmetic or wrong dates & margins, bands and calendars are computed in code; models never see the task\\
+Malformed or partial answers & zod validation; a bad shape is a failure and the next provider is tried\\
+A provider is down or out of free quota & provider chain, then a labelled template; the seller is told which one wrote the text\\
+Made-up market statistics & the prompt forbids them; real statistics come only from the catalogue analysis\\
+Hashtags in a script buyers do not search & English letters only, enforced in the system prompt and in code\\
+Tags or titles claiming features the product lacks & tags and titles are built from the seller's own attributes\\
+Inflated MRP to show a large discount & the engine never proposes an MRP\\
+A single bestseller dominating the statistics & log-damped demand, a minimum of five listings per reported value\\
+\bottomrule
+\end{tabularx}
+\end{table}

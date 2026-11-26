@@ -1,0 +1,332 @@
+\chapter{Results and Discussion}
+
+\section{Experimental Setup}
+
+\paragraph{Software environment and reproducibility} The application runs on Node.js with Next.js~16 and TypeScript; the model work runs on Python~3.12 with PyTorch and FASHN's \texttt{fashn-vton} 1.5.0 package; the pose guardrails use FASHN's own ONNX detector and pose estimator through ONNX Runtime. Every number in this chapter is read by the report's build script from a result file written by the project's scripts (Appendix~A); none is typed by hand.
+
+\paragraph{Hardware} Development and all local experiments ran on an Apple M3 laptop with 8~GB of unified memory. Hosted generations ran on Hugging Face ZeroGPU, which assigns half of an NVIDIA RTX Pro 6000 (48~GB) per call. The LoRA comparison (Section~\ref{sec:e6}) requires a CUDA GPU with at least 16~GB.
+
+\paragraph{Real and estimated results} All results are measured on real data unless a sentence says ``estimate''. The unit-sales range of Section~\ref{sec:market} rests on an assumed rating rate, and the compute cost of Table~\ref{tab:cost} is computed from parameter counts.
+
+\section{Serving the Model}
+
+\subsection{Time per photograph}
+
+Figure~\ref{fig:timing} shows all \vNRuns{} real generations made through the application on 26--27 October 2026. The median time from request to finished image was \vMedTotal{}~s, of which \vMedGpu{}~s was spent running on the GPU (including the download of the result) and \vMedQueue{}~s waiting in the Space's queue. Two runs took only \vMinTotal{}~s; the shared GPU's speed varies and we cannot see why from outside.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{timing.pdf}
+\caption{Time for each of the \vNRuns{} real generations, split into queue time and GPU time (FASHN VTON 1.5 on Hugging Face ZeroGPU, 30 steps).}
+\label{fig:timing}
+\end{figure}
+
+\subsection{The cache}
+
+A repeat request with the same photographs and settings is answered without the GPU. We measured the server-side path (photograph check, key computation and disk look-up) 25 times on the saved T-shirt result: the median was \vCacheMs{}~ms, about \vCacheRatio{} times faster than a new photograph (Figure~\ref{fig:cache}). The page tells the seller that no GPU was used (Figure~\ref{fig:saved}).
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.7\linewidth]{cache.pdf}
+\caption{Time to answer a repeat request from the cache against a new generation.}
+\label{fig:cache}
+\end{figure}
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.55\linewidth]{shot-saved.png}
+\caption{What the seller sees on a repeat request (screenshot of the running application).}
+\label{fig:saved}
+\end{figure}
+
+\subsection{The free GPU quota}
+
+Figure~\ref{fig:quota} shows how many photographs remain after each one, by time and by run count. With \vPerPhoto{}~s per photograph and 60~s reserved for each call, the time budget allows \vByTimeFresh{} photographs a day, but the run limit is reached first: on 26 October the Space refused our ninth photograph after only \vUsedAtRefusal{}~s of GPU time, with a ``runs limit'' message. The ledger learned the limit (\vRunsLimit{}) from that message, and the application has shown ``about \vRunsLimit{} photos left'' since.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.75\linewidth]{quota.pdf}
+\caption{Photographs left in the day after each photograph made, limited by GPU time and by the learned run limit.}
+\label{fig:quota}
+\end{figure}
+
+\section{Output Quality Baseline}
+
+Four try-ons were scored on six criteria from 1 (wrong) to 5 (indistinguishable from the product): colour, print, neckline or waist, sleeves or length, shape and fit, and absence of artefacts (Figure~\ref{fig:rubric}, Table~\ref{tab:rubric}). The scores were given from full-size crops by an AI assistant and have not yet been confirmed by a human rater, so they are a first baseline, not a benchmark.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.92\linewidth]{rubric.pdf}
+\caption{Rubric scores of the four baseline try-ons (30 points each).}
+\label{fig:rubric}
+\end{figure}
+
+\begin{table}[!htbp]
+\centering
+\caption{Baseline try-ons (balanced quality, 30 steps, seed 42, flat-lay garments).}
+\label{tab:rubric}
+\small
+\begin{tabularx}{\linewidth}{@{}L{32mm}L{38mm}cY@{}}
+\toprule
+\textbf{Garment} & \textbf{Model wearing} & \textbf{Score} & \textbf{Note}\\
+\midrule
+Black logo T-shirt & T-shirt and chinos & 30/30 & logo text reproduced exactly\\
+Navy eyelet crop top & dress & 28/30 & lace kept on the sleeves, body smoothed\\
+White tiered skirt & dress & 11/30 & skirt blended into the dress\\
+White tiered skirt & T-shirt and shorts & 29/30 & dot pattern and waistband kept\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{baseline-sheet.jpg}
+\caption{Baseline try-ons. Columns: garment, model photograph, result.}
+\label{fig:sheet}
+\end{figure}
+
+\paragraph{The skirt lesson} The model replaces clothing. A skirt replaces a bottom garment, and a model wearing a dress has no separate bottom to replace, so in segmentation-free mode the skirt merged into the dress. The same skirt on a model in a T-shirt and shorts scored 29/30 (Figure~\ref{fig:skirt}). We changed the application, not the model: every preset model now records what it is wearing and which garment types it suits, and the studio marks each model with a tick or a cross for the chosen category. This raised the score of this garment from 36.7\% to 96.7\%. It is the only measured improvement in output quality in this report, it came from how the model is used, and it rests on one garment.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.75\linewidth]{skirt.jpg}
+\caption{The tiered skirt on a model wearing separates (29/30).}
+\label{fig:skirt}
+\end{figure}
+
+\section{Checks on the Real Weights (E1--E3)}
+
+\paragraph{E1: our inference code equals FASHN's} With our loader, our chunked attention and our float32 rotary embeddings, the output of the full pipeline differs from FASHN's own pipeline by a mean of \vEquivDiff{} out of 255 (PSNR 148~dB, numerically identical).
+
+\paragraph{E2: the reconstructed objective} Figure~\ref{fig:recon} shows the loss of the released, untouched model on a real pair at five time steps, under our convention and under the reversed one. Under ours the mean loss is \vLossOurs{}; under the reversed convention it is \vLossRev{}, \vLossRatio{} times higher. A trained model has a low loss only under the convention it was trained with, so this identifies the objective. Independently, a small model trained from scratch with our loss is sampled correctly by FASHN's unmodified sampler (error 0.80 → 0.005), while the reversed convention makes it worse (0.80 → 1.14).
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.75\linewidth]{recon.pdf}
+\caption{Loss of the pretrained model under the reconstructed and the reversed time convention (log scale).}
+\label{fig:recon}
+\end{figure}
+
+\paragraph{E3: the human parser is not needed in our mode} Replacing the human parser with a stub changes the output by \vParserDiff{} out of 255 in segmentation-free mode with a flat-lay garment. The parser is the only component with a non-commercial licence, so it can be removed from a self-hosted copy.
+
+\paragraph{Laptop against hosted output} For the same garment, model and seed, the laptop's output differs from the hosted Space's (PSNR \vLocalPsnr{}~dB, Figure~\ref{fig:spacelocal}): same garment and pose, different pixels. We believe the starting noise differs between Apple and NVIDIA hardware for the same seed, but we have not verified it.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.6\linewidth]{space-vs-local.jpg}
+\caption{Hosted (left) and laptop (right) output for the same inputs and seed.}
+\label{fig:spacelocal}
+\end{figure}
+
+\section{LoRA on the Real Network (E4)}
+
+We ran the LoRA training loop on the real 972M network on the laptop: \vLoraLayers{} adapters, 100 steps, learning rate $10^{-4}$, at half resolution (432$\times$288), because a full-resolution step does not fit in 8~GB. Each step took \vMicroStepSec{}~s (\vMicroMinutes{} minutes in total). The loss on the two training pairs fell from \vMicroTrainBefore{} to \vMicroTrainAfter{} (\vMicroTrainChange{}\%), and on the one held-out pair it moved from \vMicroValBefore{} to \vMicroValAfter{} (\vMicroValChange{}\%). The saved adapter is \vAdapterMb{}~MB, \vAdapterPct{}\% of the \vBaseMb{}~MB model (Figure~\ref{fig:micro}).
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.75\linewidth]{microrun.pdf}
+\caption{Training loss per step in the 100-step run on the laptop.}
+\label{fig:micro}
+\end{figure}
+
+\noindent This is a test that the machinery works, not an improvement. The targets were the model's own outputs, so there was nothing new to learn; the adapters memorised the two training pairs, and the held-out pair did not improve, as expected. It shows that gradients flow through all \vLoraLayers{} adapters of the real network, that the loss decreases, and that the adapter is saved and loaded correctly.
+
+\section{From Catalogue to Training Pairs (E5)}
+\label{sec:e5}
+
+\ifPairs
+We ran \texttt{build\_pairs.py} on the Amazon.in part of the catalogue (\vPairsCats{}). A pair needs two photographs of the same product, but most listings have only their main photograph on disk, so \vPairsSkipped{} products were skipped before any analysis and \vPairsEligible{} products with at least two photographs were examined. Of their \vPairsPhotos{} photographs, \vPairsWorn{} showed a person, \vPairsFlat{} were garment-only product shots and \vPairsRejected{} were rejected outright; \vPairsPoseFail{} worn photographs failed the pose rules and \vPairsShared{} were shared with another product. The result is \vPairsN{} training pairs (\vPairsFlatLay{} flat-lay, \vPairsModel{} worn-to-worn), split into \vPairsTrain{} training and \vPairsVal{} validation pairs from \vPairsFamTrain{} and \vPairsFamVal{} product families; \vPairsLeak{} families appear on both sides. Figure~\ref{fig:pairs} shows the funnel and the reasons for rejection, and Figure~\ref{fig:pairsheet} a random sample of the pairs.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{pairs.pdf}
+\caption{Left: from catalogue photographs to training pairs. Right: why photographs were rejected.}
+\label{fig:pairs}
+\end{figure}
+
+\IfFileExists{generated/fig/pairs-sheet.jpg}{
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=\linewidth]{pairs-sheet.jpg}
+\caption{A random sample of training pairs: in each pair, the garment input on the left and the target photograph on the right. Product photographs from public Amazon.in listings.}
+\label{fig:pairsheet}
+\end{figure}}{}
+
+\noindent Back views and missing torsos are the most frequent reasons for rejecting a worn photograph. Before these rules existed, a test run selected back views, collar close-ups, a fabric swatch and a print close-up as pairs. The Myntra sarees and kurta sets have one photograph per product on disk, so they could not be paired and are used for the market analysis only.
+\else
+The pair-building run on the full catalogue had not finished when this version of the report was built; its numbers appear here automatically once \texttt{ml/data/pairs/qc.json} exists.
+\fi
+
+\section{Market Analysis of the Catalogue}
+\label{sec:market}
+
+\ifMarket
+Table~\ref{tab:market} summarises the four categories after cleaning: \vMkTotalClean{} listings carrying \vMkTotalRatings{} ratings in total.
+
+\begin{table}[!htbp]
+\centering
+\caption{Catalogue statistics after cleaning (one listing per product family).}
+\label{tab:market}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\linewidth}{@{}Yrrrr@{}}
+\toprule
+& \textbf{T-shirts} & \textbf{Women's tops} & \textbf{Sarees} & \textbf{Kurta sets}\\
+& \textit{Amazon.in} & \textit{Amazon.in} & \textit{Myntra} & \textit{Myntra}\\
+\midrule
+Listings after cleaning & \vMkTeeClean{} & \vMkTopClean{} & \vMkSareeClean{} & \vMkKurtaClean{}\\
+Price outliers removed & \vMkTeeOut{} & \vMkTopOut{} & \vMkSareeOut{} & \vMkKurtaOut{}\\
+Listings with ratings & \vMkTeeRated{} & \vMkTopRated{} & \vMkSareeRated{} & \vMkKurtaRated{}\\
+Median price (\rupee) & \vMkTeeMed{} & \vMkTopMed{} & \vMkSareeMed{} & \vMkKurtaMed{}\\
+Interquartile range (\rupee) & \vMkTeePone{}--\vMkTeePthree{} & \vMkTopPone{}--\vMkTopPthree{} & \vMkSareePone{}--\vMkSareePthree{} & \vMkKurtaPone{}--\vMkKurtaPthree{}\\
+Median discount & \vMkTeeDisc{}\% & \vMkTopDisc{}\% & \vMkSareeDisc{}\% & \vMkKurtaDisc{}\%\\
+Listings at $\ge$50\% off & \vMkTeeDiscHalf{}\% & \vMkTopDiscHalf{}\% & \vMkSareeDiscHalf{}\% & \vMkKurtaDiscHalf{}\%\\
+Mean star rating & \vMkTeeStars{} & \vMkTopStars{} & \vMkSareeStars{} & \vMkKurtaStars{}\\
+Total ratings & \vMkTeeRatings{} & \vMkTopRatings{} & \vMkSareeRatings{} & \vMkKurtaRatings{}\\
+Top-10 brands' demand share & \vMkTeeTopTen{}\% & \vMkTopTopTen{}\% & \vMkSareeTopTen{}\% & \vMkKurtaTopTen{}\%\\
+Largest listing's share & \vMkTeeTopOne{}\% & \vMkTopTopOne{}\% & \vMkSareeTopOne{}\% & \vMkKurtaTopOne{}\%\\
+Spearman $\rho$: price vs ratings & \vMkTeeRhoPrice{} & \vMkTopRhoPrice{} & \vMkSareeRhoPrice{} & \vMkKurtaRhoPrice{}\\
+Spearman $\rho$: discount vs ratings & \vMkTeeRhoDisc{} & \vMkTopRhoDisc{} & \vMkSareeRhoDisc{} & \vMkKurtaRhoDisc{}\\
+Lifetime units, estimate (lakh) & \vMkTeeUnitsLo{}--\vMkTeeUnitsHi{} & \vMkTopUnitsLo{}--\vMkTopUnitsHi{} & \vMkSareeUnitsLo{}--\vMkSareeUnitsHi{} & \vMkKurtaUnitsLo{}--\vMkKurtaUnitsHi{}\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Prices} The Western categories centre on about \rupee500 and the Indian ones on about \rupee1{,}500 (Figure~\ref{fig:mkprice}). Kurta sets are priced in a narrow band (\rupee\vMkKurtaPone{}--\rupee\vMkKurtaPthree{}), which means a seller has little room to stand out on price, while sarees spread from a few hundred rupees to several thousand.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{mk_price.pdf}
+\caption{Distribution of selling prices after cleaning (histograms drawn from a random sample of up to 4{,}000 listings per category; the vertical line is the median of all listings).}
+\label{fig:mkprice}
+\end{figure}
+
+\paragraph{Discounting is the norm} The median discount off MRP is \vMkTeeDisc{}--\vMkKurtaDisc{}\% across the four categories, and in kurta sets \vMkKurtaDiscHalf{}\% of listings claim 50\% off or more. A seller who shows a true price with no discount will look expensive next to them; the engines show the seller this context but never propose an inflated MRP.
+
+\paragraph{Price and discount barely drive demand} Within every category, price and discount are at most weakly related to the number of ratings (all Spearman $|\rho| \le \vMkMaxRho{}$, Figure~\ref{fig:mkscatter}); the strongest link is in women's tops, where pricier listings have slightly more ratings. A larger discount does not by itself attract buyers, which supports the pricing engine's choice to place a seller among comparable products rather than to undercut them.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.8\linewidth]{mk_scatter.pdf}
+\caption{Selling price against number of ratings (both log scales) for a random sample of rated listings.}
+\label{fig:mkscatter}
+\end{figure}
+
+\paragraph{Concentration} In the Amazon categories ten brands hold \vMkTeeTopTen{}\% (T-shirts) and \vMkTopTopTen{}\% (tops) of the ratings and single listings dominate; in the Myntra categories demand is spread out (top ten brands \vMkSareeTopTen{}\% and \vMkKurtaTopTen{}\%, no listing above \vMkKurtaTopOne{}\%), which leaves more room for a small seller.
+
+\paragraph{Price tiers} Figure~\ref{fig:mktiers} compares each tier's share of listings with its share of demand. Sarees in the value tier attract \vMkSareeTierValue{}\% of demand and premium sarees only \vMkSareeTierPremium{}\%; in kurta sets the value tier also leads (\vMkKurtaTierValue{}\%). In T-shirts the mid tier (\rupee\vMkTeeCutA{}--\rupee\vMkTeeCutB{}) leads with \vMkTeeTierMid{}\%, while women's tops split between value (\vMkTopTierValue{}\%) and premium (\vMkTopTierPremium{}\%).
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=\linewidth]{mk_tiers.pdf}
+\caption{Share of listings and share of demand by price tier.}
+\label{fig:mktiers}
+\end{figure}
+
+\paragraph{What buyers want more of} Figure~\ref{fig:mklift} shows attribute lift for the two Indian categories. Values above 1 are demanded more than they are offered.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=\linewidth]{mk_lift.pdf}
+\caption{Attribute lift (share of demand over share of listings) for sarees and kurta sets; values with fewer than five listings are omitted.}
+\label{fig:mklift}
+\end{figure}
+
+\paragraph{Search keywords} The demand-weighted title terms (Figure~\ref{fig:mkseo}) are, for kurta sets: \vMkKurtaKw{}; for sarees: \vMkSareeKw{}. Buyers of kurta sets search by what is included (dupatta, trousers, palazzos) and by work (embroidered, printed); buyers of Western tops search by construction (sleeve, neck, fit).
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{mk_seo.pdf}
+\caption{Title terms with the highest demand weight in each category.}
+\label{fig:mkseo}
+\end{figure}
+\else
+The catalogue analysis has not been run on this machine.
+\fi
+
+\section{Content Engines on a Worked Example}
+
+\ifExample
+For a worked example we ran the engines for a seller in \vExCity{} (\vExShop{}) with an embroidered, round-neck kurta set with three-quarter sleeves, costing \rupee\vExCost{} per piece, on 27 November 2026 (Table~\ref{tab:engines}).
+
+\begin{table}[!htbp]
+\centering
+\caption{Output of the content engines for the worked example.}
+\label{tab:engines}
+\small
+\begin{tabularx}{\linewidth}{@{}L{30mm}Y@{}}
+\toprule
+\textbf{Engine} & \textbf{Output}\\
+\midrule
+Pricing & \vExComparables{} comparable listings, prices \rupee\vExCompPone{} / \rupee\vExCompMed{} / \rupee\vExCompPthree{} (25th / 50th / 75th percentile). Recommended band \rupee\vExBandLo{}--\rupee\vExBandHi{}, \vExPosition{} tier; margin \vExMarginLo{}\%--\vExMarginHi{}\% (\vExWarn{}). Lowest price for a 30\% margin: \rupee\vExFloor{}. Category median discount: \vExDisc{}\% (shown as context, never copied).\\
+Title (SEO) & \textit{\vExTitle{}} (\vExTitleChars{} characters; best sellers' median \vExTitleBench{}). Words used by comparable best sellers, to add only if true: \vExConsider{}.\\
+Hashtags (\vExNTags{}) & \texttt{\small\vExTags{}}\\
+Location and calendar & local tags for \vExCity{}; next moments: \vExMoments{}.\\
+Positioning & \vExStatement{} Under-supplied: \vExUnder{}.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent Every number in the table comes from the catalogue and the seller's cost; no language model was involved. The suggestions to consider (``dupatta'', ``trousers'') are what the best-selling comparable listings say in their titles; the engine lists them for the seller to add only if the set really includes them.
+\fi
+
+\section{Base Model against Adapted Model (E6)}
+\label{sec:e6}
+
+\ifLora
+We trained the adapter on our laptop, at \vLcScale{} resolution because a full-resolution step does not fit in 8~GB: \vLcSteps{} optimizer steps (learning rate \vLcLr{}, \vLcAccum{} pairs per step), \vLcTrainMin{} minutes on \vLcDevice{}, \vLcStepSec{}~s per step. Unlike the 100-step test of Section~7.5, the targets are real catalogue photographs the base model has never seen, so the adapter can genuinely learn. Training and evaluation use masked mode (Section~5.6) for both models. We then compared the base model and the adapted model on the \vLcN{} held-out validation pairs, at the same resolution, with the same noise, inputs and seed (Table~\ref{tab:e6}, Figure~\ref{fig:e6}). The denoising error is measured on every validation pair; images were generated for the first \vLcGen{} pairs with \vLcEvalSteps{} sampling steps, which is what the laptop could afford.
+
+\begin{table}[!htbp]
+\centering
+\caption{Base FASHN VTON 1.5 against base + LoRA on held-out garments. Difference = LoRA − base with its 95\% bootstrap confidence interval; $p$ from the Wilcoxon signed-rank test; $n$ = garments.}
+\label{tab:e6}
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabularx}{\linewidth}{@{}L{29mm}ccrYcc@{}}
+\toprule
+\textbf{Metric} & $n$ & \textbf{Base} & \textbf{LoRA} & \textbf{Difference [95\% CI]} & \textbf{LoRA better} & $p$\\
+\midrule
+Denoising error ↓ & \vLcDlN{} & \vLcDlBase{} & \vLcDlLora{} & \vLcDlDiff{} \vLcDlCi{} & \vLcDlWin{}\% & \vLcDlP{}\\
+PSNR (dB) ↑ & \vLcPsnrN{} & \vLcPsnrBase{} & \vLcPsnrLora{} & \vLcPsnrDiff{} \vLcPsnrCi{} & \vLcPsnrWin{}\% & \vLcPsnrP{}\\
+SSIM ↑ & \vLcSsimN{} & \vLcSsimBase{} & \vLcSsimLora{} & \vLcSsimDiff{} \vLcSsimCi{} & \vLcSsimWin{}\% & \vLcSsimP{}\\
+Garment L1 ↓ & \vLcGlN{} & \vLcGlBase{} & \vLcGlLora{} & \vLcGlDiff{} \vLcGlCi{} & \vLcGlWin{}\% & \vLcGlP{}\\
+Pose drift ↓ & \vLcPdN{} & \vLcPdBase{} & \vLcPdLora{} & \vLcPdDiff{} \vLcPdCi{} & \vLcPdWin{}\% & \vLcPdP{}\\
+Colour $\Delta E$ ↓ & \vLcCdN{} & \vLcCdBase{} & \vLcCdLora{} & \vLcCdDiff{} \vLcCdCi{} & \vLcCdWin{}\% & \vLcCdP{}\\
+Seconds per image & & \vLcSecBase{} & \vLcSecLora{} & & & \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\ifModelGuard\noindent\textbf{Model guardrails.} Of the generated held-out outputs, \vGrBasePass{} of \vGrBaseN{} from the base model (\vGrBaseRate{}\%) and \vGrLoraPass{} of \vGrLoraN{} with the adapter (\vGrLoraRate{}\%) passed every guardrail; pose failures \vGrBasePose{} → \vGrLoraPose{}, colour failures \vGrBaseColour{} → \vGrLoraColour{}, blank or unchanged outputs \vGrBaseBlank{} → \vGrLoraBlank{}.\par\medskip\fi
+
+\noindent Applying the claim rule of Section~5.7: denoising error, \textbf{\vLcDlVerdict{}} (\vLcDlRel{}\%); PSNR, \textbf{\vLcPsnrVerdict{}}; SSIM, \textbf{\vLcSsimVerdict{}}; garment L1, \textbf{\vLcGlVerdict{}}; pose drift, \textbf{\vLcPdVerdict{}} (\vLcPdRel{}\%); colour $\Delta E$, \textbf{\vLcCdVerdict{}}.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{lora_compare.pdf}
+\caption{Base against LoRA on held-out garments; the error bar on the LoRA bar is the 95\% confidence interval of the difference.}
+\label{fig:e6}
+\end{figure}
+
+\IfFileExists{generated/fig/lora_curve.pdf}{\begin{figure}[!htbp]\centering\includegraphics[width=0.75\linewidth]{lora_curve.pdf}\caption{Training and validation loss of the adapter during training.}\label{fig:e6curve}\end{figure}}{}
+
+\IfFileExists{generated/fig/lora_strips.jpg}{\begin{figure}[!htbp]\centering\includegraphics[width=\linewidth]{lora_strips.jpg}\caption{Held-out garments. In each row: person input (with the old garment region), garment, real photograph, base model, base + LoRA.}\label{fig:e6strips}\end{figure}}{}
+
+\paragraph{What the model guardrails found} Both models fail the colour guardrail on the same garments, which points at the data rather than the model. Inspecting those held-out pairs shows that four of them are not true pairs: in three, the listing is a multipack and the ``garment'' photograph shows two different garments (a red and a black vest, a red and a blue T-shirt, a purple and a black T-shirt), and in one it is a marketing banner with no garment at all. No model can reproduce the real photograph from such inputs. The pose and image rules of Section~\ref{sec:pairs} do not catch these cases; rejecting multipack listings (``pack of'', ``combo'' in the title, or more than one garment silhouette in the photograph) and text-heavy banners is the next improvement to the pair builder, and the training pairs very likely contain the same kind of noise, so a cleaner dataset should help the adapter further.
+
+\paragraph{How to read this result} The run is small by the standards of the field: a few hundred pairs, half resolution, and an hour of training on a laptop GPU. A difference whose interval excludes zero is a real effect on these held-out garments, but it does not yet say how large the gain would be at full resolution, on Indian garments, or after a full training run. Those remain the next step (Chapter~8).
+\else
+This experiment had not been run when this version of the report was built. Everything is in place: the pairs (Section~\ref{sec:e5}), the training script, the evaluation script and the comparison script, whose output fills this section, the abstract and the slides automatically. No improvement is claimed until the confidence interval of the difference excludes zero.
+\fi
+
+\section{Automated Tests}
+
+The application has \vTestsApp{} automated tests and the fine-tuning kit \vTestsMl{}; all pass, and none needs a network connection or a GPU. The kit's tests check, among other things, that a model with fresh adapters is identical to the original, that only the adapters receive gradients, that merging and saving preserve the adapted model, that gradient checkpointing gives the same gradients, that a new category leaves the old ones unchanged, that the chunked attention and the float32 rotary embeddings equal FASHN's versions, and that a small model trained with our loss is sampled correctly by FASHN's sampler.
+
+\section{Discussion}
+
+\paragraph{What the real data shows} A free shared GPU can serve this model to a seller in about half a minute per photograph, and careful orchestration makes repeat requests free and protects a quota of about \vRunsLimit{} photographs a day. The released model reproduces flat-lay tops very well, including printed text, and fails in a predictable way when the model photograph offers no garment of the right type to replace; that failure was fixed by changing how the model is used. The training objective of the released model has been identified beyond reasonable doubt, and the adaptation pipeline runs end to end on the real network. \ifLora A LoRA adapter trained for about an hour on a laptop, on \vPairsTrain{} guarded catalogue pairs, lowered the denoising error on all \vLcN{} held-out garments by \vLcDlRel{}\% (\vLcDlVerdict{}); on the generated images PSNR went from \vLcPsnrBase{} to \vLcPsnrLora{}~dB (\vLcPsnrVerdict{}), garment-pixel error from \vLcGlBase{} to \vLcGlLora{} (\vLcGlVerdict{}) and colour error from \vLcCdBase{} to \vLcCdLora{}~$\Delta E$ (\vLcCdVerdict{}).\fi Catalogue data shows concentrated demand, near-universal discounting and no relation between discount and demand, and gives the content engines real numbers to work with.
+
+\paragraph{What is not shown} \ifLora The fine-tuning result is from Western T-shirts and tops at half resolution, with images generated for \vLcGen{} held-out garments; it does not yet show the size of the gain at full resolution or on Indian garments, whose catalogue has one photograph per product and could not be paired.\else We have not yet shown that fine-tuning improves try-ons on Indian garments: the comparison of Section~\ref{sec:e6} is pending.\fi The baseline quality scores come from four images and one automated rater. The catalogue covers two categories of Western-style garments from one marketplace, and its unit-sales estimates rest on an assumed rating rate. The content engines have been run on a worked example, not yet tested with sellers.
+
+\paragraph{Answer to the project question} A seller's flat photograph can be turned into an on-model photograph and a post at no cost, with numbers the seller can trust. \ifLora The model can also be adapted measurably: a 37.5~MB adapter trained on catalogue pairs on a laptop brought the model's outputs closer to unseen real photographs, under a pre-declared claim rule.\else Whether the model can be adapted measurably to the seller's own garments is set up to be answered, but not yet answered.\fi

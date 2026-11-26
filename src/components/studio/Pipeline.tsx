@@ -143,11 +143,11 @@ function deriveStages(log: LogEntry[], startedAt: number, now: number, settings:
 }
 
 const DOT: Record<State, string> = {
-  done: "bg-ink text-paper",
-  active: "bg-accent-strong text-paper animate-pulse",
-  todo: "border border-line-strong/40 text-ink-3",
-  skipped: "border border-dashed border-line-strong/40 text-ink-3",
-  failed: "bg-danger text-paper",
+  done: "bg-good text-paper-glow",
+  active: "bg-accent-strong text-paper-glow animate-pulse",
+  todo: "border border-line-strong/60 bg-paper-glow text-ink-3",
+  skipped: "border border-dashed border-line-strong/60 text-ink-3",
+  failed: "bg-danger text-paper-glow",
 };
 
 export function Pipeline({
@@ -186,7 +186,7 @@ export function Pipeline({
       <ol className="mt-4 space-y-3.5">
         {stages.map((s, i) => (
           <li key={s.id} className="flex gap-3">
-            <span className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-full font-mono text-2xs ${DOT[s.state]}`}>
+            <span className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-2xs font-semibold ${DOT[s.state]}`}>
               {s.state === "done" ? "✓" : s.state === "failed" ? "!" : s.state === "skipped" ? "–" : i + 1}
             </span>
             <div className="min-w-0 flex-1">

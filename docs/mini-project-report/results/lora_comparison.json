@@ -1,0 +1,219 @@
+{
+  "run": "laptop-v1",
+  "n_val_samples": 28,
+  "metrics": {
+    "denoise_loss": {
+      "base": 0.0239,
+      "lora": 0.0214,
+      "diff": -0.0024,
+      "ci95": [
+        -0.0034,
+        -0.0016
+      ],
+      "relative_percent": -10.18,
+      "lora_better_share": 1.0,
+      "wilcoxon_p": 0.0,
+      "higher_is_better": false,
+      "verdict": "improved",
+      "n": 28
+    },
+    "psnr": {
+      "base": 15.8158,
+      "lora": 18.3957,
+      "diff": 2.5799,
+      "ci95": [
+        0.881,
+        4.4106
+      ],
+      "relative_percent": 16.31,
+      "lora_better_share": 0.75,
+      "wilcoxon_p": 0.0342,
+      "higher_is_better": true,
+      "verdict": "improved",
+      "n": 12
+    },
+    "ssim": {
+      "base": 0.7688,
+      "lora": 0.8053,
+      "diff": 0.0365,
+      "ci95": [
+        0.0166,
+        0.0587
+      ],
+      "relative_percent": 4.74,
+      "lora_better_share": 0.75,
+      "wilcoxon_p": 0.0068,
+      "higher_is_better": true,
+      "verdict": "improved",
+      "n": 12
+    },
+    "garment_l1": {
+      "base": 0.2076,
+      "lora": 0.1976,
+      "diff": -0.01,
+      "ci95": [
+        -0.0382,
+        0.0265
+      ],
+      "relative_percent": -4.81,
+      "lora_better_share": 0.833,
+      "wilcoxon_p": 0.2334,
+      "higher_is_better": false,
+      "verdict": "no clear change",
+      "n": 12
+    },
+    "pose_drift": {
+      "base": 0.0095,
+      "lora": 0.0042,
+      "diff": -0.0053,
+      "ci95": [
+        -0.0081,
+        -0.0029
+      ],
+      "relative_percent": -55.35,
+      "lora_better_share": 1.0,
+      "wilcoxon_p": 0.0005,
+      "higher_is_better": false,
+      "verdict": "improved",
+      "n": 12
+    },
+    "colour_de": {
+      "base": 28.4525,
+      "lora": 26.8242,
+      "diff": -1.6283,
+      "ci95": [
+        -4.9133,
+        2.215
+      ],
+      "relative_percent": -5.72,
+      "lora_better_share": 0.833,
+      "wilcoxon_p": 0.2334,
+      "higher_is_better": false,
+      "verdict": "no clear change",
+      "n": 12
+    }
+  },
+  "inference_seconds": {
+    "base": 81.28,
+    "lora": 77.02
+  },
+  "training": {
+    "trainable_params": 9830400,
+    "total_params": 981644208,
+    "trainable_percent": 1.001,
+    "layers": 96,
+    "steps": 300,
+    "effective_batch": 2,
+    "train_seconds": 4889.7,
+    "seconds_per_step": 16.299,
+    "peak_gpu_gb": 3.47,
+    "device": "mps",
+    "best_val_loss": 0.02141
+  },
+  "config": {
+    "rank": 16,
+    "alpha": 16.0,
+    "targets": "attn+mlp",
+    "lr": 0.0001,
+    "weight_decay": 0.01,
+    "warmup_steps": 30,
+    "steps": 300,
+    "batch_size": 1,
+    "grad_accum": 2,
+    "p_uncond": 0.1,
+    "garment_weight": 2.0,
+    "max_grad_norm": 1.0,
+    "new_categories": 0,
+    "checkpointing": true,
+    "eval_every": 100,
+    "save_every": 100,
+    "seed": 0,
+    "scale": 0.5,
+    "val_limit": 16,
+    "base": "fashn-ai/fashn-vton-1.5",
+    "layers": 96
+  },
+  "adapter_mb": 37.5,
+  "curve": [
+    {
+      "step": 0.0,
+      "train_loss": null,
+      "val_loss": 0.02555,
+      "lr": 0.0,
+      "seconds": 0.0
+    },
+    {
+      "step": 100.0,
+      "train_loss": 0.03254,
+      "val_loss": 0.02216,
+      "lr": 7.75e-05,
+      "seconds": 1486.0
+    },
+    {
+      "step": 200.0,
+      "train_loss": 0.02898,
+      "val_loss": 0.02146,
+      "lr": 3.25e-05,
+      "seconds": 2881.0
+    },
+    {
+      "step": 300.0,
+      "train_loss": 0.02464,
+      "val_loss": 0.02141,
+      "lr": 1e-05,
+      "seconds": 4889.0
+    }
+  ],
+  "guardrails": {
+    "limits": {
+      "pose_drift": 0.05,
+      "colour_de": 20.0,
+      "blank_std": 6.0,
+      "unchanged_mad": 3.0
+    },
+    "models": {
+      "base": {
+        "n": 12,
+        "pass": 5,
+        "blank": 0,
+        "unchanged": 0,
+        "pose_fail": 0,
+        "colour_fail": 7,
+        "pass_rate": 0.417
+      },
+      "lora": {
+        "n": 12,
+        "pass": 5,
+        "blank": 0,
+        "unchanged": 0,
+        "pose_fail": 0,
+        "colour_fail": 7,
+        "pass_rate": 0.417
+      }
+    }
+  },
+  "eval_settings": {
+    "scale": 0.5,
+    "steps": 20,
+    "guidance": 1.5,
+    "seed": 42,
+    "val_samples": 28,
+    "generated": 12
+  },
+  "data": {
+    "pairs": 187,
+    "families": {
+      "train": 158,
+      "val": 28
+    },
+    "leak_check": 0
+  },
+  "sheets": [
+    "tshirt-B084SXKCD4-paired.jpg",
+    "tshirt-B086ZLVTN5-paired.jpg",
+    "tshirt-B0B4213T9Z-paired.jpg",
+    "tshirt-B0CRF3WSMJ-paired.jpg",
+    "tshirt-B0DP54W5Q1-paired.jpg",
+    "tshirt-B0F29QPTNM-paired.jpg"
+  ]
+}

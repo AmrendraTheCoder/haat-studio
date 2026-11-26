@@ -78,9 +78,9 @@ while totals use raw counts. A lifetime unit estimate is given only as a range, 
 \item \textbf{Price tiers}: value, mid and premium, cut at the 33rd and 67th price percentiles, with each tier's share of listings and of demand.
 \item \textbf{Attribute lift}: for an attribute value $a$,
 \begin{equation}
-\text{lift}(a) = \frac{\sum_{\ell : a} D(\ell) \,/\, \sum_\ell D(\ell)}{\left|\{\ell : a\}\right| / |\{\ell\}|},
+\text{lift}(a) = \frac{s_D(a)}{s_L(a)}, \qquad s_D(a) = \frac{\sum_{\ell \,\ni\, a} D(\ell)}{\sum_{\ell} D(\ell)}, \qquad s_L(a) = \frac{\left|\{\ell \ni a\}\right|}{N},
 \end{equation}
-the share of demand over the share of listings. A lift above 1 means buyers want more of it than sellers offer; values with fewer than five listings are not reported.
+the share of demand over the share of listings, where $N$ is the number of listings and $\ell \ni a$ means that listing $\ell$ has the value $a$. A lift above 1 means buyers want more of it than sellers offer; values with fewer than five listings are not reported.
 \item \textbf{Concentration}: the demand share of the ten largest brands and the Herfindahl--Hirschman index $\mathrm{HHI} = 10^4 \sum_b s_b^2$.
 \item \textbf{Associations}: Spearman rank correlations~\cite{spearman} between price, discount, star rating and number of ratings.
 \item \textbf{Search keywords}: title words and word pairs, brand names removed, scored by $\sum D(\ell)$ over the listings that use them.

@@ -39,7 +39,7 @@
 % ---------- headings: "Chapter N" over a large title, as in the sample
 \titleformat{\chapter}[display]{\bfseries\setstretch{1.1}}{\fontsize{20}{24}\selectfont\chaptertitlename\ \thechapter}{18pt}{\fontsize{26}{31}\selectfont\raggedright\hyphenpenalty=10000}[\vspace{6pt}{\color{black!70}\titlerule[0.8pt]}]
 \titleformat{name=\chapter,numberless}[display]{\bfseries\setstretch{1.1}}{}{0pt}{\fontsize{26}{31}\selectfont\raggedright\hyphenpenalty=10000}[\vspace{6pt}{\color{black!70}\titlerule[0.8pt]}]
-\titlespacing*{\chapter}{0pt}{30pt}{30pt}
+\titlespacing*{\chapter}{0pt}{-22pt}{22pt}
 \titleformat{\section}{\fontsize{14.5}{18}\selectfont\bfseries\raggedright}{\thesection}{0.8em}{}
 \titleformat{\subsection}{\fontsize{12.5}{15}\selectfont\bfseries\raggedright}{\thesubsection}{0.8em}{}
 \titleformat{\paragraph}[runin]{\bfseries}{}{}{}[.]
@@ -85,7 +85,11 @@
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 \newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
-\renewcommand{\arraystretch}{1.25}
+\renewcommand{\arraystretch}{1.32}
+\usepackage{colortbl}
+\setlength{\aboverulesep}{0.6ex}\setlength{\belowrulesep}{0.8ex}
+% A group heading inside a table: a shaded, bold row across all columns.
+\newcommand{\tgroup}[2]{\rowcolor{black!6}\multicolumn{#1}{@{\hspace{3pt}}l}{\textbf{#2}}\\}
 
 % ---------- code listings (appendix)
 \lstset{basicstyle=\codefont\footnotesize,breaklines=true,columns=fullflexible,keepspaces=true,frame=lines,framesep=4pt,
@@ -94,7 +98,7 @@
 
 % ---------- TikZ styles shared by the diagrams
 \tikzset{
-  box/.style={draw=black!55,rounded corners=2pt,align=center,font=\small,inner sep=4pt,minimum height=8mm,fill=#1},
+  box/.style={draw=black!55,rounded corners=2pt,align=center,font=\small,inner sep=4pt,minimum height=8mm,fill=#1,execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000}},
   box/.default=black!4,
   arr/.style={-{Stealth[length=2mm]},draw=black!65,thick},
   grp/.style={draw=#1,dashed,rounded corners=4pt,inner sep=6pt},
@@ -213,7 +217,7 @@ The content side calls free language models through one validated function and k
 \textbf{bf16} & Brain floating-point format, 16 bits\\
 \textbf{CFG} & Classifier-free guidance\\
 \textbf{CI} & Confidence interval\\
-\textbf{CIE} & Commission Internationale de l''Eclairage (International Commission on Illumination)\\
+\textbf{CIE} & International Commission on Illumination\\
 \textbf{CIELAB} & CIE 1976 $L^*a^*b^*$ colour space\\
 \textbf{CIEDE2000} & CIE colour-difference formula of 2000 ($\Delta E_{00}$)\\
 \textbf{CUDA} & NVIDIA's GPU programming platform\\

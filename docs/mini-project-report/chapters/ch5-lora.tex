@@ -7,21 +7,20 @@ FASHN VTON 1.5 was trained mostly on Western garments. Kurtis, sarees, lehengas 
 \begin{figure}[!htbp]
 \centering
 \begin{adjustbox}{max width=\linewidth,center}
-\begin{tikzpicture}[node distance=4mm]
-\node[box=cD,text width=30mm] (cat) {Retail catalogue\\\scriptsize listings + photos};
-\node[box=cB,text width=30mm,right=of cat] (bp) {build\_pairs.py\\\scriptsize pose + image guardrails};
-\node[box=cB,text width=30mm,right=of bp] (pp) {prepare\_data.py\\\scriptsize FASHN preprocessing};
-\node[box=cB,text width=30mm,below=8mm of pp] (tr) {train\_lora.py\\\scriptsize 96 adapters, CUDA GPU};
-\node[box=cB,text width=30mm,left=of tr] (ev) {evaluate.py\\\scriptsize base and LoRA, same seed};
-\node[box=cB,text width=30mm,left=of ev] (cp) {compare\_lora.py\\\scriptsize CI, Wilcoxon, cost};
-\node[box=cC,text width=30mm,below=8mm of ev] (rep) {This report and slides\\\scriptsize filled automatically};
-\draw[arr] (cat)--(bp); \draw[arr] (bp)--(pp); \draw[arr] (pp)--(tr); \draw[arr] (tr)--(ev); \draw[arr] (ev)--(cp); \draw[arr] (cp.south)|-(rep.west);
-\node[note,above=1mm of bp] {pairs.csv, qc.json};
-\node[note,below=1mm of tr] {lora-best.safetensors};
-\node[note,below=1mm of cp,xshift=-4mm] {lora\_comparison.json};
+\begin{tikzpicture}[node distance=7mm and 6mm,
+  stage/.style={box=#1,text width=36mm,minimum height=15mm,font=\footnotesize}]
+\node[stage=cD] (cat) {\textbf{Retail catalogue}\\listings and photos};
+\node[stage=cB,right=of cat] (bp) {\textbf{build\_pairs.py}\\pose + image guardrails\\{\itshape → pairs.csv, qc.json}};
+\node[stage=cB,right=of bp] (pp) {\textbf{prepare\_data.py}\\FASHN preprocessing\\{\itshape → prepared tensors}};
+\node[stage=cB,below=of pp] (tr) {\textbf{train\_lora.py}\\96 adapters\\{\itshape → lora-best.safetensors}};
+\node[stage=cB,left=of tr] (ev) {\textbf{evaluate.py}\\base vs LoRA, one seed\\{\itshape → eval.csv}};
+\node[stage=cB,left=of ev] (cp) {\textbf{compare\_lora.py}\\CI, Wilcoxon, cost\\{\itshape → lora\_comparison.json}};
+\node[stage=cC,below=of cp] (rep) {\textbf{Report and slides}\\filled automatically};
+\node[stage=cA,below=of tr] (app) {\textbf{Haat Studio app}\\Haat-tuned try-on AI\\(local-lora engine)};
+\draw[arr] (cat)--(bp); \draw[arr] (bp)--(pp); \draw[arr] (pp)--(tr); \draw[arr] (tr)--(ev); \draw[arr] (ev)--(cp); \draw[arr] (cp)--(rep); \draw[arr] (tr)--(app);
 \end{tikzpicture}
 \end{adjustbox}
-\caption{The adaptation pipeline, from catalogue to claimed result. Every arrow is a script in \texttt{ml/scripts}.}
+\caption{The adaptation pipeline, from catalogue to claimed result and to the app. Each step is a script in \texttt{ml/scripts}; its output file is shown in italics.}
 \label{fig:lorapipe}
 \end{figure}
 
@@ -106,23 +105,23 @@ Each training example needs two photographs of the \emph{same} product: one of a
 \caption{Guardrails applied to catalogue photographs.}
 \label{tab:guard}
 \small
-\begin{tabularx}{\linewidth}{@{}L{48mm}Y@{}}
+\begin{tabularx}{\linewidth}{@{}L{78mm}Y@{}}
 \toprule
 \textbf{Rule} & \textbf{Failure it prevents}\\
 \midrule
-\multicolumn{2}{@{}l}{\textit{Every photograph}}\\
+\tgroup{2}{Every photograph}
 Short side $\ge$ 384~px; sharpness (variance of the Laplacian~\cite{laplacian} at 512~px) $\ge$ 12 & unusably small or blurred photographs\\
 Perceptual hash: a photograph is used by one product only & colour variants sharing photos, which would pair a red product's photo with a blue one\\
-\multicolumn{2}{@{}l}{\textit{Target photograph (person wearing the product)}}\\
+\tgroup{2}{Target photograph (person wearing the product)}
 Detector confidence $\ge$ 0.6 & the pose model ``finding'' a body in a print close-up\\
 One dominant person (a second one under 35\% of its height) & group shots\\
 Shoulders and hips visible and inside the frame & collar close-ups (the pose model guesses joints beyond the frame)\\
 Knees visible, for bottoms and one-pieces & cropped legs\\
 Face visible and body facing the camera (the person's left shoulder on the right of the photo) & back views; the face score alone is unreliable, the left--right order is not\\
 Shoulder width $\ge$ 0.45 × torso height; person $\ge$ 45\% of the photo height & side views and distant shots\\
-\multicolumn{2}{@{}l}{\textit{Garment-only photograph}}\\
+\tgroup{2}{Garment-only photograph}
 Plain, light border that differs from the centre; product touching at most two edges & fabric swatches and print close-ups that fill the frame\\
-\multicolumn{2}{@{}l}{\textit{Worn photograph used as the garment input}}\\
+\tgroup{2}{Worn photograph used as the garment input}
 Same front-view rules as a target & back views hiding the front of the garment\\
 \bottomrule
 \end{tabularx}
@@ -217,22 +216,24 @@ Figure~\ref{fig:integration} shows the request flow with the tuned engine, and T
 \begin{figure}[!htbp]
 \centering
 \begin{adjustbox}{max width=\linewidth,center}
-\begin{tikzpicture}[node distance=3.6mm]
-\node[box,text width=26mm] (u) {Seller uploads\\\scriptsize garment + model};
-\node[box=cA,text width=26mm,right=of u] (g) {Guards\\\scriptsize passcode, settings,\\model suits the garment?};
-\node[box=cA,text width=26mm,right=of g] (c) {prepareImage\\\scriptsize upright, white, no GPS};
-\node[box=cA,text width=26mm,right=of c] (s) {studio.start\\\scriptsize cache, sharing, lock};
-\node[box=cB,text width=40mm,below=8mm of s] (l) {\textbf{Haat-tuned engines (new)}\\\scriptsize local-lora: this computer, half size\\fashn-lora-space: own Space, merged adapter};
-\node[box=cD,text width=34mm,left=6mm of l] (f) {fashn-space engine\\\scriptsize FASHN's Space (fallback)};
-\node[box=cA,text width=26mm,left=6mm of f] (v) {Save + stream\\\scriptsize result, timings};
-\node[box=cC,text width=26mm,left=6mm of v] (e) {Content engines\\\scriptsize price band, title,\\hashtags, calendar};
-\node[box=cC,text width=30mm,below=7mm of e] (cap) {Caption via completeJSON\\\scriptsize price check, template fallback};
-\node[box=black!6,text width=30mm,right=6mm of cap] (post) {Post + plan\\\scriptsize 4:5 / 1:1 / 9:16};
-\draw[arr] (u)--(g); \draw[arr] (g)--(c); \draw[arr] (c)--(s); \draw[arr] (s)--(l); \draw[arr] (l)--node[above,font=\scriptsize]{fails}(f); \draw[arr] (f)--(v); \draw[arr] (v)--(e); \draw[arr] (e)--(cap); \draw[arr] (cap)--(post);
-\draw[arr,dashed] (l.south) |- ++(0,-4mm) -| (v.south);
+\begin{tikzpicture}[node distance=13mm and 6mm,
+  stp/.style={box=#1,text width=29mm,minimum height=12mm,font=\footnotesize}]
+\node[stp=black!4] (u) {\textbf{Seller uploads}\\garment and model};
+\node[stp=cA,right=of u] (g) {\textbf{Guards}\\passcode, settings};
+\node[stp=cA,right=of g] (c) {\textbf{prepareImage}\\upright, no GPS};
+\node[stp=cA,right=of c] (s) {\textbf{studio.start}\\cache, sharing, lock};
+\node[stp=cD,below=of c] (std) {\textbf{Standard}\\fashn-space};
+\node[stp=cB,below=of s] (tun) {\textbf{Haat-tuned}\\local-lora};
+\node[stp=cA,below=of g] (v) {\textbf{Checks + save}\\5 guardrails};
+\node[stp=cC,below=of u] (post) {\textbf{Post + plan}\\caption, price, tags};
+\draw[arr] (u)--(g); \draw[arr] (g)--(c); \draw[arr] (c)--(s);
+\draw[arr] (s.south) -- node[note,right]{tuned} (tun.north);
+\draw[arr] ([xshift=-6mm]s.south) -- node[note,above left]{standard} ([xshift=6mm]std.north);
+\draw[arr] (std)--(v); \draw[arr] (tun.south) -- ++(0,-5mm) -| (v.south);
+\draw[arr] (v)--(post);
 \end{tikzpicture}
 \end{adjustbox}
-\caption{The request path after integration. The adapted model is tried first; FASHN's own Space remains the fallback; the content engines turn the result into a post.}
+\caption{The request path with the Haat-tuned AI. The seller's choice decides which engines run: a tuned request uses only tuned engines, so a base photograph is never returned for it. Both paths share the same checks, storage and post maker.}
 \label{fig:integration}
 \end{figure}
 
@@ -273,7 +274,7 @@ E2 & Is the reconstructed objective the one the model was trained with? & real w
 E3 & Does the human parser affect the output in our mode? & real weights & done\\
 E4 & Does the training loop work on the real network? & 2 + 1 pairs, half resolution & done\\
 E5 & How many usable pairs does the catalogue give, and why are photos rejected? & retail catalogue & \ifPairs done\else running\fi\\
-E6 & Does the adapter improve held-out garments, and by how much? & catalogue pairs, CUDA GPU & \ifLora done\else pending\fi\\
+E6 & Does the adapter improve held-out garments, and by how much? & catalogue pairs, laptop GPU, half resolution & \ifLora done\else pending\fi\\
 \bottomrule
 \end{tabularx}
 \end{table}

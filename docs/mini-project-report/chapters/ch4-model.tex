@@ -40,19 +40,20 @@ Figure~\ref{fig:mmdit} shows the network and Table~\ref{tab:layers} lists its la
 \begin{figure}[!htbp]
 \centering
 \begin{adjustbox}{max width=\linewidth,center}
-\begin{tikzpicture}[node distance=4mm]
-\node[box=cA,text width=32mm] (pin) {Person stream\\\scriptsize 7 ch → 3{,}456 tokens};
-\node[box=cD,text width=32mm,right=22mm of pin] (gin) {Garment stream\\\scriptsize 4 ch → 3{,}456 tokens};
-\node[box=cA,text width=32mm,below=of pin] (mix) {4 patch-mixer blocks\\\scriptsize person tokens only};
-\node[box=cB,text width=86mm,below=8mm of mix.south east,anchor=north,xshift=11mm] (dbl) {\textbf{8 double-stream blocks}\\\scriptsize separate weights per stream, \textbf{one joint attention over all 6{,}912 tokens}\\\scriptsize (here a token on the person's chest can read the garment token holding the logo)};
-\node[box=cB,text width=86mm,below=of dbl] (sgl) {\textbf{16 single-stream blocks}\\\scriptsize the two sequences concatenated, shared weights (fused attention + MLP)};
-\node[box=cA,text width=86mm,below=of sgl] (fin) {Final layer: keep the 3{,}456 person tokens → 432 values each\\\scriptsize reassembled into a 864$\times$576$\times$3 velocity image};
-\node[box=black!4,text width=30mm,right=6mm of dbl] (cond) {time step + category\\\scriptsize → adaLN in every block};
+\begin{tikzpicture}[node distance=4.5mm,
+  sub/.style={font=\footnotesize}]
+\node[box=cB,text width=84mm,minimum height=17mm] (dbl) {\textbf{8 double-stream blocks}\\{\footnotesize separate weights per stream}\\{\footnotesize\textbf{one joint attention over all 6{,}912 tokens}}};
+\node[box=cA,text width=37mm,minimum height=12mm,above=9mm of dbl.north west,anchor=south west] (mix) {\textbf{4 patch-mixer blocks}\\{\footnotesize person tokens only}};
+\node[box=cA,text width=37mm,minimum height=12mm,above=of mix] (pin) {\textbf{Person stream}\\{\footnotesize 7 channels → 3{,}456 tokens}};
+\node[box=cD,text width=37mm,minimum height=12mm,anchor=south east] (gin) at (pin.south -| dbl.east) {\textbf{Garment stream}\\{\footnotesize 4 channels → 3{,}456 tokens}};
+\node[box=cB,text width=84mm,minimum height=12mm,below=of dbl] (sgl) {\textbf{16 single-stream blocks}\\{\footnotesize both sequences joined, shared weights}};
+\node[box=cA,text width=84mm,minimum height=12mm,below=of sgl] (fin) {\textbf{Final layer}\\{\footnotesize 3{,}456 person tokens → an 864$\times$576$\times$3 velocity image}};
+\node[box=black!4,text width=30mm,minimum height=17mm,right=8mm of dbl] (cond) {\textbf{Time step}\\\textbf{and category}\\{\footnotesize adaLN in every block}};
 \draw[arr] (pin)--(mix); \draw[arr] (mix.south)--(mix.south|-dbl.north); \draw[arr] (gin.south)--(gin.south|-dbl.north);
 \draw[arr] (dbl)--(sgl); \draw[arr] (sgl)--(fin); \draw[arr,dashed] (cond.west)--(dbl.east); \draw[arr,dashed] (cond.south)|-(sgl.east);
 \end{tikzpicture}
 \end{adjustbox}
-\caption{The try-on transformer (an MMDiT adapted from FLUX.1). Red blocks are where our LoRA adapters attach (Chapter~5).}
+\caption{The try-on transformer (an MMDiT adapted from FLUX.1). In the joint attention a token on the person's chest can read the garment token that holds the logo. Red blocks are where our LoRA adapters attach (Chapter~5).}
 \label{fig:mmdit}
 \end{figure}
 

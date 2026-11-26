@@ -17,8 +17,8 @@ describe("SEO", () => {
     delete process.env.SITE_URL;
     delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
     expect(siteUrl()).toBe("http://localhost:3100");
-    process.env.VERCEL_PROJECT_PRODUCTION_URL = "haat-studio-peach.vercel.app";
-    expect(siteUrl()).toBe("https://haat-studio-peach.vercel.app");
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = "haatstudio.vercel.app";
+    expect(siteUrl()).toBe("https://haatstudio.vercel.app");
     process.env.SITE_URL = "https://haat.example/";
     expect(siteUrl()).toBe("https://haat.example");
   });

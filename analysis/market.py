@@ -22,7 +22,13 @@ How each number is made, and what it is NOT:
                     comes from this file's statistics, never from a language model.
 
     python analysis/market.py --retail <data/retail> --out analysis/results/market.json \
-        [--categories tshirt,top] [--example analysis/example_seller.json]
+        [--categories tshirt,top] [--example analysis/example_seller.json] \
+        [--app-out data/market/catalogue.json]
+
+--app-out writes what the app needs and nothing else: per category the statistics above and a
+fixed random sample of listings as numbers only (price, ratings, stars, discount, attribute
+codes; no titles, brands, links or photos). The file is derived from scraped listings, so it
+stays out of git (data/ is ignored); the app works without it and says so.
 """
 
 import argparse
@@ -40,6 +46,8 @@ ap.add_argument("--retail", required=True)
 ap.add_argument("--categories", default="tshirt,top,saree,kurta-set")
 ap.add_argument("--example", default=os.path.join(os.path.dirname(__file__), "example_seller.json"))
 ap.add_argument("--out", required=True)
+ap.add_argument("--app-out", help="also write the compact catalogue the app's market engines read (src/lib/market)")
+ap.add_argument("--app-sample", type=int, default=6000, help="listings kept per category in --app-out")
 a = ap.parse_args()
 
 # ---------------------------------------------------------------- cleaning
@@ -298,7 +306,7 @@ if os.path.exists(a.example):
         # pricing engine
         pricing = {"comparables": len(comp), "comparable_price": {"p25": round(q(cp, 0.25)), "median": round(q(cp, 0.5)), "p75": round(q(cp, 0.75))},
                    "recommended_band": band, "margin_at_band": [margin(band[0]), margin(band[1])] if cost else None,
-                   "floor_for_30pct_margin": math.ceil(cost / 0.7) if cost else None,
+                   "floor_for_30pct_margin": math.ceil(cost * 10 / 7) if cost else None,  # exact: cost / 0.7 has a float error
                    # informational only: we never suggest inflating an MRP to show a bigger discount
                    "category_median_discount": c["discount"]["median"],
                    "position": position,
@@ -345,6 +353,27 @@ if os.path.exists(a.example):
                       "One benefit the seller can prove (fabric, fit), never invented claims", "Call to action last"]
         out["example"] = {"input": ex, "pricing": pricing, "seo": seo, "hashtags": hashtags, "geo": geo, "positioning": positioning, "hook_rules": hook_rules}
         print("example", json.dumps(pricing))
+
+if a.app_out:
+    ATTRS = ("fabric", "neck", "sleeve", "pattern", "fit", "colour")
+    app = {"version": 1, "generated": out["generated"], "assumptions": out["assumptions"], "attributes": list(ATTRS), "categories": {}}
+    for cat, items in catalogues.items():
+        c = out["categories"][cat]
+        values = {k: sorted({r[k] for r in items if r[k]}, key=lambda v: -sum(1 for r in items if r[k] == v)) for k in ATTRS}
+        values = {k: [v for v in vs if sum(1 for r in items if r[k] == v) >= 5][:24] for k, vs in values.items()}
+        idx = {k: {v: i for i, v in enumerate(vs)} for k, vs in values.items()}
+        sample = random.Random(0).sample(items, min(len(items), a.app_sample))
+        app["categories"][cat] = {
+            **{k: c[k] for k in ("label", "gender", "after_cleaning", "price", "mrp_median", "discount", "rating", "tiers", "tier_cuts", "demand_concentration", "correlations", "title_length")},
+            "attributes": {k: v for k, v in c["attributes"].items() if k in ATTRS},
+            "seo_keywords": c["seo_keywords"],
+            "values": values,
+            # [price, ratings, stars, discount, fabric, neck, sleeve, pattern, fit, colour]; -1 = unknown
+            "items": [[round(r["price"]), r["ratings"], r["rating"] or 0, round(r["discount"] or 0)] + [idx[k].get(r[k], -1) for k in ATTRS] for r in sample],
+        }
+    os.makedirs(os.path.dirname(os.path.abspath(a.app_out)), exist_ok=True)
+    json.dump(app, open(a.app_out, "w"), separators=(",", ":"), ensure_ascii=False)
+    print("wrote", a.app_out, f"{os.path.getsize(a.app_out) / 1e6:.1f} MB")
 
 os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
 json.dump(out, open(a.out, "w"), indent=2, ensure_ascii=False)

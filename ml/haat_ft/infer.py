@@ -105,8 +105,16 @@ def generate(
     segmentation_free: bool = True,
     num_samples: int = 1,
     model=None,
+    scale: float = 1.0,
 ) -> List[Image.Image]:
-    """Same result as pipe(...) for the same settings; `model` swaps in another TryOnModel."""
+    """
+    Same result as pipe(...) for the same settings; `model` swaps in another TryOnModel.
+
+    scale < 1 generates at that fraction of the model's resolution, exactly as evaluate.py did
+    (inputs prepared at full size, then downscaled with rescale()), and upsamples the result back
+    to full size. The laptop adapter was trained and measured at scale 0.5, and at 0.5 an 8 GB Mac
+    has room for it; at full size the run is killed for lack of memory.
+    """
     torch.manual_seed(seed)
     if pipe.device.type == "cuda":
         torch.cuda.manual_seed_all(seed)
@@ -114,6 +122,13 @@ def generate(
 
     prep = preprocess(pipe, person, garment, category, photo_type, segmentation_free)
     t = to_tensors(prep, device=pipe.device, dtype=pipe.inference_dtype)
+    net = model or pipe.tryon_model
+    full_shape = net.input_shape
+    if scale != 1.0:
+        from .train import rescale
+
+        t = rescale(t, scale)
+        net.input_shape = (int(full_shape[0] * scale), int(full_shape[1] * scale))
     rep = lambda x: x.repeat(num_samples, *([1] * (x.dim() - 1)))  # noqa: E731
     # FASHN's own sampler (Euler + classifier-free guidance), called with our model.
     owner = SimpleNamespace(tryon_model=model or pipe.tryon_model)
@@ -130,4 +145,8 @@ def generate(
         skip_cfg_last_n_steps=skip_cfg_last_n_steps,
         use_tqdm=False,
     )
+    if scale != 1.0:
+        net.input_shape = full_shape
+        size = (full_shape[1], full_shape[0])  # PIL wants (width, height)
+        images = [im.resize(size, Image.LANCZOS) for im in images]
     return [crop_output(im, prep.padding) for im in images]

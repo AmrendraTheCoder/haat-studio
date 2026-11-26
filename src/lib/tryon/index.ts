@@ -4,7 +4,8 @@ import path from "node:path";
 import { env } from "@/lib/env";
 import { PRESETS } from "@/lib/presets";
 import { echo } from "./echo";
-import { fashnSpace } from "./fashn-space";
+import { fashnLoraSpace, fashnSpace } from "./fashn-space";
+import { localLora } from "./local-lora";
 import { diskStore } from "./store";
 import { TEST_ENGINES } from "@/lib/engines";
 import { gpuLedger } from "./quota-ledger";
@@ -14,6 +15,8 @@ import type { Engine } from "./types";
 /** Adding an engine is one entry here plus its adapter file. */
 const ENGINES: Record<string, () => Engine> = {
   "fashn-space": () => fashnSpace(),
+  "fashn-lora-space": () => fashnLoraSpace(),
+  "local-lora": () => localLora(),
   echo: () => echo(),
 };
 
@@ -32,6 +35,23 @@ export function enginesFromEnv(): Engine[] {
 // resolve, not join: an absolute DATA_DIR must stay absolute rather than nest under the project.
 export const resultsDir = () => path.resolve(process.cwd(), env().DATA_DIR, "results");
 export const store = () => diskStore(resultsDir());
+
+/** What the studio can offer for each model choice, for the model picker. Never throws. */
+export function modelAvailability(): Record<"base" | "tuned", { available: boolean; engine?: string; adapter?: string; local?: boolean; reason?: string }> {
+  let all: Engine[] = [];
+  try {
+    all = enginesFromEnv();
+  } catch {
+    /* an unknown engine id is reported by the studio itself */
+  }
+  const pick = (variant: "base" | "tuned") => {
+    const of = all.filter((e) => TEST_ENGINES.has(e.id) || (e.variant ?? "base") === variant);
+    const ready = of.find((e) => e.configured);
+    if (ready) return { available: true, engine: ready.id, adapter: ready.adapter, local: ready.local };
+    return { available: false, reason: of[0]?.missing ?? (variant === "tuned" ? "add local-lora or fashn-lora-space to TRYON_ENGINES" : "no engine set up") };
+  };
+  return { base: pick("base"), tuned: pick("tuned") };
+}
 
 /** What's left of the free GPU quota — null when no quota-spending engine is set up (demo or test engine). */
 export async function readQuota() {

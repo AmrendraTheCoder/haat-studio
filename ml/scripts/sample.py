@@ -29,6 +29,7 @@ ap.add_argument("--skip-cfg", type=int, default=1)
 ap.add_argument("--seed", type=int, default=42)
 ap.add_argument("--masked", action="store_true", help="grey out the old garment instead of segmentation-free")
 ap.add_argument("--lora")
+ap.add_argument("--scale", type=float, default=1.0, help="generate at this fraction of full size (0.5 = what the laptop adapter was trained and evaluated at)")
 ap.add_argument("--device")
 a = ap.parse_args()
 
@@ -40,7 +41,7 @@ if a.lora:
 start = time.time()
 img = generate(
     pipe, Image.open(a.person), Image.open(a.garment), a.category, a.photo_type,
-    steps=a.steps, guidance=a.guidance, time_shift_mu=a.mu, skip_cfg_last_n_steps=a.skip_cfg, seed=a.seed, segmentation_free=not a.masked,
+    steps=a.steps, guidance=a.guidance, time_shift_mu=a.mu, skip_cfg_last_n_steps=a.skip_cfg, seed=a.seed, segmentation_free=not a.masked, scale=a.scale,
 )[0]
 img.save(a.out)
 print(json.dumps({"out": a.out, "seconds": round(time.time() - start, 1), "device": str(pipe.device)}))

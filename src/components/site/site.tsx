@@ -20,13 +20,13 @@ export function HaatWord({ className = "", suffix, mark = true }: { className?: 
 export function LogoMark({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" className={className} aria-hidden>
-      <rect width="32" height="32" rx="8" fill="var(--color-accent-strong)" />
+      <rect width="32" height="32" rx="7.5" fill="var(--color-accent-strong)" />
       {/* A hanger: hook, then shoulders — the shop's garment, in one stroke. */}
       <path
-        d="M16 11.5c0-1.6 1.2-2.6 2.6-2.6 1.3 0 2.4 1 2.4 2.3 0 1.4-1.2 2-2.4 2.6L16 15m0 0-8.2 5.4c-.9.6-.5 2 .6 2h15.2c1.1 0 1.5-1.4.6-2L16 15Z"
+        d="M12.9 9.4a3.1 3.1 0 1 1 4.3 2.85c-.75.3-1.2.9-1.2 1.7V15M16 15 5.9 21.6c-1 .65-.55 2.15.65 2.15h18.9c1.2 0 1.65-1.5.65-2.15L16 15Z"
         fill="none"
         stroke="var(--color-paper-glow)"
-        strokeWidth="2"
+        strokeWidth="2.6"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -45,8 +45,8 @@ const NAV = [
 export function SiteNav({ cta = true }: { cta?: boolean }) {
   const { t } = useI18n();
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-paper-glow/85 backdrop-blur-lg backdrop-saturate-150">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+    <header className="sticky top-0 z-40 border-b border-line bg-paper-glow/85 backdrop-blur-lg backdrop-saturate-150" data-testid="site-header">
+      <div className="site-container flex h-16 items-center justify-between gap-3">
       <Link href="/" aria-label={t.nav.home} className="inline-flex min-h-11 shrink-0 items-center">
         <HaatWord className="text-lg" suffix="studio" />
       </Link>
@@ -58,15 +58,52 @@ export function SiteNav({ cta = true }: { cta?: boolean }) {
         ))}
       </nav>
       <div className="flex items-center gap-2">
-        <LanguageToggle />
         {cta && (
           <Link href="/studio" className="btn-primary !px-4 whitespace-nowrap">
             {t.nav.openStudio} <span aria-hidden>→</span>
           </Link>
         )}
+        <SiteMenu />
       </div>
       </div>
     </header>
+  );
+}
+
+/** Phones and tablets: the section links and the language, behind a menu button. */
+function SiteMenu() {
+  const { t } = useI18n();
+  return (
+    <details className="group relative lg:hidden">
+      <summary
+        aria-label={t.shell.menu}
+        className="inline-grid size-11 cursor-pointer list-none place-items-center rounded-lg text-ink-2 hover:bg-paper-2 [&::-webkit-details-marker]:hidden"
+      >
+        <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
+      </summary>
+      <div className="absolute top-full right-0 mt-2 w-[min(18rem,calc(100vw-2rem))] rounded-xl border border-line bg-paper-glow p-2 shadow-[var(--shadow-float)]">
+        <nav aria-label={t.nav.sectionsLabel}>
+          <ul>
+            {NAV.map((i) => (
+              <li key={i.href}>
+                <Link
+                  href={i.href}
+                  onClick={(e) => e.currentTarget.closest("details")?.removeAttribute("open")}
+                  className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink-2 hover:bg-paper-2 hover:text-ink"
+                >
+                  {t.nav.sections[i.key]}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="mt-2 border-t border-line px-3 pt-2">
+          <LanguageToggle tone="compact" />
+        </div>
+      </div>
+    </details>
   );
 }
 
@@ -76,10 +113,11 @@ export function SiteFooter() {
   const link = "inline-flex min-h-11 items-center text-sm text-ink-2 transition-colors hover:text-ink";
   return (
     <footer className="mt-24 border-t border-line bg-paper-glow">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.6fr_1fr_1fr]">
+      <div className="site-container grid gap-10 py-14 md:grid-cols-[1.6fr_1fr_1fr]">
         <div>
           <HaatWord className="text-xl" suffix="studio" />
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-ink-3">{t.nav.footerBlurb}</p>
+          <LanguageToggle className="mt-6" />
         </div>
         <nav aria-label={t.nav.footerCols.product}>
           <p className="text-xs font-semibold tracking-[0.08em] text-ink uppercase">{t.nav.footerCols.product}</p>

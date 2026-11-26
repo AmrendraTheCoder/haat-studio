@@ -26,17 +26,31 @@ export const FASHN_PARAMETERS = [
   "segmentation_free",
 ] as const;
 
-export function fashnSpace(token = env().HF_TOKEN): Engine {
+/**
+ * The same Gradio API on a copy of FASHN's Space with the Haat LoRA adapter merged into the
+ * weights (ml/haat_ft/lora.py merge). Configured by LORA_SPACE=owner/name; the adapter name in
+ * the cache key comes from LORA_ADAPTER, so results from different adapters never mix.
+ */
+export function fashnLoraSpace(space = env().LORA_SPACE, token = env().HF_TOKEN, adapter = adapterName(env().LORA_ADAPTER)): Engine {
+  const missing = !space ? "LORA_SPACE is not set — no Space serves the tuned model yet" : !token ? "HF_TOKEN is not set" : undefined;
+  return { ...fashnSpace(token, space ?? FASHN_SPACE), id: "fashn-lora-space", label: `FASHN VTON 1.5 + Haat LoRA · ${space ?? "no Space"}`, variant: "tuned", adapter, configured: !missing, missing };
+}
+
+/** "ml/runs/laptop-v1/lora-best.safetensors" → "laptop-v1": the training run names the adapter. */
+export const adapterName = (file: string) => file.split(/[\\/]/).slice(-2, -1)[0] || file.replace(/\.safetensors$/, "");
+
+export function fashnSpace(token = env().HF_TOKEN, space = FASHN_SPACE): Engine {
   return {
     id: "fashn-space",
     label: "FASHN VTON 1.5 · Hugging Face ZeroGPU",
+    variant: "base",
     configured: Boolean(token),
     missing: token ? undefined : "HF_TOKEN is not set — anonymous calls get no ZeroGPU quota",
 
     async run(input, onEvent, signal) {
       let client: Client;
       try {
-        client = await Client.connect(FASHN_SPACE, {
+        client = await Client.connect(space, {
           token: token as `hf_${string}`,
           events: ["data", "status"],
         });

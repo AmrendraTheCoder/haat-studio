@@ -116,9 +116,9 @@ export function HelpContent({ headingLevel = "h2", compact = false }: { headingL
           </H>
           <dl className={`mt-3 divide-y divide-line overflow-hidden rounded-xl border border-line bg-paper-glow ${compact ? "" : "shadow-[var(--shadow-card)]"}`}>
             {s.topics.map((id) => (
-              <div key={id} id={`help-topic-${id}`} className={compact ? "px-4 py-3" : "grid gap-1 px-5 py-4 sm:grid-cols-[14rem_1fr] sm:gap-6"}>
+              <div key={id} id={`help-topic-${id}`} className={compact ? "px-4 py-3" : "grid gap-1 px-5 py-4 sm:grid-cols-[14rem_minmax(0,1fr)] sm:gap-6 xl:grid-cols-[18rem_minmax(0,1fr)]"}>
                 <dt className="text-sm font-semibold">{t.help.topics[id].title}</dt>
-                <dd className="mt-0.5 text-sm leading-relaxed text-ink-2">{t.help.topics[id].body}</dd>
+                <dd className="mt-0.5 max-w-[75ch] text-sm leading-relaxed text-ink-2">{t.help.topics[id].body}</dd>
               </div>
             ))}
           </dl>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { PostMaker } from "@/components/posts/PostMaker";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { AppShell } from "@/components/site/AppShell";
 import { resultUrl } from "@/lib/client/check";
 import { TEST_ENGINES } from "@/lib/engines";
@@ -26,15 +27,22 @@ export default async function PostPage({ searchParams }: PageProps<"/studio/post
         <PostMaker result={result} setup={setup} />
       ) : (
         <main className="app-page">
-          <p className="kicker">{t.post.kicker}</p>
-          <h1 className="mt-2 h-page">{t.post.pickFirst}</h1>
-          <p className="mt-2 max-w-2xl text-ink-2">{t.post.pickFirstBody}</p>
+          <PageHeader
+            kicker={t.post.kicker}
+            title={t.post.pickFirst}
+            lead={t.post.pickFirstBody}
+            actions={
+              <Link href="/studio" className="btn-ghost">
+                {t.post.openStudio}
+              </Link>
+            }
+          />
           {recent.length > 0 ? (
-            <section aria-labelledby="pick" className="mt-8">
-              <h2 id="pick" className="text-sm font-semibold">
+            <section aria-labelledby="pick">
+              <h2 id="pick" className="section-title">
                 {t.postX.pickTitle}
               </h2>
-              <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+              <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
                 {recent.map((m) => (
                   <li key={m.key}>
                     <Link
@@ -57,8 +65,13 @@ export default async function PostPage({ searchParams }: PageProps<"/studio/post
               </ul>
             </section>
           ) : (
-            <div className="card mt-8 px-6 py-12 text-center">
-              <p className="text-ink-2">{t.postX.pickEmpty}</p>
+            <div className="empty-state">
+              <span aria-hidden className="mb-4 grid size-14 place-items-center rounded-full bg-accent-wash text-accent-strong">
+                <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5Zm0 10h16M8 18h5" />
+                </svg>
+              </span>
+              <p className="max-w-md text-ink-2">{t.postX.pickEmpty}</p>
               <Link href="/studio" className="btn-primary mt-6">
                 {t.post.openStudio}
               </Link>

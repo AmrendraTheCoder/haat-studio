@@ -3,6 +3,8 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { env } from "@/lib/env";
 import { completeJSON, LlmUnavailable, type Candidate } from "@/lib/llm";
+import { loadCatalogue } from "@/lib/market/catalogue";
+import { marketPlan, type Catalogue, type MarketPlan } from "@/lib/market/engines";
 import { CATEGORIES, CHANNELS, GOALS, REPORT_ID, findingsSchema, type Answers, type Economics, type EconomicsWarning, type Findings, type Moment, type Report } from "./schema";
 
 /* ── Deterministic parts: maths and dates are never left to a language model ── */
@@ -61,7 +63,19 @@ const SHAPE = `{
   "watchOuts": ["0-4 risks or mistakes to avoid"]
 }`;
 
-export function researchPrompt(a: Answers, moments: Moment[]): string {
+/** Real listing numbers for the prompt, so the AI's advice agrees with the report's own figures. */
+function marketFacts(m: MarketPlan): string {
+  const c = m.category, p = m.pricing;
+  return `
+Real marketplace data (computed in code from ${c.listings.toLocaleString("en-IN")} ${c.label} listings; use these numbers, never contradict them, and do not invent others):
+- Comparable listings sell at ₹${p.comparablePrice.p25}–₹${p.comparablePrice.p75} (median ₹${p.comparablePrice.median}); the recommended band is ₹${p.band[0]}–₹${p.band[1]} (${p.position} tier)${p.floorFor30 ? `; below ₹${p.floorFor30} the margin is under 30%` : ""}
+- Median discount shown on listings: ${c.medianDiscount ?? "unknown"}%; price and discount are at most weakly related to demand
+- Words in the titles of the best-selling listings: ${[...m.seo.keywordsUsed, ...m.seo.keywordsToConsider].slice(0, 10).join(", ")}
+- Under-supplied (more demand than listings): ${m.positioning.underSupplied.map((u) => `${u.value} ${u.attribute}`).join(", ") || "none clear"}
+Your pricing.minRupees and pricing.maxRupees must stay within ₹${p.comparablePrice.p25}–₹${p.comparablePrice.p75}${p.floorFor30 ? ` and not go below ₹${p.floorFor30}` : ""}.`;
+}
+
+export function researchPrompt(a: Answers, moments: Moment[], market?: MarketPlan | null): string {
   return `Seller:
 - Shop: ${a.shopName || "(unnamed)"}
 - Sells: ${a.product} — category: ${CATEGORIES[a.category]}
@@ -71,7 +85,7 @@ export function researchPrompt(a: Answers, moments: Moment[]): string {
 - Buyers: ${a.gender === "all" ? "everyone" : a.gender}, aged ${a.ages.join(", ")}
 - Main goal: ${GOALS[a.goal]}
 - Today: ${new Date().toISOString().slice(0, 10)}. Upcoming selling moments: ${moments.map((m) => `${m.name} (${m.date})`).join(", ") || "none in the next few weeks"}
-
+${market ? marketFacts(market) : ""}
 Return this JSON shape:
 ${SHAPE}${
     a.language === "hi"
@@ -213,19 +227,32 @@ export async function readReport(id: string): Promise<Report | null> {
   }
 }
 
-export async function createReport(a: Answers, candidates?: Candidate[], now = new Date()): Promise<Report & { attempts?: { id: string; error: string }[] }> {
+/** The listings-based plan for these answers, when the seller named a product type and a catalogue exists. */
+export function planFor(a: Answers, cat: Catalogue | null, moments: Moment[]): MarketPlan | null {
+  if (!a.market || !cat) return null;
+  const { type, ...attributes } = a.market;
+  return marketPlan(cat, { type, attributes, cost: a.costPerPiece, shop: a.shopName, city: a.city }, moments.map((m) => ({ tag: m.name.split(" ")[0] === "Makar" ? "makarsankranti" : m.name })));
+}
+
+export async function createReport(a: Answers, candidates?: Candidate[], now = new Date(), catalogue?: Catalogue | null): Promise<Report & { attempts?: { id: string; error: string }[] }> {
   const moments = upcomingMoments(now);
+  const market = planFor(a, catalogue === undefined ? await loadCatalogue() : catalogue, moments);
   let findings: Findings;
   let via = "template";
   let attempts: { id: string; error: string }[] | undefined;
   try {
-    const out = await completeJSON(findingsSchema, { system: SYSTEM, prompt: researchPrompt(a, moments), maxTokens: 2200, temperature: 0.5 }, candidates);
+    const out = await completeJSON(findingsSchema, { system: SYSTEM, prompt: researchPrompt(a, moments, market), maxTokens: 2200, temperature: 0.5 }, candidates);
     findings = normalise(out.data);
     via = out.via;
   } catch (err) {
     if (!(err instanceof LlmUnavailable)) throw err;
     attempts = err.attempts;
     findings = templateFindings(a);
+    // Without an AI, the listings still give real hashtags.
+    if (market) {
+      const local = market.hashtags.filter((t) => a.city && t.startsWith(`#${a.city.toLowerCase().replace(/[^a-z]/g, "")}`));
+      findings = { ...findings, hashtags: { broad: market.hashtags.filter((t) => !local.includes(t)).slice(0, 8), niche: findings.hashtags.niche, local: local.slice(0, 6) } };
+    }
   }
   const report: Report = {
     id: randomBytes(6).toString("hex"),
@@ -235,6 +262,7 @@ export async function createReport(a: Answers, candidates?: Candidate[], now = n
     via,
     economics: economics(a),
     moments,
+    ...(market && { market }),
   };
   return { ...report, attempts };
 }

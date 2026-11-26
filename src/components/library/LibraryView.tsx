@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { HelpTip } from "@/components/shared/HelpTip";
 import { secs } from "@/components/studio/Pipeline";
 import { resultUrl } from "@/lib/client/check";
@@ -46,20 +47,18 @@ export function LibraryView({ results, featured }: { results: ResultMeta[]; feat
 
   return (
     <main className="app-page">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="h-page">{L.title}</h1>
-            <HelpTip topic="library" />
-          </div>
-          <p className="mt-2 text-ink-2">{L.lead}</p>
-        </div>
-        <Link href="/studio" className="btn-primary">
-          {t.review.create} <span aria-hidden>→</span>
-        </Link>
-      </div>
+      <PageHeader
+        title={L.title}
+        help={<HelpTip topic="library" />}
+        lead={L.lead}
+        actions={
+          <Link href="/studio" className="btn-primary">
+            {t.review.create} <span aria-hidden>→</span>
+          </Link>
+        }
+      />
 
-      <section aria-label={L.controls} className="card mt-6 flex flex-wrap items-end gap-x-4 gap-y-3 p-4">
+      <section aria-label={L.controls} className="card grid grid-cols-2 items-end gap-x-3 gap-y-3 p-4 sm:flex sm:flex-wrap sm:gap-x-4">
         <Select label={L.sort} value={sort} onChange={(v) => setSort(v as LibrarySort)}>
           {(Object.keys(LIBRARY_SORTS) as LibrarySort[]).map((s) => (
             <option key={s} value={s}>
@@ -95,7 +94,7 @@ export function LibraryView({ results, featured }: { results: ResultMeta[]; feat
         <span className="self-center">
           <HelpTip topic="librarySort" />
         </span>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="col-span-2 flex items-center gap-2 sm:ml-auto">
           <span id="lib-view" className="inline-flex items-center gap-2 text-xs font-medium text-ink-3">
             {L.view} <HelpTip topic="libraryView" />
           </span>
@@ -133,16 +132,27 @@ export function LibraryView({ results, featured }: { results: ResultMeta[]; feat
       </div>
 
       {shown.length === 0 ? (
-        <div className="mt-2 rounded-2xl border border-dashed border-line-strong/60 bg-paper-glow p-12 text-center text-sm text-ink-3">
-          <p>{results.length === 0 ? L.emptyAll : L.empty}</p>
-          {filtered && (
-            <button type="button" onClick={clear} className="btn-ghost mt-4">
+        <div className="empty-state mt-2">
+          <span aria-hidden className="mb-4 grid size-14 place-items-center rounded-full bg-accent-wash text-accent-strong">
+            <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z" />
+            </svg>
+          </span>
+          <p className="max-w-md text-ink-2">{results.length === 0 ? L.emptyAll : L.empty}</p>
+          {filtered ? (
+            <button type="button" onClick={clear} className="btn-ghost mt-5">
               {L.clear}
             </button>
+          ) : (
+            results.length === 0 && (
+              <Link href="/studio" className="btn-primary mt-5">
+                {t.review.create} <span aria-hidden>→</span>
+              </Link>
+            )
           )}
         </div>
       ) : view === "grid" ? (
-        <ul className="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <ul className="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
           {shown.map((r) => {
             const c = checks(r, L);
             return (
@@ -151,6 +161,7 @@ export function LibraryView({ results, featured }: { results: ResultMeta[]; feat
                   <img src={resultUrl(r.key, "result.png")} alt="" loading="lazy" className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
                   <img src={resultUrl(r.key, "garment.jpg")} alt="" loading="lazy" className="absolute right-2 bottom-2 size-12 rounded-lg border border-line bg-paper-glow object-contain p-0.5 shadow-[var(--shadow-raised)]" />
                   {TEST_ENGINES.has(r.engine) && <span className="absolute inset-x-0 top-0 bg-marigold py-0.5 text-center text-2xs font-semibold text-ink uppercase">{t.recent.testEngine}</span>}
+                  {r.model?.variant === "tuned" && <span className="absolute top-2 right-2 rounded-md bg-ink px-1.5 py-0.5 text-2xs font-semibold text-paper-glow" title={t.tuned.badgeTitle(r.model.adapter ?? "")}>{t.tuned.badge}</span>}
                   {featured.includes(r.key) && <span className="absolute top-2 left-2 rounded-md bg-accent-strong px-1.5 py-0.5 text-2xs font-semibold text-paper-glow">★ {L.featured}</span>}
                 </Link>
                 <div className="flex flex-1 flex-col gap-1.5 p-3">
@@ -175,7 +186,7 @@ export function LibraryView({ results, featured }: { results: ResultMeta[]; feat
       ) : (
         <div className="card mt-2 overflow-x-auto">
           <table className="w-full min-w-[56rem] text-left text-sm">
-            <thead className="border-b border-line bg-paper-2 text-xs text-ink-3">
+            <thead className="border-b border-line bg-paper-2 text-xs tracking-[0.04em] text-ink-3 uppercase">
               <tr>
                 {Object.values(L.cols).map((h) => (
                   <th key={h} scope="col" className="px-4 py-3 font-semibold">
@@ -202,6 +213,7 @@ export function LibraryView({ results, featured }: { results: ResultMeta[]; feat
                     <Cell>
                       {modelName(r)}
                       {TEST_ENGINES.has(r.engine) && <span className="chip mt-1 !border-marigold/60 !bg-marigold-wash !py-0 !text-ink">{t.recent.testEngine}</span>}
+                      {r.model?.variant === "tuned" && <span className="chip mt-1 !border-accent/30 !bg-accent/10 !py-0 !text-accent-strong">{t.tuned.badge}</span>}
                     </Cell>
                     <Cell>
                       <p>{t.model.qualities[r.settings.quality].title}</p>
@@ -243,9 +255,9 @@ function Cell({ children }: { children: ReactNode }) {
 
 function Select({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: ReactNode }) {
   return (
-    <label className="flex flex-col gap-1">
+    <label className="flex min-w-0 flex-col gap-1">
       <span className="text-xs font-medium text-ink-3">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="input !w-auto min-w-[9rem] !py-1.5">
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="input !py-1.5 sm:!w-auto sm:min-w-[9rem]">
         {children}
       </select>
     </label>

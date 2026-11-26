@@ -245,6 +245,11 @@ function Done({
             {x.ready}
           </h1>
           {run.cached && <span className="chip mt-3 !border-good/30 !bg-good-wash !text-good">{x.noGpu}</span>}
+          {r.model?.variant === "tuned" && (
+            <span className="chip mt-3 ml-2 !border-accent/30 !bg-accent/10 !text-accent-strong" title={t.tuned.badgeTitle(r.model.adapter ?? "")}>
+              {t.tuned.badge}
+            </span>
+          )}
           {TEST_ENGINES.has(r.engine) && (
             <div className="mt-3">
               <Notice tone="warn">

@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { HelpContent } from "@/components/shared/HelpTip";
 import { HELP_SECTIONS } from "@/lib/ui/help";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { AppShell } from "@/components/site/AppShell";
 import { getMessages } from "@/lib/i18n/server";
 import { readSetup } from "@/lib/site";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getMessages()).t.help.pageTitle };
+  return { title: (await getMessages()).t.meta.help };
 }
 
 export default async function HelpPage() {
@@ -16,9 +17,8 @@ export default async function HelpPage() {
   return (
     <AppShell setup={setup} active="help" crumbs={[{ label: t.shell.nav.help }]}>
       <main className="app-page">
-        <h1 className="h-page sm:text-4xl">{t.help.pageTitle}</h1>
-        <p className="mt-3 max-w-2xl text-lg leading-relaxed text-ink-2">{t.help.pageLead}</p>
-        <div className="mt-10 grid items-start gap-10 lg:grid-cols-[13rem_minmax(0,1fr)]">
+        <PageHeader title={t.help.pageTitle} lead={t.help.pageLead} />
+        <div className="grid items-start gap-10 lg:grid-cols-[13rem_minmax(0,1fr)] xl:gap-14">
           <nav aria-label={t.help.contents} className="lg:sticky lg:top-24">
             <p className="text-2xs font-semibold tracking-[0.08em] text-ink-3 uppercase">{t.help.contents}</p>
             <ul className="mt-2 flex flex-wrap gap-2 lg:flex-col lg:gap-0">

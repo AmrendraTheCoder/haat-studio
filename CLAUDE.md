@@ -18,6 +18,8 @@ src/lib/tryon/
   index.ts        engine registry, studio() singleton, readPreset()
   stream.ts       streamJob(): NDJSON response for a live or finished job
   echo.ts         test engine — returns the model photo, no try-on
+  local-lora.ts   FASHN + the LoRA adapter on this computer (ml/scripts/sample.py); variant "tuned"
+  colour.ts       Lab, CIEDE2000, k-means palettes, colour families (quality.ts uses them)
 src/lib/presets.ts  preset models + sample garments (pure data, client-safe)
 src/lib/limits.ts   upload rules + export sizes shared by browser and server
 src/lib/engines.ts  engine display names; TEST_ENGINES (labelled, never featured)
@@ -34,6 +36,7 @@ src/components/studio/        StudioApp (state machine), Steps, ResultStep, Pipe
 src/lib/llm/        completeJSON(): the only text-AI call site — provider chain, JSON extraction, zod validation
 src/lib/posts/      spec.ts (shared schema, templates, palettes), render.ts (canvas, browser-only), caption.ts
 src/lib/research/   schema.ts (shared), build.ts (prompt, calculated economics + moments, template fallback, storage)
+src/lib/market/     engines.ts (price band, SEO title, hashtags, positioning: port of analysis/market.py), catalogue.ts (loads MARKET_FILE)
 src/lib/guard.ts    requirePasscode() for every creating route (STUDIO_PASSCODE)
 src/lib/client/roving.ts  radioKeyDown/rovingTabIndex — every role="radio" group uses them
 src/lib/client/share.ts   Web Share (files) for phones; feature-detected
@@ -54,6 +57,11 @@ tests/              vitest, no network
 - **Every try-on goes through `studio().start()`.** Routes, scripts and evals alike.
   It owns the cache, deduplication, the one-at-a-time lock and the error report.
   Never call an engine directly.
+- **Two try-on AIs: Standard and Haat-tuned.** Engines carry `variant` ("base" | "tuned"); the seller's
+  `model` choice picks which engines the studio tries. Tuned results get their own cache-key space
+  (`tuned:<adapter>`), base keys are unchanged. `local: true` engines spend no shared quota.
+- **Market numbers come from `src/lib/market`,** never from the text AI. The AI prompt is given the
+  same numbers and told not to contradict them.
 - **Engines are adapters behind `Engine`.** Adding one is a file plus one line in
   the `ENGINES` registry in `src/lib/tryon/index.ts`; `TRYON_ENGINES` orders them.
   Throw `EngineError` with the right `kind`: `input` stops the chain, everything

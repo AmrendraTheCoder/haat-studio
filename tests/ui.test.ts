@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { radioKeyDown, rovingTabIndex } from "@/lib/client/roving";
 import { messages } from "@/lib/i18n/messages";
@@ -487,5 +489,64 @@ describe("radio-group keyboard helpers", () => {
     const r = g.press(0, "Enter");
     expect(r.log).toEqual([]);
     expect(r.prevented).toBe(false);
+  });
+});
+
+/* ── Shell, titles and icons ──────────────────────────────────────────── */
+
+describe("app shell and site chrome", () => {
+  const src = (p: string) => readFileSync(path.join(process.cwd(), p), "utf8");
+  /** The JSX between an element's opening tag (found by a marker inside it) and its closing tag. */
+  const element = (file: string, marker: string, tag: string) => {
+    const s = src(file);
+    const at = s.indexOf(marker);
+    expect(at).toBeGreaterThan(-1);
+    const start = s.lastIndexOf(`<${tag}`, at);
+    return s.slice(start, s.indexOf(`</${tag}>`, at));
+  };
+
+  it("keeps the language switch out of the app's top bar", () => {
+    expect(element("src/components/site/AppShell.tsx", 'data-testid="topbar"', "header")).not.toContain("LanguageToggle");
+  });
+
+  it("puts the language switch in the sidebar (which is also the phone menu)", () => {
+    const side = src("src/components/site/AppShell.tsx");
+    const nav = side.slice(side.indexOf("function SideNav"), side.indexOf("export function StatusChip"));
+    expect(nav).toContain("<LanguageToggle");
+  });
+
+  it("keeps the language switch out of the public header bar, but in its menu and footer", () => {
+    const site = src("src/components/site/site.tsx");
+    const nav = site.slice(site.indexOf("export function SiteNav"), site.indexOf("function SiteMenu"));
+    expect(nav).not.toContain("<LanguageToggle");
+    expect(site.slice(site.indexOf("function SiteMenu"), site.indexOf("export function SiteFooter"))).toContain("<LanguageToggle");
+    expect(site.slice(site.indexOf("export function SiteFooter"))).toContain("<LanguageToggle");
+  });
+
+  it("names both languages in themselves on the switch", () => {
+    const c = src("src/lib/i18n/client.tsx");
+    expect(c).toContain('role="radiogroup"');
+    expect(c).toContain("radioKeyDown");
+    expect(c).toContain("हिन्दी");
+    expect(messages.hi.common.language).toMatch(DEVANAGARI);
+  });
+
+  it("has a page title for every route, in both languages", () => {
+    for (const k of ["home", "studio", "post", "research", "library", "help", "design"] as const) {
+      expect(messages.en.meta[k]).toBeTruthy();
+      expect(messages.hi.meta[k]).toMatch(DEVANAGARI);
+    }
+    expect(messages.en.meta.report("Shop")).toContain("Shop");
+  });
+
+  it("ships brand icons through Next's file conventions", () => {
+    for (const f of ["src/app/icon.svg", "src/app/apple-icon.png", "src/app/favicon.ico"]) expect(existsSync(f)).toBe(true);
+    expect(src("src/app/icon.svg")).toContain("#C8105A");
+  });
+
+  it("never calls the app a demo in the shell's status", () => {
+    const words = [messages.en.nav.engine, messages.hi.nav.engine].flatMap((e) => [e.setup, e.setupHint("HF_TOKEN is not set")]);
+    for (const w of words) expect(w).not.toMatch(/demo|डेमो/i);
+    expect(src("src/components/site/AppShell.tsx")).not.toMatch(/engine\.demo/);
   });
 });

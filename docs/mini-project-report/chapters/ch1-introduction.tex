@@ -33,21 +33,26 @@ The project ran over the fifth semester in three tracks that share one codebase 
 \begin{figure}[!htbp]
 \centering
 \begin{adjustbox}{max width=\linewidth,center}
-\begin{tikzpicture}[node distance=5mm and 6mm]
-\node[box=cA,text width=30mm] (a1) {Survey of 8 open\\try-on models};
-\node[box=cA,text width=30mm,right=of a1] (a2) {Serving system on\\free GPUs};
-\node[box=cA,text width=30mm,right=of a2] (a3) {Baseline quality\\and the skirt fix};
-\node[box=cB,text width=30mm,below=9mm of a1] (b1) {Model analysis,\\layer by layer};
-\node[box=cB,text width=30mm,right=of b1] (b2) {Training objective\\reconstructed + proved};
-\node[box=cB,text width=30mm,right=of b2] (b3) {LoRA kit, data pipeline\\and evaluation};
-\node[box=cC,text width=30mm,below=9mm of b1] (c1) {Validated text-AI\\layer and captions};
-\node[box=cC,text width=30mm,right=of c1] (c2) {Market research\\with calculated parts};
-\node[box=cC,text width=30mm,right=of c2] (c3) {Catalogue analysis\\and content engines};
-\draw[arr] (a1)--(a2); \draw[arr] (a2)--(a3); \draw[arr] (b1)--(b2); \draw[arr] (b2)--(b3); \draw[arr] (c1)--(c2); \draw[arr] (c2)--(c3);
+\begin{tikzpicture}[node distance=4mm and 5mm,
+  step/.style={box=#1,text width=32mm,minimum height=13mm,align=center,font=\small},
+  track/.style={align=left,text width=27mm,font=\footnotesize,inner sep=0pt}]
+\node[track] (la) {\textbf{Track 1}\\generating the\\photograph};
+\node[step=cA,right=of la] (a1) {Survey of 8 open\\try-on models};
+\node[step=cA,right=of a1] (a2) {Serving system\\on free GPUs};
+\node[step=cA,right=of a2] (a3) {Baseline quality\\and the skirt fix};
+\node[track,below=13mm of la] (lb) {\textbf{Track 2}\\adapting the\\model};
+\node[step=cB,right=of lb] (b1) {Model analysis,\\layer by layer};
+\node[step=cB,right=of b1] (b2) {Training objective\\rebuilt and proved};
+\node[step=cB,right=of b2] (b3) {LoRA kit, data\\and evaluation};
+\node[track,below=13mm of lb] (lc) {\textbf{Track 3}\\turning the photo\\into a sale};
+\node[step=cC,right=of lc] (c1) {Checked text AI\\and captions};
+\node[step=cC,right=of c1] (c2) {Market research,\\maths in code};
+\node[step=cC,right=of c2] (c3) {Catalogue analysis\\and content engines};
+\foreach \r in {a,b,c} { \draw[arr] (\r1)--(\r2); \draw[arr] (\r2)--(\r3); }
 \begin{scope}[on background layer]
-\node[grp=blue!50,fit=(a1)(a3),label={[note]above:Track 1: generating the photograph}] {};
-\node[grp=red!50,fit=(b1)(b3),label={[note]above:Track 2: adapting the model}] {};
-\node[grp=green!50!black,fit=(c1)(c3),label={[note]above:Track 3: turning the photograph into a sale}] {};
+\node[grp=blue!50,fit=(la)(a1)(a3),inner sep=7pt] {};
+\node[grp=red!50,fit=(lb)(b1)(b3),inner sep=7pt] {};
+\node[grp=green!50!black,fit=(lc)(c1)(c3),inner sep=7pt] {};
 \end{scope}
 \end{tikzpicture}
 \end{adjustbox}
@@ -68,51 +73,58 @@ The project went through three stages: a first working studio, a measured and co
 \toprule
 \textbf{Aspect} & \textbf{First version (early Oct.)} & \textbf{After the baseline (late Oct.)} & \textbf{This report (Nov.)}\\
 \midrule
-Try-on & One call to the hosted model & One entry point with cache, job sharing and a GPU lock & Same, with a measured cache path\\
+Try-on & One call to the hosted model & One entry point with cache, job sharing and a GPU lock & Same, plus a choice of Standard or Haat-tuned AI and five output checks\\
 Model photos & Any preset & Presets carry what they wear; bottoms go to a model in separates & Same\\
 Quality & Not measured & 4 try-ons scored on a 30-point rubric & Plus PSNR, SSIM and garment error in the LoRA evaluation\\
-Training & None possible & Objective reconstructed, LoRA kit with 12 tests & Checked on the real weights; 100-step run; catalogue-to-pairs pipeline\\
+Training & None possible & Objective reconstructed, LoRA kit with 12 tests & Adapter trained and evaluated on unseen garments, and used by the app\\
 Text & Captions from one model & Validated provider chain, price check, templates & Plus catalogue-driven pricing, title, hashtag and location engines\\
-Market data & None & Seller's answers, calendar in code, AI advice & Plus demand and price statistics from \ifMarket\vMkTeeClean{} + \vMkTopClean{}\else catalogue\fi{} listings\\
+Market data & None & Seller's answers, calendar in code, AI advice & Plus demand and price statistics from \ifMarket\vMkTotalClean{} real\else catalogue\fi{} listings in four categories, used inside the app\\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \section{Overall System Architecture}
 
-Figure~\ref{fig:arch} shows the complete system. The browser sends the garment photograph, the choice of model and the settings. The server cleans the photographs, decides whether any GPU work is needed at all, and sends the job to the try-on model on Hugging Face's free GPU service. The result is saved and streamed back while it is being made. The same server calls free language models for captions and research, always through one validating function, and the catalogue analysis supplies the numbers the content engines use. The adaptation pipeline on the right runs offline and produces an adapter file that a future engine would load.
+Figure~\ref{fig:arch} shows the complete system. The browser sends the garment photograph, the choice of model and the settings. The server cleans the photographs, decides whether any GPU work is needed at all, and sends the job to the try-on model on Hugging Face's free GPU service. The result is saved and streamed back while it is being made. The same server calls free language models for captions and research, always through one validating function, and the catalogue analysis supplies the numbers the content engines use. The adaptation pipeline in the middle runs offline and produces an adapter file, which the studio loads when the seller chooses the Haat-tuned try-on AI.
 
 \begin{figure}[!htbp]
 \centering
 \begin{adjustbox}{max width=\linewidth,center}
-\begin{tikzpicture}[node distance=4.5mm]
-\node[box=black!6,text width=40mm] (br) {\textbf{Browser}\\garment photo, model, settings};
-\node[box=cA,text width=40mm,below=of br] (rt) {\textbf{API route}\\passcode, settings, photos};
-\node[box=cA,text width=40mm,below=of rt] (pi) {\textbf{prepareImage()}\\upright, white, $\le$1536 px, no GPS};
-\node[box=cA,text width=40mm,below=of pi] (st) {\textbf{studio.start()}\\key → running? → saved? → lock};
-\node[box=cD,text width=40mm,below=of st] (fa) {\textbf{FASHN VTON 1.5}\\Hugging Face ZeroGPU};
-\node[box=cA,text width=40mm,below=of fa] (sv) {\textbf{Save + stream}\\data/results/<key>, NDJSON};
-\draw[arr] (br)--(rt); \draw[arr] (rt)--(pi); \draw[arr] (pi)--(st); \draw[arr] (st)--(fa); \draw[arr] (fa)--(sv);
-\node[box=cC,text width=37mm,right=14mm of rt] (cj) {\textbf{completeJSON()}\\Groq → Gemini → template};
-\node[box=cC,text width=37mm,below=of cj] (cp) {\textbf{Captions + research}\\price check, maths in code};
-\node[box=cC,text width=37mm,below=of cp] (en) {\textbf{Content engines}\\pricing, title, hashtags, location};
-\node[box=cC,text width=37mm,below=of en] (mk) {\textbf{Catalogue analysis}\\prices, demand, keywords};
-\draw[arr] (cj)--(cp); \draw[arr] (mk)--(en); \draw[arr] (en)--(cp);
-\node[box=cB,text width=33mm,right=10mm of cj] (bp) {\textbf{build\_pairs.py}\\pose + image guardrails};
-\node[box=cB,text width=33mm,below=of bp] (tr) {\textbf{LoRA training}\\96 adapters, 1\% params};
-\node[box=cB,text width=33mm,below=of tr] (ev) {\textbf{evaluate + compare}\\base vs LoRA, 95\% CI};
-\node[box=cB,text width=33mm,below=of ev] (ad) {\textbf{Adapter file}\\\vAdapterMb{} MB};
-\draw[arr] (bp)--(tr); \draw[arr] (tr)--(ev); \draw[arr] (ev)--(ad);
-\draw[arr,dashed] (ad.south) |- ++(0,-6mm) -| node[note,pos=0.25,below]{future engine (one file)} (fa.east);
-\draw[arr,dashed] (mk.east) -- ++(4mm,0) |- (bp.west);
+\begin{tikzpicture}[node distance=4mm and 8mm,
+  part/.style={box=#1,text width=42mm,minimum height=13mm,align=center,font=\small,execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000}},
+  head/.style={font=\small\bfseries,align=center,text width=42mm,inner sep=1pt}]
+% serving
+\node[head] (h1) {Serving\\[-1pt]{\footnotesize\mdseries Chapters 3--4}};
+\node[part=black!6,below=3mm of h1] (br) {\textbf{Browser}\\garment, model, settings};
+\node[part=cA,below=of br] (rt) {\textbf{API route}\\passcode, checks, photos};
+\node[part=cA,below=of rt] (pi) {\textbf{prepareImage()}\\upright, white, no GPS};
+\node[part=cA,below=of pi] (st) {\textbf{studio.start()}\\cache, sharing, GPU lock};
+\node[part=cD,below=of st] (fa) {\textbf{Try-on AI}\\Standard or Haat-tuned};
+\node[part=cA,below=of fa] (sv) {\textbf{Checks + save}\\5 guardrails, stream};
+\foreach \x/\y in {br/rt,rt/pi,pi/st,st/fa,fa/sv} \draw[arr] (\x)--(\y);
+% adaptation
+\node[head,right=of h1] (h2) {Adaptation\\[-1pt]{\footnotesize\mdseries Chapter 5}};
+\node[part=cB,below=3mm of h2] (bp) {\textbf{build\_pairs.py}\\pose + image guardrails};
+\node[part=cB,below=of bp] (tr) {\textbf{LoRA training}\\96 adapters, 1\% weights};
+\node[part=cB,below=of tr] (ev) {\textbf{Evaluate + compare}\\base vs LoRA, 95\% CI};
+\node[part=cB,below=of ev] (ad) {\textbf{Adapter file}\\\vAdapterMb{} MB};
+\foreach \x/\y in {bp/tr,tr/ev,ev/ad} \draw[arr] (\x)--(\y);
+\draw[arr] (ad.south) |- node[note,pos=0.62,below=1pt]{loaded by local-lora} (fa.east);
+% content
+\node[head,right=of h2] (h3) {Content\\[-1pt]{\footnotesize\mdseries Chapter 6}};
+\node[part=cC,below=3mm of h3] (cj) {\textbf{completeJSON()}\\Groq, Gemini, template};
+\node[part=cC,below=of cj] (cp) {\textbf{Captions + research}\\prices checked in code};
+\node[part=cC,below=of cp] (en) {\textbf{Content engines}\\price, title, tags, place};
+\node[part=cC,below=of en] (mk) {\textbf{Catalogue analysis}\\prices, demand, keywords};
+\draw[arr] (cj)--(cp); \draw[arr] (en)--(cp); \draw[arr] (mk)--(en);
 \begin{scope}[on background layer]
-\node[grp=blue!50,fit=(br)(sv),label={[note]above:serving (Chapter 3--4)}] {};
-\node[grp=green!50!black,fit=(cj)(mk),label={[note]above:content (Chapter 6)}] {};
-\node[grp=red!50,fit=(bp)(ad),label={[note]above:adaptation (Chapter 5)}] {};
+\node[grp=blue!50,fit=(h1)(br)(sv),inner sep=5pt] {};
+\node[grp=red!50,fit=(h2)(bp)(ad),inner sep=5pt] {};
+\node[grp=green!50!black,fit=(h3)(cj)(mk),inner sep=5pt] {};
 \end{scope}
 \end{tikzpicture}
 \end{adjustbox}
-\caption{End-to-end architecture. Blue: serving the try-on; green: text and market intelligence; red: offline adaptation of the model. Dashed arrows are links that are designed but not yet live.}
+\caption{End-to-end architecture. Blue: serving the try-on; red: offline adaptation of the model, whose adapter the studio loads for the Haat-tuned AI; green: text and market intelligence. The training pairs and the market statistics come from the same retail catalogue.}
 \label{fig:arch}
 \end{figure}
 

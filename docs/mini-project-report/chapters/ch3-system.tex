@@ -9,19 +9,20 @@ Figure~\ref{fig:journey} shows the life of one request.
 \begin{figure}[!htbp]
 \centering
 \begin{adjustbox}{max width=\linewidth,center}
-\begin{tikzpicture}[node distance=3.2mm]
-\node[box,text width=19mm] (b) {Browser\\\scriptsize garment, model, settings};
-\node[box=cA,text width=19mm,right=of b] (r) {API route\\\scriptsize passcode, zod, photos};
-\node[box=cA,text width=19mm,right=of r] (p) {prepare\-Image\\\scriptsize clean both photos};
-\node[box=cA,text width=19mm,right=of p] (s) {studio.start\\\scriptsize key, share, cache, lock};
-\node[box=cD,text width=19mm,right=of s] (f) {FASHN on\\ZeroGPU\\\scriptsize via Gradio};
-\node[box=cA,text width=19mm,right=of f] (v) {Save\\\scriptsize temp → rename};
-\draw[arr] (b)--(r); \draw[arr] (r)--(p); \draw[arr] (p)--(s); \draw[arr] (s)--(f); \draw[arr] (f)--(v);
-\node[box=black!4,text width=60mm,below=7mm of p.south east,anchor=north] (st) {NDJSON stream back to the browser:\\\scriptsize accepted → prepared → checked → (waiting) → queued → running → done / error};
+\begin{tikzpicture}[node distance=3mm and 3.5mm,
+  stp/.style={box=#1,text width=25mm,minimum height=12mm,font=\footnotesize}]
+\node[stp=black!4] (b) {\textbf{Browser}\\garment, model};
+\node[stp=cA,right=of b] (r) {\textbf{API route}\\passcode, checks};
+\node[stp=cA,right=of r] (p) {\textbf{prepareImage}\\clean photos};
+\node[stp=cA,right=of p] (s) {\textbf{studio.start}\\cache, lock};
+\node[stp=cD,right=of s] (f) {\textbf{Try-on AI}\\standard or tuned};
+\node[stp=cA,right=of f] (v) {\textbf{Save}\\checks, rename};
+\foreach \x/\y in {b/r,r/p,p/s,s/f,f/v} \draw[arr] (\x)--(\y);
+\node[box=cB,text width=34mm,minimum height=11mm,font=\footnotesize,below=8mm of r] (e) {\textbf{Bad input → 400}\\plain message, no GPU};
+\node[box=black!4,text width=84mm,minimum height=11mm,font=\footnotesize,anchor=north west] (st) at ([xshift=6mm]e.north east) {\textbf{Live progress to the browser (NDJSON)}\\accepted, prepared, checked, queued, running, done};
+\draw[arr,dashed] (r.south) -- (e.north);
 \draw[arr,dashed] (s.south) -- (s.south|-st.north);
 \draw[arr,dashed] (v.south) |- (st.east);
-\node[box=cB,text width=27mm,below=7mm of r.south,anchor=north east,xshift=2mm] (e) {bad input → 400\\plain message, no GPU};
-\draw[arr,dashed] (r.south) -- (r.south|-e.north);
 \end{tikzpicture}
 \end{adjustbox}
 \caption{The journey of one try-on request. Input problems are answered at once with a plain error; only valid requests start the stream.}
@@ -128,7 +129,10 @@ Each generation gets 240~seconds. On a timeout the engine cancels its place in t
 
 The key of a request is a hash of its content:
 \begin{equation}
-\text{key} = \operatorname{sha256}\big(\operatorname{sha256}(g) \,|\, \operatorname{sha256}(p) \,|\, \text{category} \,|\, \text{photoType} \,|\, \text{quality} \,|\, \text{seed}\big)_{[0:32]},
+\begin{aligned}
+\text{key} = \operatorname{sha256}\big(\, & \operatorname{sha256}(g) \,\|\, \operatorname{sha256}(p) \,\|\, \text{category} \\
+& \|\, \text{photoType} \,\|\, \text{quality} \,\|\, \text{seed} \,\big)_{[0:32]},
+\end{aligned}
 \end{equation}
 where $g$ and $p$ are the bytes of the cleaned garment and person photographs. Because it depends on contents and not on file names, the same photograph uploaded twice under different names is the same request. ``Another variation'' changes only the seed, which gives a new key and therefore a new image.
 
@@ -256,11 +260,15 @@ The application is organised like a professional campaign tool: a sidebar with t
 
 Hugging Face gives a free account about five minutes of ZeroGPU time a day~\cite{zerogpu} and, in addition, a limit on the number of runs whose value is not published. Neither balance can be queried. Every call must have the Space's declared duration (60~s by default) available before it starts, although a photograph uses only part of it. The application therefore keeps its own ledger of GPU time and computes what is left:
 \begin{align}
-t_\text{left} &= 300\,\text{s} - \sum_{\text{runs in the current 24-hour window}} t_i, \\
-n_\text{time} &= \begin{cases} \left\lfloor \dfrac{t_\text{left} - 60}{\tilde{t}} \right\rfloor + 1 & t_\text{left} \ge 60\,\text{s} \\ 0 & \text{otherwise}\end{cases}, \qquad
-n_\text{left} = \min\big(n_\text{time},\; R - n_\text{used}\big),
+t_\text{left} &= T - \sum_{i \in W} t_i , \label{eq:tleft}\\[4pt]
+n_\text{time} &=
+  \begin{cases}
+    \left\lfloor \dfrac{t_\text{left} - d}{\tilde{t}} \right\rfloor + 1, & t_\text{left} \ge d, \\[8pt]
+    0, & t_\text{left} < d,
+  \end{cases} \label{eq:ntime}\\[4pt]
+n_\text{left} &= \min\left(n_\text{time},\; R - n_\text{used}\right), \label{eq:nleft}
 \end{align}
-where $\tilde{t}$ is the median duration of the last ten runs (currently \vPerPhoto{}~s) and $R$ is the run limit. The window starts at the first GPU use, not at midnight. When the Space refuses a call, its message is parsed: a time refusal (``60s requested vs.\ 12s left'') replaces our estimate, and a run-limit refusal teaches $R$. On 26 October the Space refused our ninth photograph after \vUsedAtRefusal{}~s of GPU time, with ``runs limit''; since then $R = \vRunsLimit{}$. Cache hits and test engines are never counted, because they use no GPU.
+where $T = 300\,\text{s}$ is the daily allowance, $d = 60\,\text{s}$ the duration each call must have available, $W$ the runs in the current 24-hour window with GPU times $t_i$, $\tilde{t}$ the median duration of the last ten runs (currently \vPerPhoto{}~s), $R$ the run limit and $n_\text{used}$ the runs already made in the window. The window starts at the first GPU use, not at midnight. When the Space refuses a call, its message is parsed: a time refusal (``60s requested vs.\ 12s left'') replaces our estimate, and a run-limit refusal teaches $R$. On 26 October the Space refused our ninth photograph after \vUsedAtRefusal{}~s of GPU time, with ``runs limit''; since then $R = \vRunsLimit{}$. Cache hits and test engines are never counted, because they use no GPU.
 
 \section{Security and Configuration}
 

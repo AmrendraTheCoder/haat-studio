@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
-import { HELP_SECTIONS, HelpContent } from "@/components/shared/HelpTip";
+import { HelpContent } from "@/components/shared/HelpTip";
+import { HELP_SECTIONS } from "@/lib/ui/help";
 import { AppShell } from "@/components/site/AppShell";
 import { getMessages } from "@/lib/i18n/server";
 import { readSetup } from "@/lib/site";

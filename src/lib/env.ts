@@ -10,7 +10,12 @@ const schema = z.object({
   TRYON_ENGINES: z.string().default("fashn-space"),
   /** Ceiling on one generation, queue included. */
   TRYON_TIMEOUT_MS: z.coerce.number().int().positive().default(240_000),
-  DATA_DIR: z.string().default("data"),
+  /**
+   * Where results, the quota ledger and research reports are saved. On Vercel the
+   * project folder is read-only, so the default there is /tmp: it works, but it is
+   * per-instance and cleared when the instance is recycled (see docs/deploy-vercel.md).
+   */
+  DATA_DIR: z.string().default(process.env.VERCEL ? "/tmp/haat-data" : "data"),
   /**
    * The Hugging Face account's daily ZeroGPU allowance, in seconds: 300 for a
    * free account, 2400 for PRO. Only used to show what's left — Hugging Face

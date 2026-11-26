@@ -1,3 +1,4 @@
+import { checkQuality } from "./quality";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { env } from "@/lib/env";
@@ -45,7 +46,7 @@ export async function readQuota() {
 const g = globalThis as { __haatStudio?: Studio };
 
 export function studio(): Studio {
-  g.__haatStudio ??= createStudio({ engines: enginesFromEnv, store: store(), timeoutMs: env().TRYON_TIMEOUT_MS, usage: gpuLedger(store()) });
+  g.__haatStudio ??= createStudio({ engines: enginesFromEnv, store: store(), timeoutMs: env().TRYON_TIMEOUT_MS, usage: gpuLedger(store()), quality: checkQuality });
   return g.__haatStudio;
 }
 

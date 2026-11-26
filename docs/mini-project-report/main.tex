@@ -1,0 +1,231 @@
+% Mini project report, LNMIIT. Layout follows the department's B.Tech. project report sample.
+% Build: ml/.venv/bin/python docs/mini-project-report/build.py   (fills generated/values.tex, draws the figures, compiles)
+\documentclass[12pt,a4paper,oneside]{report}
+
+\usepackage[a4paper,left=33mm,right=33mm,top=30mm,bottom=28mm,headheight=15pt,headsep=14mm]{geometry}
+\usepackage{fontspec}
+\setmainfont{texgyretermes}[Extension=.otf,UprightFont=*-regular,BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
+\usepackage{unicode-math}
+\setmathfont{texgyretermes-math.otf}
+\newfontfamily\rupeefont{Georgia.ttf}[Path=/System/Library/Fonts/Supplemental/,Scale=0.95]
+\newcommand{\rupee}{{\rupeefont ₹}}
+\newfontfamily\devafont{DevanagariMT.ttc}[Path=/System/Library/Fonts/Supplemental/]
+\newfontfamily\codefont{DejaVuSansMono}[Extension=.ttf,UprightFont=*,BoldFont=*-Bold,Scale=0.82]
+
+\usepackage{setspace}
+\setstretch{1.42}
+\usepackage[hidelinks]{hyperref}
+\usepackage{graphicx,booktabs,tabularx,multirow,array,float,enumitem,xcolor}
+\usepackage[labelfont=sc,labelsep=colon,font=small,skip=6pt]{caption}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage[titles]{tocloft}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds,calc,shapes.geometric}
+
+\graphicspath{{generated/fig/}{figures/}}
+\input{generated/values.tex}
+
+% ---------- headings: "Chapter N" over a large title, as in the sample
+\titleformat{\chapter}[display]{\bfseries}{\fontsize{22}{26}\selectfont\chaptertitlename\ \thechapter}{28pt}{\fontsize{30}{34}\selectfont}
+\titlespacing*{\chapter}{0pt}{60pt}{40pt}
+\titleformat{\section}{\fontsize{15}{18}\selectfont\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\fontsize{13}{16}\selectfont\bfseries}{\thesubsection}{1em}{}
+\titleformat{\paragraph}[runin]{\bfseries}{}{}{}[.]
+\titlespacing*{\section}{0pt}{22pt}{10pt}
+\titlespacing*{\subsection}{0pt}{16pt}{8pt}
+\setcounter{secnumdepth}{2}
+\setcounter{tocdepth}{2}
+
+% ---------- running header: "chapter: 01" ... page, with a rule
+\newcommand{\twodigit}[1]{\ifnum#1<10 0\fi\number#1}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.5pt}
+\fancyhead[L]{\itshape\markname}
+\fancyhead[R]{\thepage}
+\newcommand{\markname}{}
+\fancypagestyle{plain}{\fancyhf{}\renewcommand{\headrulewidth}{0pt}\fancyfoot[C]{\thepage}}
+\renewcommand{\chaptermark}[1]{\renewcommand{\markname}{chapter: \twodigit{\value{chapter}}}}
+
+% ---------- lists, captions, tables
+\setlist{itemsep=2pt,topsep=4pt}
+\renewcommand{\cftchapfont}{\bfseries}
+\renewcommand{\cftchappagefont}{\bfseries}
+\renewcommand{\cftfigfont}{\figurename~}
+\renewcommand{\cfttabfont}{\tablename~}
+\setlength{\cftfignumwidth}{2.6em}
+\setlength{\cfttabnumwidth}{2.6em}
+\captionsetup[table]{position=above}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+\renewcommand{\arraystretch}{1.25}
+
+% ---------- code listings (appendix)
+\lstset{basicstyle=\codefont\footnotesize,breaklines=true,columns=fullflexible,keepspaces=true,frame=lines,framesep=4pt,
+  numbers=left,numberstyle=\tiny\color{gray},xleftmargin=1.5em,showstringspaces=false,
+  keywordstyle=\bfseries,commentstyle=\itshape\color{gray},upquote=true,literate={−}{{-}}1 {×}{{x}}1 {≥}{{>=}}1 {≤}{{<=}}1 {→}{{->}}1 {÷}{{/}}1 {₹}{{Rs}}2 {—}{{--}}1 {–}{{-}}1 {…}{{...}}1 {·}{{.}}1}
+
+% ---------- TikZ styles shared by the diagrams
+\tikzset{
+  box/.style={draw=black!55,rounded corners=2pt,align=center,font=\small,inner sep=4pt,minimum height=8mm,fill=#1},
+  box/.default=black!4,
+  arr/.style={-{Stealth[length=2mm]},draw=black!65,thick},
+  grp/.style={draw=#1,dashed,rounded corners=4pt,inner sep=6pt},
+  note/.style={font=\scriptsize\itshape,text=black!60,align=left},
+}
+\colorlet{cA}{blue!8}\colorlet{cB}{red!9}\colorlet{cC}{green!10}\colorlet{cD}{orange!12}
+
+% "pending" marker for results that the LoRA experiment will fill in
+\newcommand{\pending}{\textit{pending}}
+
+\begin{document}
+
+% ================================================================== title page
+\begin{titlepage}
+\setstretch{1.15}
+\centering
+\vspace*{6mm}
+{\fontsize{20}{25}\selectfont\bfseries Garment-to-Model Virtual Try-On\\for Small Online Sellers\par}
+\vspace{6mm}
+{\large\itshape A Serving System for FASHN VTON 1.5, a LoRA Adaptation Pipeline\\and a Catalogue-Driven Content Engine\par}
+\vspace{8mm}
+{\large Mini Project Report, B.Tech.\ Fifth Semester\par}
+\vspace{10mm}
+{\large Project report submitted in partial fulfillment\\of the requirements for the degree of\par}
+\vspace{5mm}
+{\large\itshape Bachelor of Technology\\in\\Electronics and Communication Engineering /\\Computer Science and Engineering\par}
+\vspace{6mm}
+{\large by\par}
+\vspace{5mm}
+{\large Amrendra Vikram Singh - Roll No. 24UEC092\\Avirat Kaushik - Roll No. 24UCS235\par}
+\vspace{8mm}
+{\large Under the Guidance of\\Dr. Nishant Gupta\par}
+\vspace{8mm}
+\includegraphics[width=36mm]{figures/lnmiit-logo.png}\par
+\vspace{8mm}
+{\large The LNM Institute of Information Technology, Jaipur\par}
+\vspace{4mm}
+{\large November 2026\par}
+\end{titlepage}
+
+\thispagestyle{empty}
+\vspace*{\fill}
+\begin{center}\bfseries ©The LNM Institute of Information Technology, Jaipur - 2026.\\All rights reserved.\end{center}
+\vspace{20mm}
+\clearpage
+
+\pagenumbering{roman}
+\setcounter{page}{3}
+\renewcommand{\markname}{}
+
+% ================================================================== certificate
+\thispagestyle{empty}
+\vspace*{22mm}
+\begin{center}
+{\Large The LNM Institute of Information Technology\\Jaipur, India\par}
+\vspace{22mm}
+{\Large\bfseries CERTIFICATE\par}
+\end{center}
+\vspace{10mm}
+\noindent This is to certify that the project entitled ``Garment-to-Model Virtual Try-On for Small Online Sellers'', submitted by Amrendra Vikram Singh (Roll No.~24UEC092) and Avirat Kaushik (Roll No.~24UCS235) in partial fulfillment of the requirement of degree in Bachelor of Technology (B.Tech.), is a bonafide record of work carried out by them at The LNM Institute of Information Technology, Jaipur (Rajasthan), India, as the fifth-semester mini project during the academic session 2026-2027 under my supervision and guidance, and the same has not been submitted elsewhere for award of any other degree. In my opinion, this report is of the standard required for the award of the degree of Bachelor of Technology (B.Tech.).
+
+\vspace{24mm}
+\noindent\rule{62mm}{0.4pt}\\
+Guide: Dr. Nishant Gupta
+
+\vspace{12mm}
+\noindent Date: \rule{38mm}{0.4pt}
+\clearpage
+
+% ================================================================== acknowledgments
+\chapter*{Acknowledgments}
+\thispagestyle{plain}
+We thank our guide, Dr.\ Nishant Gupta, for taking on a project that sits between computer vision, systems engineering and small-business marketing, and for the questions that shaped how we report it: what exactly is ours, what was measured, and what is still only a plan.
+
+We thank the Department of Electronics and Communication Engineering and the Department of Computer Science and Engineering at LNMIIT for the opportunity to work on an open-ended problem in the fifth semester.
+
+The try-on model at the centre of this work, FASHN VTON 1.5, was released openly by FASHN AI under the Apache-2.0 licence, and its hosted demonstration runs on Hugging Face's shared GPUs. Without both, a project with no budget could not have produced a single image.
+
+Parts of the code and of this write-up were drafted with the help of an AI coding assistant. We reviewed, ran and tested what it produced, and every number in this report comes from a file the project's own scripts generate; Appendix~A lists the command behind each one.
+
+\vspace{18mm}
+\begin{flushright}Amrendra Vikram Singh\\Avirat Kaushik\end{flushright}
+
+% ================================================================== abstract
+\chapter*{Abstract}
+\thispagestyle{plain}
+\renewcommand{\markname}{Abstract}
+Small clothing sellers in India usually have one flat photograph of each garment, while buyers decide faster when they see it worn. This project builds a free system that puts a garment photograph onto a model, turns the result into an Instagram post and advises the seller on price, wording and timing.
+
+The try-on model is FASHN VTON 1.5, an open 972-million-parameter diffusion transformer that combines a person photograph and a garment photograph through joint attention, directly in pixel space. We did not train it. We built the system around it: a single orchestration function that checks a content-addressed cache and a running-job table before it queues for the shared GPU, a photo-cleaning stage, live progress streaming, and a ledger that learns the free GPU quota. Over \vNRuns{} real generations a new photo took a median of \vMedTotal{}~s, of which \vMedGpu{}~s was GPU time; a repeat request was answered from the cache in \vCacheMs{}~ms.
+
+The model was released without training code. We reconstructed its training objective from the sampler and confirmed it on the released weights (a loss \vLossRatio{} times lower than under the opposite convention), then built a LoRA fine-tuning pipeline: \vTrainParamsM{}M trainable parameters (\vLoraPct{}\%) on \vLoraLayers{} layers, a \vAdapterMb{}~MB adapter, and a training state of \vLoraStateGb{}~GB against \vFullStateGb{}~GB for full fine-tuning. A data pipeline turns a retail catalogue into training pairs with pose and image guardrails\ifPairs{} (\vPairsN{} pairs from \vPairsProducts{} products, with no product family in both training and validation)\fi. \ifLora Trained for \vLcSteps{} steps at \vLcScale{} resolution on the laptop and compared with the base model on \vLcN{} held-out garments, the adapter changed the denoising error from \vLcDlBase{} to \vLcDlLora{} (\vLcDlRel{}\%, 95\% CI of the difference \vLcDlCi{}; \vLcDlVerdict{}); on the \vLcGen{} garments generated as images, PSNR went from \vLcPsnrBase{} to \vLcPsnrLora{}~dB (\vLcPsnrVerdict{}) and garment-pixel error from \vLcGlBase{} to \vLcGlLora{} (\vLcGlVerdict{}).\else The comparison of the adapted and the base model on held-out garments is specified and automated but has not been run yet; its numbers are marked as pending throughout and no improvement in try-on quality is claimed.\fi
+
+The content side calls free language models through one validated function and keeps all arithmetic and dates in code. \ifMarket From \vMkTotalClean{} cleaned listings (T-shirts and tops from Amazon.in, sarees and kurta sets from Myntra) it derives price bands, demand shares and title keywords; median discounts of \vMkTeeDisc{}--\vMkKurtaDisc{}\% turn out to be at most weakly related to demand. Pricing, title, hashtag, positioning and location engines use these statistics; for a kurta-set seller in Jaipur they recommend \rupee\vExBandLo{}--\rupee\vExBandHi{} among \vExComparables{} comparable listings.\fi
+
+\vspace{6pt}\noindent\textbf{Keywords:} virtual try-on, diffusion transformer, rectified flow, LoRA, parameter-efficient fine-tuning, pose estimation, caching, e-commerce analytics, small businesses.
+
+% ================================================================== lists
+\clearpage
+\renewcommand{\markname}{CONTENTS}
+\tableofcontents
+\clearpage
+\renewcommand{\markname}{LIST OF FIGURES}
+\listoffigures
+\clearpage
+\renewcommand{\markname}{LIST OF TABLES}
+\listoftables
+\clearpage
+\renewcommand{\markname}{List of Abbreviations}
+\chapter*{List of Abbreviations}
+\addcontentsline{toc}{chapter}{List of Abbreviations}
+\thispagestyle{plain}
+\begin{tabular}{@{}p{30mm}p{110mm}@{}}
+API & Application programming interface\\
+CFG & Classifier-free guidance\\
+CI & Confidence interval\\
+DiT & Diffusion transformer\\
+DWPose & Whole-body pose estimator used by FASHN VTON\\
+EXIF & Exchangeable image file format (photo metadata)\\
+GEO & Geographic targeting (city and regional calendar)\\
+GPU & Graphics processing unit\\
+HHI & Herfindahl--Hirschman index of concentration\\
+IQR & Interquartile range\\
+LLM & Large language model\\
+LoRA & Low-rank adaptation\\
+MLP & Multi-layer perceptron\\
+MMDiT & Multimodal diffusion transformer\\
+MRP & Maximum retail price\\
+NDJSON & Newline-delimited JSON\\
+PSNR & Peak signal-to-noise ratio\\
+RoPE & Rotary position embedding\\
+SEO & Search engine optimisation\\
+SSIM & Structural similarity index\\
+VAE & Variational autoencoder\\
+VTON & Virtual try-on\\
+ZeroGPU & Hugging Face's shared, on-demand GPU service\\
+\end{tabular}
+
+\clearpage
+\pagenumbering{arabic}
+\input{chapters/ch1-introduction}
+\input{chapters/ch2-literature}
+\input{chapters/ch3-system}
+\input{chapters/ch4-model}
+\input{chapters/ch5-lora}
+\input{chapters/ch6-market}
+\input{chapters/ch7-results}
+\input{chapters/ch8-conclusion}
+
+\clearpage
+\renewcommand{\markname}{Bibliography}
+\addcontentsline{toc}{chapter}{Bibliography}
+\input{chapters/bibliography}
+
+\appendix
+\renewcommand{\chaptermark}[1]{\renewcommand{\markname}{Appendix \thechapter}}
+\input{chapters/appendix}
+\end{document}

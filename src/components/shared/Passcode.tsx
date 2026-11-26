@@ -22,7 +22,7 @@ export function PasscodeField({ required }: { required: boolean }) {
   if (!required) return null;
   return (
     <form
-      className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-paper-glow px-4 py-3 text-sm"
+      className="flex flex-wrap items-center gap-2 card px-4 py-3 text-sm"
       onSubmit={(e) => {
         e.preventDefault();
         savePasscode(value.trim());
@@ -41,10 +41,10 @@ export function PasscodeField({ required }: { required: boolean }) {
           setValue(e.target.value);
           setSaved(false);
         }}
-        className="min-w-0 flex-1 rounded-lg border border-line bg-white px-3 py-1.5"
+        className="input min-w-0 flex-1"
         placeholder={t.passcode.placeholder}
       />
-      <button type="submit" className="btn-primary !px-4 !py-1.5">
+      <button type="submit" className="btn-primary !px-4">
         {saved ? t.passcode.saved : t.passcode.save}
       </button>
       <p className="w-full text-xs text-ink-3">{t.passcode.note}</p>

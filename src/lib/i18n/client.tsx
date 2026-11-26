@@ -33,7 +33,7 @@ export function LanguageToggle({ className = "" }: { className?: string }) {
       }}
       lang={next}
       title={t.common.switchLanguage}
-      className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-line-strong/50 px-3 text-sm font-medium hover:bg-paper-2 disabled:opacity-60 ${className}`}
+      className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-lg border border-line bg-paper-glow px-3 text-sm font-medium text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink disabled:opacity-60 ${className}`}
     >
       {next === "hi" ? "हिन्दी" : "English"}
     </button>

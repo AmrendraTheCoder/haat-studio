@@ -2,7 +2,7 @@ import { TEST_ENGINES } from "@/lib/engines";
 import { formatWait } from "@/lib/wait";
 import { toPng } from "./image";
 import { cacheKey, type ResultStore } from "./store";
-import { EngineError, type Attempt, type Engine, type Prep, type ResultMeta, type StreamEvent, type TryOnSettings } from "./types";
+import { EngineError, type Attempt, type Engine, type OutputQuality, type Prep, type ResultMeta, type StreamEvent, type TryOnSettings } from "./types";
 
 export interface TryOnRequest {
   /** Both already through `prepareImage`. */
@@ -33,6 +33,11 @@ export interface StudioOptions {
     run(engine: string, at: number, ms: number): unknown;
     refused(engine: string, message: string): unknown;
   };
+  /**
+   * Output guardrails run on every real result before it is saved (quality.ts in the app).
+   * A failing check rejects the result like an engine error; warnings are saved with it.
+   */
+  quality?: (input: { result: Buffer; person: Buffer; garment: Buffer; settings: TryOnSettings }) => Promise<OutputQuality>;
 }
 
 export interface Studio {
@@ -102,6 +107,12 @@ export function createStudio(opts: StudioOptions): Studio {
         const result = await toPng(bytes).catch(() => {
           throw new EngineError("the engine returned something that isn't an image", "unknown");
         });
+        // Output guardrails (quality.ts). Test engines return the model photo on purpose, so they're not checked.
+        const quality = TEST_ENGINES.has(engine.id) || !opts.quality ? undefined : await opts.quality({ result, person: req.person, garment: req.garment, settings: req.settings });
+        if (quality && !quality.passed) {
+          const failed = quality.checks.filter((c) => !c.ok && c.severity === "fail").map((c) => c.id);
+          throw new EngineError(`the result failed an automatic check (${failed.join(", ")}): ${failed.includes("blank") ? "the image is blank" : "the photo came back unchanged"}`, "unknown");
+        }
         const finished = now();
         if (started !== null) void opts.usage?.run(engine.id, started, finished - started);
         const meta: ResultMeta = {
@@ -113,6 +124,7 @@ export function createStudio(opts: StudioOptions): Studio {
           totalMs: finished - submitted,
           queueMs: (started ?? submitted) - submitted,
           ...(req.prep && { prep: req.prep }),
+          ...(quality && { quality }),
         };
         await opts.store.save(meta, { "result.png": result, "garment.jpg": req.garment, "person.jpg": req.person });
         const done: StreamEvent = { type: "done", result: meta, cached: false };

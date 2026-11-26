@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { cloneElement, useEffect, useId, useMemo, useRef, useState } from "react";
+import { HelpTip, type HelpTopic } from "@/components/shared/HelpTip";
 import { PasscodeField } from "@/components/shared/Passcode";
 import { resultUrl } from "@/lib/client/check";
 import { passcodeHeaders } from "@/lib/client/passcode";
@@ -10,7 +11,7 @@ import { canShareFiles, shareImage } from "@/lib/client/share";
 import { TEST_ENGINES } from "@/lib/engines";
 import { useI18n } from "@/lib/i18n/client";
 import { loadFonts, renderPost, type Draft, type Look } from "@/lib/posts/render";
-import { CTAS, FORMATS, LANGUAGES, PALETTES, TEMPLATES, TONES, postSchema, type Cta, type PostFormat } from "@/lib/posts/spec";
+import { CTAS, FORMATS, LANGUAGES, PALETTES, TEMPLATES, TONES, discountPct, inr, postSchema, type Cta, type PostFormat } from "@/lib/posts/spec";
 import type { Report } from "@/lib/research/schema";
 import type { Setup } from "@/lib/site";
 import type { ResultMeta } from "@/lib/tryon/types";
@@ -203,29 +204,44 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
   }
 
   const fmt = FORMATS[look.format];
+  const X = msg.postX;
+  const off = draft.price && draft.mrp && draft.mrp > draft.price ? discountPct({ price: draft.price, mrp: draft.mrp }) : null;
+  const reviewRows: [string, string, boolean][] = [
+    [X.rows.product, fields.product.trim() || X.none, Boolean(errors.product)],
+    [X.rows.price, draft.price !== null ? inr(draft.price) : X.none, Boolean(errors.price)],
+    [X.rows.mrp, draft.mrp !== null ? `${inr(draft.mrp)}${off !== null ? ` · ${X.off(off)}` : ""}` : X.none, Boolean(errors.mrp)],
+    [X.rows.offer, draft.offer || X.none, Boolean(errors.offer)],
+    [X.rows.shop, draft.shopName || X.none, Boolean(errors.shopName)],
+    [X.rows.handle, draft.handle ? `@${draft.handle}` : X.none, Boolean(errors.handle)],
+    [X.rows.cta, T.ctas[fields.cta], false],
+    [X.rows.template, T.templates[look.template].label, false],
+    [X.rows.colours, T.palettes[look.palette], false],
+    [X.rows.size, `${msg.result.sizes[look.format]} · ${fmt.width}×${fmt.height}`, false],
+    [X.rows.caption, caption ? X.captionReady(caption.text.length) : X.captionNone, false],
+  ];
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pt-6 pb-20 sm:px-6">
+    <main className="app-page">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href={`/studio?r=${result.key}`} className="inline-flex min-h-11 items-center text-sm text-ink-2 hover:text-ink">
+        <Link href={`/studio?r=${result.key}`} className="inline-flex min-h-11 items-center rounded-lg text-sm font-medium text-ink-2 hover:text-ink">
           {T.back}
         </Link>
         <span className="kicker">{T.kicker}</span>
       </div>
-      <h1 className="mt-3 text-3xl font-extrabold tracking-[-0.04em] sm:text-4xl">{T.h1}</h1>
+      <h1 className="mt-2 h-page sm:text-4xl">{T.h1}</h1>
       <p className="mt-2 max-w-2xl text-ink-2">
         {T.lead}
       </p>
       {TEST_ENGINES.has(result.engine) && (
-        <p className="mt-3 rounded-xl border border-marigold/50 bg-marigold-wash px-4 py-2 text-sm">{T.testNote}</p>
+        <p className="mt-4 rounded-xl border border-marigold/60 bg-marigold-wash px-4 py-3 text-sm">{T.testNote}</p>
       )}
       <div className="mt-4">
         <PasscodeField required={setup.passcodeRequired} />
       </div>
 
-      <div className="mt-6 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="lg:sticky lg:top-6">
-          <div className="grid place-items-center rounded-3xl border border-line bg-paper-2 p-3 sm:p-5">
+      <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_440px]">
+        <div className="lg:sticky lg:top-24">
+          <div className="dot-grid grid place-items-center rounded-3xl border border-line bg-paper-2 p-4 sm:p-8">
             {imgError ? (
               <p className="p-10 text-center text-sm text-danger">{T.imgError}</p>
             ) : (
@@ -234,12 +250,15 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
                 width={fmt.width}
                 height={fmt.height}
                 aria-label={T.preview}
-                className={`h-auto w-auto max-w-full rounded-lg shadow-xl ${img ? "" : "skeleton"}`}
-                style={{ maxHeight: "74vh", aspectRatio: `${fmt.width} / ${fmt.height}` }}
+                className={`h-auto w-auto max-w-full rounded-lg shadow-[var(--shadow-float)] ${img ? "" : "skeleton"}`}
+                style={{ maxHeight: "70vh", aspectRatio: `${fmt.width} / ${fmt.height}` }}
               />
             )}
           </div>
-          <div role="radiogroup" aria-label={T.sizeLabel} className="mt-3 grid grid-cols-3 gap-2">
+          <p id="post-size" className="mt-4 flex items-center gap-2 text-sm font-medium">
+            {T.sizeLabel} <HelpTip topic="postSize" />
+          </p>
+          <div role="radiogroup" aria-labelledby="post-size" className="mt-2 grid grid-cols-3 gap-2">
             {(Object.keys(FORMATS) as PostFormat[]).map((f, i) => (
               <button
                 key={f}
@@ -249,17 +268,19 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
                 tabIndex={rovingTabIndex(look.format === f, i, true)}
                 onKeyDown={radioKeyDown}
                 onClick={() => setLook((l) => ({ ...l, format: f }))}
-                className={`min-h-11 rounded-xl border px-3 py-2 text-sm ${look.format === f ? "border-ink bg-ink text-paper" : "border-line bg-paper-glow hover:border-ink"}`}
+                className="option min-h-11 px-3 py-2 text-sm"
               >
-                <span className="font-semibold">{msg.result.sizes[f]}</span> <span className="font-mono text-2xs opacity-70">{FORMATS[f].ratio}</span>
+                <span className="font-semibold">{msg.result.sizes[f]}</span> <span className="text-2xs text-ink-3 tabular-nums">{FORMATS[f].ratio}</span>
               </button>
             ))}
           </div>
         </div>
 
         <div className="space-y-6">
-          <section className="card space-y-3 p-5">
-            <h2 className="text-lg font-bold tracking-tight">{T.whatsOn}</h2>
+          <section className="card space-y-4 p-5 sm:p-6">
+            <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight">
+              {T.whatsOn} <HelpTip topic="postFields" />
+            </h2>
             <Field label={T.product} required error={err("product")}>
               <input value={fields.product} onChange={(e) => set("product")(e.target.value)} onBlur={blur("product")} maxLength={40} placeholder={T.productPh} className="input" />
             </Field>
@@ -275,14 +296,14 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
               <input value={fields.offer} onChange={(e) => set("offer")(e.target.value)} onBlur={blur("offer")} maxLength={22} placeholder={T.offerPh} className="input" />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label={T.shopName} hint={msg.common.remembered} error={err("shopName")}>
+              <Field label={T.shopName} help="postShop" hint={msg.common.remembered} error={err("shopName")}>
                 <input value={fields.shopName} onChange={(e) => set("shopName")(e.target.value)} onBlur={blur("shopName")} maxLength={30} placeholder="Kadam Studio" className="input" />
               </Field>
               <Field label={T.handle} hint={msg.common.remembered} error={err("handle")}>
                 <input value={fields.handle} onChange={(e) => set("handle")(e.target.value)} onBlur={blur("handle")} maxLength={31} placeholder="@kadam.studio" className="input" />
               </Field>
             </div>
-            <Field label={T.howOrder}>
+            <Field label={T.howOrder} help="postCta">
               <select value={fields.cta} onChange={(e) => set("cta")(e.target.value)} className="input">
                 {(Object.keys(CTAS) as Cta[]).map((c) => (
                   <option key={c} value={c}>
@@ -293,9 +314,12 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
             </Field>
           </section>
 
-          <section className="card space-y-3 p-5">
-            <h2 className="text-lg font-bold tracking-tight">{T.look}</h2>
-            <div role="radiogroup" aria-label={T.templateLabel} className="grid grid-cols-3 gap-2">
+          <section className="card space-y-4 p-5 sm:p-6">
+            <h2 className="text-base font-semibold tracking-tight">{T.look}</h2>
+            <p id="post-template" className="flex items-center gap-2 text-sm font-medium">
+              {T.templateLabel} <HelpTip topic="template" />
+            </p>
+            <div role="radiogroup" aria-labelledby="post-template" className="grid grid-cols-3 gap-2">
               {(Object.keys(TEMPLATES) as (keyof typeof TEMPLATES)[]).map((t, i) => (
                 <button
                   key={t}
@@ -305,15 +329,18 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
                   tabIndex={rovingTabIndex(look.template === t, i, true)}
                   onKeyDown={radioKeyDown}
                   onClick={() => setLook((l) => ({ ...l, template: t }))}
-                  className={`rounded-xl border px-2 py-2 text-left ${look.template === t ? "border-ink bg-ink text-paper" : "border-line bg-paper-glow hover:border-ink"}`}
+                  className="option min-h-11 px-3 py-2.5 text-left"
                 >
                   <span className="block text-sm font-semibold">{T.templates[t].label}</span>
-                  <span className="block text-2xs leading-tight opacity-70">{T.templates[t].hint}</span>
+                  <span className="mt-0.5 block text-2xs leading-tight text-ink-3">{T.templates[t].hint}</span>
                 </button>
               ))}
             </div>
             {badgeHint && <p className="text-xs text-ink-2">{badgeHint}</p>}
-            <div role="radiogroup" aria-label={T.coloursLabel} className="flex flex-wrap gap-2">
+            <p id="post-colours" className="flex items-center gap-2 text-sm font-medium">
+              {T.coloursLabel} <HelpTip topic="palette" />
+            </p>
+            <div role="radiogroup" aria-labelledby="post-colours" className="flex flex-wrap gap-2">
               {(Object.keys(PALETTES) as (keyof typeof PALETTES)[]).map((p, i) => (
                 <button
                   key={p}
@@ -323,7 +350,7 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
                   tabIndex={rovingTabIndex(look.palette === p, i, true)}
                   onKeyDown={radioKeyDown}
                   onClick={() => setLook((l) => ({ ...l, palette: p }))}
-                  className={`flex min-h-11 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm ${look.palette === p ? "border-ink ring-2 ring-ink" : "border-line hover:border-ink"}`}
+                  className="option flex min-h-11 items-center gap-2 !rounded-full px-3.5 py-1.5 text-sm font-medium"
                 >
                   <span className="flex">
                     <span className="size-4 rounded-full border border-black/10" style={{ background: PALETTES[p].bg }} />
@@ -333,24 +360,16 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
                 </button>
               ))}
             </div>
-            <button type="button" onClick={download} disabled={Boolean(downloadReason) || downloading} className="btn-primary w-full !py-3 !text-base">
-              {downloading ? T.preparing : T.download(msg.result.sizes[look.format], fmt.width, fmt.height)}
-            </button>
-            {shareable && (
-              <button type="button" onClick={share} disabled={Boolean(downloadReason)} className="btn-ghost w-full !border-accent-strong !py-3 !text-base !text-accent-strong">
-                {T.share}
-              </button>
-            )}
-            {downloadReason && <p className="text-center text-xs text-ink-3">{downloadReason}</p>}
-            {shareNote && <p className="text-center text-xs text-ink-2">{shareNote}</p>}
           </section>
 
-          <section className="card space-y-3 p-5">
+          <section className="card space-y-4 p-5 sm:p-6">
             <div className="flex items-baseline justify-between gap-2">
-              <h2 className="text-lg font-bold tracking-tight">{T.captionTitle}</h2>
-              <span className={`chip ${setup.llm ? "!border-good/40 !text-good" : ""}`}>{setup.llm ? T.aiOn : T.aiOff}</span>
+              <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight">
+                {T.captionTitle} <HelpTip topic="caption" />
+              </h2>
+              <span className={`chip ${setup.llm ? "!border-good/30 !bg-good-wash !text-good" : ""}`}>{setup.llm ? T.aiOn : T.aiOff}</span>
             </div>
-            <p className="text-xs text-ink-3">
+            <p className="text-xs leading-relaxed text-ink-3">
               {research ? (
                 <>
                   {T.usingResearch} <strong className="text-ink-2">{research.answers.product}</strong> ({research.answers.city}).{" "}
@@ -369,7 +388,7 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
               )}
             </p>
             <div className="grid grid-cols-2 gap-3">
-              <Field label={T.tone}>
+              <Field label={T.tone} help="tone">
                 <select value={tone} onChange={(e) => setTone(e.target.value as keyof typeof TONES)} className="input">
                   {(Object.keys(TONES) as (keyof typeof TONES)[]).map((k) => (
                     <option key={k} value={k}>
@@ -407,7 +426,7 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
                   </span>
                   <button
                     type="button"
-                    className="btn-primary !px-4 !py-1.5"
+                    className="btn-primary !px-4"
                     onClick={async () => {
                       await navigator.clipboard?.writeText(caption.text).catch(() => {});
                       setCopied(true);
@@ -420,34 +439,83 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
               </>
             )}
           </section>
+
+          {/* Review: everything that will be on the post, then download or share. */}
+          <section aria-labelledby="post-review" className="card overflow-hidden">
+            <div className="border-b border-line px-5 py-4 sm:px-6">
+              <h2 id="post-review" className="flex items-center gap-2 text-base font-semibold tracking-tight">
+                {X.reviewTitle} <HelpTip topic="postReview" />
+              </h2>
+              <p className="mt-0.5 text-xs text-ink-3">{X.reviewLead}</p>
+            </div>
+            <dl className="divide-y divide-line text-sm">
+              {reviewRows.map(([k, v, bad]) => (
+                <div key={k} className="grid grid-cols-[7.5rem_1fr] gap-3 px-5 py-2.5 sm:px-6">
+                  <dt className="text-ink-3">{k}</dt>
+                  <dd className={`min-w-0 font-medium break-words ${bad ? "text-danger" : ""}`}>{v}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="space-y-3 border-t border-line bg-paper-2/60 p-5 sm:p-6">
+              <button type="button" onClick={download} disabled={Boolean(downloadReason) || downloading} className="btn-primary w-full !py-3 !text-base">
+                {downloading ? T.preparing : T.download(msg.result.sizes[look.format], fmt.width, fmt.height)}
+              </button>
+              {shareable && (
+                <button type="button" onClick={share} disabled={Boolean(downloadReason)} className="btn-ghost w-full !py-3 !text-base">
+                  {T.share}
+                </button>
+              )}
+              {downloadReason && <p className="text-center text-xs text-ink-3">{downloadReason}</p>}
+              {shareNote && <p className="text-center text-xs text-ink-2">{shareNote}</p>}
+            </div>
+          </section>
         </div>
       </div>
     </main>
   );
 }
 
-function Field({ label, hint, required, error, children }: { label: string; hint?: string; required?: boolean; error?: string; children: React.ReactElement<Record<string, unknown>> }) {
+function Field({
+  label,
+  hint,
+  help,
+  required,
+  error,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  help?: HelpTopic;
+  required?: boolean;
+  error?: string;
+  children: React.ReactElement<Record<string, unknown>>;
+}) {
   const errorId = useId();
+  const inputId = useId();
+  // A <div>, not a wrapping <label>: the help button must not become the label's control.
   return (
-    <label className="block">
-      <span className="mb-1 flex items-baseline justify-between text-sm font-semibold">
-        <span>
-          {label}
-          {required && (
-            <span className="text-accent-strong" aria-hidden>
-              {" "}
-              *
-            </span>
-          )}
+    <div>
+      <div className="mb-1.5 flex min-h-5 items-center justify-between gap-2 text-sm font-medium">
+        <span className="inline-flex items-center gap-2">
+          <label htmlFor={inputId}>
+            {label}
+            {required && (
+              <span className="text-accent-strong" aria-hidden>
+                {" "}
+                *
+              </span>
+            )}
+          </label>
+          {help && <HelpTip topic={help} />}
         </span>
-        {hint && <span className="font-mono text-2xs font-normal text-ink-3">{hint}</span>}
-      </span>
-      {cloneElement(children, { "aria-invalid": Boolean(error), "aria-describedby": error ? errorId : undefined, "aria-required": required || undefined })}
+        {hint && <span className="text-2xs font-normal text-ink-3">{hint}</span>}
+      </div>
+      {cloneElement(children, { id: inputId, "aria-invalid": Boolean(error), "aria-describedby": error ? errorId : undefined, "aria-required": required || undefined })}
       {error && (
         <span id={errorId} className="mt-1 block text-xs text-danger">
           {error}
         </span>
       )}
-    </label>
+    </div>
   );
 }

@@ -50,3 +50,12 @@ next-env.d.ts
 # BTP report: photos and build output are not committed (see "Don't commit photos")
 /docs/btp-report/figures/*.jpg
 /docs/btp-report/report.filled.html
+/docs/btp-report/figures/team/
+/docs/mini-project-report/generated/
+/docs/mini-project-report/main.pdf
+/analysis/results/
+
+# retail catalogue (scraped listings + ~82k photos): local only
+/retail/
+# app screenshots contain model photos (see "Don't commit photos")
+/docs/btp-report/figures/ui/

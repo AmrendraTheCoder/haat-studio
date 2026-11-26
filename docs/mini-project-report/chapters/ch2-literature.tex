@@ -1,0 +1,81 @@
+\chapter{Literature Review}
+
+\section{Introduction}
+
+The project draws on four bodies of work: image-based virtual try-on, the diffusion and flow models that now generate the images, parameter-efficient fine-tuning, and the use of marketplace signals such as ratings as evidence of demand. This chapter reviews each in turn and ends with the gap the project addresses.
+
+\section{Base Model of the Project}
+
+FASHN VTON 1.5~\cite{fashn} is the model this project serves and adapts. It was released by FASHN AI in 2026 as weights and inference code under the Apache-2.0 licence, with a model card but without a paper or training code. It has 972 million parameters, generates directly in pixel space at 864$\times$576, accepts a garment photographed flat or worn by another person, and needs no mask of the region to replace. Its architecture adapts the multimodal diffusion transformer of FLUX.1~\cite{flux}: the garment image takes the place of the text prompt. The model card reports training on about 18 million image pairs and a generation time of about 5~s on an NVIDIA H100. Chapter~4 describes the network in detail.
+
+We chose it after comparing eight open models and several paid services. Table~\ref{tab:choice} gives the deciding properties for the most relevant alternatives.
+
+\begin{table}[!htbp]
+\centering
+\caption{Open try-on models considered (from their public repositories, September 2026).}
+\label{tab:choice}
+\small
+\begin{tabularx}{\linewidth}{@{}L{24mm}L{22mm}L{22mm}YL{18mm}@{}}
+\toprule
+\textbf{Model} & \textbf{Flat-lay input} & \textbf{Mask needed} & \textbf{Licence of weights} & \textbf{Space}\\
+\midrule
+FASHN VTON 1.5~\cite{fashn} & yes & no & Apache-2.0 & official, free\\
+IDM-VTON~\cite{idmvton} & yes & yes & CC BY-NC-SA 4.0 (non-commercial) & yes\\
+CatVTON~\cite{catvton} & yes & yes & CC BY-NC-SA 4.0 (non-commercial) & error\\
+OOTDiffusion~\cite{ootd} & yes & yes & CC BY-NC-SA 4.0 (non-commercial) & yes\\
+Leffa~\cite{leffa} & yes & yes & MIT (preprocessing has other terms) & yes\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent Only FASHN VTON 1.5 combines the three properties a seller needs: it takes the photograph the seller already has, it asks nothing more of the seller, and its licence does not forbid later commercial use.
+
+\section{Image-Based Virtual Try-On}
+
+VITON~\cite{viton} defined the task with a two-stage design: the clothing region of the person is removed, the garment image is warped to the body with a thin-plate spline, and a refinement network blends the two. CP-VTON~\cite{cpvton} learned the warp instead of fixing its form, and VITON-HD~\cite{vitonhd} raised the resolution to 1024$\times$768 and released the dataset that became the standard benchmark. Dress Code~\cite{dresscode} added lower-body garments and dresses as separate categories, which is the category split FASHN VTON also uses.
+
+Warping-based methods keep the garment's texture well wherever the warp is correct. They fail when an arm crosses the body, when the pose differs strongly from the garment photograph, or when the garment changes shape on the body, because a flat image cannot be bent into every three-dimensional configuration.
+
+\section{Diffusion Models for Try-On}
+
+Denoising diffusion models~\cite{ddpm} generate an image by learning to reverse a gradual noising process. Latent diffusion~\cite{ldm} made them practical at high resolution by working in the compressed space of an autoencoder (VAE), at the cost of an 8$\times$ spatial compression that blurs small details such as printed text.
+
+TryOnDiffusion~\cite{tryondiff} replaced the warp with two communicating U-Nets, one for the person and one for the garment. OOTDiffusion~\cite{ootd} and IDM-VTON~\cite{idmvton} feed features from a separate garment encoder into the denoising network through attention. CatVTON~\cite{catvton} showed that simply placing the garment and the person side by side in the input is enough. Leffa~\cite{leffa} adds a loss that guides attention towards the corresponding garment region. All of these work in a latent space and all need a mask that fixes, in advance, the region the garment may occupy.
+
+\section{Transformers and Rectified Flow}
+
+The transformer~\cite{transformer} processes a sequence of tokens with attention, in which every token builds its output from a weighted combination of all the others. The Diffusion Transformer~\cite{dit} replaced the U-Net with a transformer over image patches. Rotary position embeddings~\cite{rope} encode where each patch lies by rotating its query and key vectors, so that attention depends on relative position.
+
+Rectified flow~\cite{rectflow} and flow matching~\cite{flowmatch} recast generation as following a straight path from noise to data. A network learns the velocity along that path, and sampling integrates it with a few Euler steps. Stable Diffusion~3~\cite{sd3} combined these ideas in the multimodal diffusion transformer (MMDiT), in which image tokens and text tokens keep separate weights but attend to each other jointly, and introduced a logit-normal sampling of training time steps. FLUX.1~\cite{flux} added single-stream blocks in which both sequences share weights. FASHN VTON 1.5 inherits all of these choices.
+
+\section{Classifier-Free Guidance}
+
+Classifier-free guidance~\cite{cfg} trains a single network both with and without its conditions, by dropping the conditions for a fraction of training examples. At sampling time the two predictions are combined, $v = v_\varnothing + s\,(v_c - v_\varnothing)$, and a scale $s > 1$ pushes the result towards following the condition more closely. This doubles the cost of every sampling step. It also places a requirement on any fine-tuning: the conditions must still be dropped during training, or guidance stops working.
+
+\section{Parameter-Efficient Fine-Tuning}
+
+Fine-tuning all parameters of a large model on a small dataset is expensive and tends to overwrite what the model learned before. Adapter layers~\cite{adapters} insert small trainable modules into a frozen network. LoRA~\cite{lora} instead learns a low-rank update to an existing weight matrix,
+\begin{equation}
+W' = W + \frac{\alpha}{r} BA, \qquad B \in \mathbb{R}^{d_\text{out}\times r},\ A \in \mathbb{R}^{r\times d_\text{in}},\ r \ll \min(d_\text{in}, d_\text{out}),
+\end{equation}
+with $B$ initialised to zero so that training starts from exactly the pretrained model. The update can be merged into $W$ after training, so it adds no cost at inference, or kept separate and switched on and off. QLoRA~\cite{qlora} showed that the frozen weights can even be kept in reduced precision while the adapters train. Gradient checkpointing~\cite{checkpoint} trades recomputation for activation memory, and AdamW~\cite{adamw} is the usual optimiser for both full and low-rank fine-tuning.
+
+\section{Pose Estimation}
+
+Try-on models need to know where the body is. OpenPose~\cite{openpose} introduced the 18-keypoint body skeleton that is still used as the drawing format. FASHN VTON uses a YOLOX~\cite{yolox} person detector followed by DWPose~\cite{dwpose}, a distilled whole-body estimator that predicts 133 keypoints (body, feet, face and hands) with a confidence for each. Our data pipeline (Chapter~5) reuses these two networks as guardrails on training photographs. A SegFormer~\cite{segformer} human parser, which labels each pixel with a body part or garment class, is also part of FASHN's pipeline and is the only component with a non-commercial licence.
+
+\section{How Try-On Results Are Evaluated}
+
+Papers on paired data report PSNR and SSIM~\cite{ssim}, which compare a generated image with the real photograph pixel by pixel and structurally, and LPIPS~\cite{lpips}, a learned perceptual distance. On unpaired data they report FID~\cite{fid}, which compares the statistics of thousands of generated and real images. None of these measures checks directly whether a logo or a price tag is reproduced correctly, which is why we also use a garment-only pixel error and a rubric. When two models are compared on the same samples, a paired test such as the Wilcoxon signed-rank test~\cite{wilcoxon} and bootstrap confidence intervals~\cite{bootstrap} say whether a difference is larger than chance. Splitting training and test data by individual photograph instead of by product leaks information and inflates results~\cite{leakage}; we split by product family.
+
+\section{Marketplace Signals as Evidence of Demand}
+
+Sales figures of marketplace listings are not public. The number of ratings or reviews a listing has accumulated is visible, and work in marketing has used review volume as a measure of sales and has shown that reviews influence sales~\cite{wom}. We use the number of ratings as a demand signal, state the assumption explicitly, and give unit estimates only as a range. Rank correlation~\cite{spearman} measures association between price, discount and demand without assuming a linear relation.
+
+\section{General Image Models and Language Models}
+
+General image generators, including those built into chat assistants, can place a garment on a person from a text instruction. They are trained to produce a plausible picture, not to preserve a specific product's print and logo, they cannot be studied or retrained by a user, and they charge per image. For text, free tiers of language models (Groq~\cite{groq}, Gemini~\cite{gemini}) answer in an OpenAI-compatible format, but their output can contain invented prices and arithmetic errors, which is why every call in this project is validated and every number is computed in code.
+
+\section{What the Literature Does Not Provide}
+
+The literature gives strong try-on models, but none that is at the same time open for commercial use, mask-free, flat-lay capable and trainable by its users: FASHN VTON 1.5 meets the first three and not the last. It gives a general method for cheap adaptation (LoRA) but no recipe for this model and no public paired dataset of Indian garments. It gives metrics for image similarity but no guidance on serving such a model on a free, rate-limited GPU, and no tools that connect a generated photograph to the seller's pricing and wording. This project addresses these gaps.

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PasscodeField } from "@/components/shared/Passcode";
-import { StudioHeader } from "@/components/site/site";
+import { AppShell } from "@/components/site/AppShell";
 import { checkImageFile, fileFrom, resultUrl } from "@/lib/client/check";
 import { passcodeHeaders } from "@/lib/client/passcode";
 import { readEvents } from "@/lib/client/events";
@@ -14,6 +14,7 @@ import type { ResultMeta, StreamEvent } from "@/lib/tryon/types";
 import { formatWait } from "@/lib/wait";
 import { Notice, RecentGrid, Stepper } from "./parts";
 import { ResultStep } from "./ResultStep";
+import { ReviewStep } from "./ReviewStep";
 import { ModelStep, ProductStep } from "./Steps";
 import type { ErrorKind, Inputs, LogEntry, PersonChoice, Picked, Run, SubmitInput, View } from "./types";
 
@@ -62,7 +63,7 @@ export function StudioApp({
   const { t } = useI18n();
   const [inputs, setInputs] = useState<Inputs>(() => {
     const first = PRESETS.find((p) => setup.presets.includes(p.id));
-    return { garment: null, category: null, photoType: "flat-lay", person: first ? { kind: "preset", id: first.id } : null, quality: "balanced" };
+    return { garment: null, category: null, photoType: "flat-lay", person: first ? { kind: "preset", id: first.id } : null, quality: "balanced", seed: FIRST_SEED };
   });
   const [view, setView] = useState<View>(initialKey ? "result" : "product");
   // A link to a result starts in "working" with an empty log; the effect below re-attaches.
@@ -300,19 +301,19 @@ export function StudioApp({
       photoType: r.settings.photoType,
       person,
       quality: r.settings.quality,
+      seed: r.settings.seed,
     }));
     return { garment, person: preset ? ({ kind: "preset", id: preset.id } as const) : ({ kind: "upload", file: personFile! } as const) };
   }
 
   async function variation(r: ResultMeta) {
     try {
-      const loaded = await loadFromResult(r);
-      await submit({
-        ...loaded,
-        settings: { ...r.settings, seed: randomSeed() },
-        garmentPreview: resultUrl(r.key, "garment.jpg"),
-        personPreview: resultUrl(r.key, "person.jpg"),
-      });
+      // Same inputs, a new seed — then the review step, so nothing is spent without a look first.
+      await loadFromResult(r);
+      setInputs((i) => ({ ...i, seed: randomSeed() }));
+      setRun({ phase: "idle" });
+      setUrl(null);
+      setView("review");
     } catch (err) {
       setRun({ phase: "error", kind: "other", message: t.result.reloadFailed((err as Error).message), attempts: [], log: [], startedAt: Date.now(), key: null });
     }
@@ -347,7 +348,7 @@ export function StudioApp({
     void submit({
       garment: garment.file,
       person: person.kind === "preset" ? { kind: "preset", id: person.id } : { kind: "upload", file: person.picked.file },
-      settings: { category, photoType: inputs.photoType, quality: inputs.quality, seed: FIRST_SEED },
+      settings: { category, photoType: inputs.photoType, quality: inputs.quality, seed: inputs.seed },
       garmentPreview: garment.url,
       personPreview: preset ? `/presets/${preset.file}` : person.kind === "upload" ? person.picked.url : "",
     });
@@ -379,14 +380,22 @@ export function StudioApp({
     else setUrl(keyOf(run));
   }
 
-  const reachable = { product: true, model: Boolean(inputs.garment && inputs.category), result: run.phase !== "idle" };
+  const reachable = {
+    product: true,
+    model: Boolean(inputs.garment && inputs.category),
+    review: Boolean(inputs.garment && inputs.category && inputs.person),
+    result: run.phase !== "idle",
+  };
   const runKey = keyOf(run);
 
   return (
     <>
-      <StudioHeader setup={live} />
-
-      <main className="mx-auto max-w-5xl px-4 pt-6 pb-20 sm:px-6">
+      <AppShell
+        setup={live}
+        active="studio"
+        crumbs={[{ label: t.shell.nav.studio, href: "/studio" }, { label: t.studio.steps[view] }]}
+      >
+      <main className="app-page">
         {!setup.engine.configured && (
           <div className="mb-6">
             <Notice tone="warn">
@@ -413,7 +422,7 @@ export function StudioApp({
         <Stepper
           view={view}
           reachable={reachable}
-          complete={{ product: reachable.model, model: Boolean(reachable.model && inputs.person), result: run.phase === "done" }}
+          complete={{ product: reachable.model, model: reachable.review, review: run.phase !== "idle", result: run.phase === "done" }}
           onGo={go}
           lockedReason={working ? t.studio.locked : null}
         />
@@ -453,9 +462,13 @@ export function StudioApp({
                 setInputs((i) => ({ ...i, person: null }));
               }}
               onQuality={(quality) => setInputs((i) => ({ ...i, quality }))}
+              onSeed={(seed) => setInputs((i) => ({ ...i, seed }))}
               onBack={() => setView("product")}
-              onCreate={create}
+              onReview={() => setView("review")}
             />
+          )}
+          {view === "review" && (
+            <ReviewStep inputs={inputs} setup={live} onEdit={go} onCreate={create} />
           )}
           {view === "result" && run.phase !== "idle" && (
             <ResultStep
@@ -478,6 +491,7 @@ export function StudioApp({
           <RecentGrid results={recent} featured={featured} activeKey={runKey} onOpen={openResult} disabled={working} />
         </div>
       </main>
+      </AppShell>
     </>
   );
 }

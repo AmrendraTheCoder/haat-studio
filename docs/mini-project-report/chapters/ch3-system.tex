@@ -1,0 +1,215 @@
+\chapter{The Serving System and Its Pipeline}
+
+\section{Overview}
+
+The application, Haat Studio, is a Next.js~16 web application written in TypeScript (about 7{,}700 lines). Its job in the try-on path is to take a seller's request, decide whether any GPU work is needed at all, get the work done on a free shared GPU, and return the result while being honest about every stage. The design follows one rule: every try-on in the application, whether started from a web page, a script or an evaluation, goes through a single function, \texttt{studio().start()}. Because there is only one entry point, no route can skip its protections.
+
+Figure~\ref{fig:journey} shows the life of one request.
+
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}[node distance=3.2mm]
+\node[box,text width=19mm] (b) {Browser\\\scriptsize garment, model, settings};
+\node[box=cA,text width=19mm,right=of b] (r) {API route\\\scriptsize passcode, zod, photos};
+\node[box=cA,text width=19mm,right=of r] (p) {prepareImage\\\scriptsize clean both photos};
+\node[box=cA,text width=19mm,right=of p] (s) {studio.start\\\scriptsize key, share, cache, lock};
+\node[box=cD,text width=19mm,right=of s] (f) {FASHN on\\ZeroGPU\\\scriptsize via Gradio};
+\node[box=cA,text width=19mm,right=of f] (v) {Save\\\scriptsize temp → rename};
+\draw[arr] (b)--(r); \draw[arr] (r)--(p); \draw[arr] (p)--(s); \draw[arr] (s)--(f); \draw[arr] (f)--(v);
+\node[box=black!4,text width=60mm,below=7mm of p.south east,anchor=north] (st) {NDJSON stream back to the browser:\\\scriptsize accepted → prepared → checked → (waiting) → queued → running → done / error};
+\draw[arr,dashed] (s.south) -- (s.south|-st.north);
+\draw[arr,dashed] (v.south) |- (st.east);
+\node[box=cB,text width=27mm,below=7mm of r.south,anchor=north east,xshift=2mm] (e) {bad input → 400\\plain message, no GPU};
+\draw[arr,dashed] (r.south) -- (r.south|-e.north);
+\end{tikzpicture}
+\caption{The journey of one try-on request. Input problems are answered at once with a plain error; only valid requests start the stream.}
+\label{fig:journey}
+\end{figure}
+
+\section{The API Route}
+
+The route \texttt{POST /api/tryon} receives a multipart form: the garment photograph, either a preset model identifier or an uploaded photograph of a person, and four settings. It checks them in order of cost:
+
+\begin{enumerate}
+\item \textbf{Passcode.} On a public deployment every route that creates something requires a passcode, compared in constant time (\texttt{timingSafeEqual}) so that response time does not reveal how many characters were right. On a laptop no passcode is set and the check passes.
+\item \textbf{Settings.} A zod schema validates the category (tops, bottoms, one-pieces), the photo type (flat-lay or worn), the quality (fast, balanced or best, meaning 20, 30 or 50 sampling steps) and the seed.
+\item \textbf{Photographs.} A garment photograph must be present, and either a preset or an uploaded person.
+\end{enumerate}
+
+\noindent Problems with the request come back as an ordinary error before any streaming starts. The browser can therefore always tell ``fix your photo'' apart from ``the engine failed''.
+
+\section{Cleaning the Photographs}
+
+Before any GPU time is spent, \texttt{prepareImage()} brings both photographs into a known state (Table~\ref{tab:prep}). Each step exists because of a problem we met.
+
+\begin{table}[!htbp]
+\centering
+\caption{What \texttt{prepareImage()} does to every photograph, and why.}
+\label{tab:prep}
+\small
+\begin{tabularx}{\linewidth}{@{}L{50mm}Y@{}}
+\toprule
+\textbf{Step} & \textbf{Reason}\\
+\midrule
+Reject files over 15~MB, HEIC, and formats other than JPEG, PNG and WebP & HEIC cannot be decoded by the pipeline; the message names the iPhone setting to change\\
+Apply the EXIF orientation & Phone photographs are often stored sideways with a ``rotate'' flag; the model would receive a sideways image\\
+Flatten transparency onto white & The model converts transparency to black, so a cut-out product would float in a black void\\
+Limit the longest side to 1{,}536~px & The model works at about 576~px wide; larger files only cost upload time\\
+Remove metadata & Phone photographs carry the GPS location of the seller's home\\
+Reject a short side under 256~px & Too small to produce a usable result\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+A photograph that is already a clean JPEG (upright, opaque, without metadata, not oversized) is passed through unchanged, byte for byte. Re-encoding it would change its bytes, which would change its cache key (Section~\ref{sec:cache}) and turn a free repeat request into a paid one. The function also returns a record of what it changed, which the progress panel shows, so the application never claims work it did not do. In our \vNRuns{} real generations, \vNPrepUntouched{} of the \vNPrepPhotos{} photographs passed through untouched.
+
+\section{One Entry Point: \texttt{studio().start()}}
+\label{sec:studio}
+
+Figure~\ref{fig:studio} shows the decisions inside the entry point. They are ordered from the cheapest to the most expensive: memory, then disk, then the GPU.
+
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}[node distance=4.5mm]
+\node[box,text width=36mm] (k) {1. Compute the key\\\scriptsize sha256 of photos + settings};
+\node[box=cA,shape=diamond,aspect=2.4,inner sep=1pt,text width=24mm,below=of k] (r) {2. running\\now?};
+\node[box=cA,shape=diamond,aspect=2.4,inner sep=1pt,text width=24mm,below=of r] (c) {3. saved on\\disk?};
+\node[box=cA,text width=36mm,below=of c] (l) {4. Wait for the GPU lock\\\scriptsize one generation at a time};
+\node[box=cD,text width=36mm,below=of l] (e) {5. Engine chain\\\scriptsize run FASHN, save, emit done};
+\node[box=cC,text width=36mm,right=16mm of r] (j) {Join that job\\\scriptsize same stream, no 2nd GPU run};
+\node[box=cC,text width=36mm,right=16mm of c] (h) {Return the saved result\\\scriptsize ``no GPU used'', under 1 ms};
+\draw[arr] (k)--(r); \draw[arr] (r)--node[left,font=\scriptsize]{no}(c); \draw[arr] (c)--node[left,font=\scriptsize]{no}(l); \draw[arr] (l)--(e);
+\draw[arr] (r)--node[above,font=\scriptsize]{yes}(j); \draw[arr] (c)--node[above,font=\scriptsize]{yes}(h);
+\node[note,right=4mm of k] {memory};
+\node[note,right=4mm of l] {GPU, about \vMedTotal{} s};
+\end{tikzpicture}
+\caption{Decisions inside \texttt{studio().start()}, cheapest first.}
+\label{fig:studio}
+\end{figure}
+
+\paragraph{Joining a running job} The entry point keeps a table of jobs that are running, keyed by the request key. A double click, or a second browser tab with the same photographs and settings, finds the job already in the table and subscribes to it. The GPU runs once and both pages receive the same events.
+
+\paragraph{The GPU lock} Different requests wait for each other: a promise chain lets only one generation hold the GPU at a time, and a waiting request sends a \texttt{waiting} event so its page can say so. Two jobs racing into the free GPU would only waste the shared quota.
+
+\paragraph{A job outlives its page} The job runs independently of the HTTP connection that started it. If the seller closes the tab, the job continues and the result is still saved, so GPU time already spent is never wasted.
+
+\section{Engines and Errors}
+
+An engine is anything that can perform a try-on. Every engine implements one small interface: an identifier, whether it is configured, and a \texttt{run()} function that reports progress events and returns image bytes. Adding an engine, such as a paid API or our own GPU serving the adapted model, means adding one file and one line to a registry. Today there are two: \texttt{fashn-space}, which sends the job to FASHN's official Hugging Face Space through the Gradio client~\cite{gradio}, and \texttt{echo}, a labelled test engine that returns the model photograph unchanged and is kept in a separate cache namespace so that a test image can never be served as a real one.
+
+The free Space returns no error codes, only messages, so \texttt{classify()} reads the wording and assigns one of five kinds (Table~\ref{tab:errors}). It even reads the refill time from messages such as ``Try again in 0:13:21''.
+
+\begin{table}[!htbp]
+\centering
+\caption{Error kinds and what the engine chain does with each.}
+\label{tab:errors}
+\small
+\begin{tabularx}{\linewidth}{@{}L{24mm}YL{40mm}@{}}
+\toprule
+\textbf{Kind} & \textbf{Example} & \textbf{Action}\\
+\midrule
+input & unreadable photograph & stop: every engine would reject it\\
+quota & ``exceeded your ZeroGPU runs limit'' & record the refusal, try the next engine\\
+timeout & no result within 240~s & cancel our queue place, try the next\\
+unavailable & ``no GPU was available'', Space asleep & try the next engine\\
+unknown & anything else & try the next engine\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Each generation gets 240~seconds. On a timeout the engine cancels its place in the Space's queue; otherwise a request the seller has given up on would still be run later and spend quota. Every attempt is recorded, not only the last, and \texttt{explain()} turns the list into one sentence the seller can act on, for example: \emph{``Today's free GPU quota is used up. It refills in about 14 min.''}
+
+\section{The Cache Key and Storage}
+\label{sec:cache}
+
+The key of a request is a hash of its content:
+\begin{equation}
+\text{key} = \operatorname{sha256}\big(\operatorname{sha256}(g) \,|\, \operatorname{sha256}(p) \,|\, \text{category} \,|\, \text{photoType} \,|\, \text{quality} \,|\, \text{seed}\big)_{[0:32]},
+\end{equation}
+where $g$ and $p$ are the bytes of the cleaned garment and person photographs. Because it depends on contents and not on file names, the same photograph uploaded twice under different names is the same request. ``Another variation'' changes only the seed, which gives a new key and therefore a new image.
+
+Results are stored in \texttt{data/results/<key>/} as \texttt{result.png}, the two input photographs and \texttt{meta.json}. They are written to a temporary folder, with \texttt{meta.json} written last, and the folder is then renamed into place. A rename is a single step, so a crash can never leave a half-written result that looks complete; the presence of \texttt{meta.json} is what marks a result as finished. Failed generations are not stored. Keys arriving in URLs are checked against \verb|^[0-9a-f]{32}$| before they touch the file system, which prevents path traversal.
+
+\paragraph{Instagram sizes} The post (4:5, 1080$\times$1350), square (1:1) and story (9:16, 1080$\times$1920) versions are made on request with the \texttt{sharp} library and are not stored. The photograph is never cropped, because a crop could cut off the hem or the feet, which are part of the product. It is scaled to fit inside the frame,
+\begin{equation}
+s = \min\!\left(\frac{W}{w}, \frac{H}{h}\right),
+\end{equation}
+and the margins are filled with a blurred ($\sigma = 40$), slightly darkened copy of the same photograph. This darkening is the only colour change anywhere in the system; the garment's own colours are never altered.
+
+\section{Live Progress and Reconnecting}
+
+The response is an NDJSON stream: one JSON event per line, each stamped with the server's time. The events are \texttt{accepted}, \texttt{prepared}, \texttt{checked} (with whether the cache was hit), \texttt{waiting}, \texttt{queued} (with the position in the Space's queue), \texttt{running}, and finally \texttt{done} or \texttt{error}. The progress panel is computed from these events only; it never advances on a timer, so it shows real stages and real durations instead of an invented progress bar.
+
+Each job keeps every event it has emitted. When a page reconnects with \texttt{/studio?r=<key>}, the route \texttt{GET /api/tryon/[key]} replays all events of a running job and then continues live; for a finished job it returns the saved result; otherwise it answers 404 and the studio offers to try again.
+
+\section{Output Guardrails on Every Photograph}
+\label{sec:guardrails}
+
+A try-on model can fail silently: it can return a blank frame, return the model photograph unchanged, produce an image of the wrong shape, leave the old outfit showing, or change the person's face. Before a result is saved, \texttt{checkQuality()} (in \texttt{quality.ts}) runs five checks on small thumbnails (Table~\ref{tab:guardchecks}). Two are certain failures: the result is rejected exactly like an engine error, the next engine is tried, and the seller is told why. Three are heuristics: the result is kept, and the seller sees a note to check it before posting. Test engines are exempt because they return the model photograph on purpose.
+
+\begin{table}[!htbp]
+\centering
+\caption{The output guardrails.}
+\label{tab:guardchecks}
+\small
+\begin{tabularx}{\linewidth}{@{}L{18mm}YL{26mm}L{14mm}@{}}
+\toprule
+\textbf{Check} & \textbf{Measure} & \textbf{Limit} & \textbf{Effect}\\
+\midrule
+blank & mean per-channel standard deviation of the result & below 6 & fail\\
+changed & mean absolute difference to the model photograph (0--255) & below 3 & fail\\
+size & relative difference of the aspect ratio to the model photograph & above 0.08 & warn\\
+colour & CIE76 $\Delta E$ of the result's garment area to the garment, minus $\Delta E$ to the old outfit in the same area & above 0, and $\Delta E$ to the garment above 15 & warn\\
+person & mean absolute difference in the head region (0--255) & above 45 & warn\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The colour check is relative on purpose. A first version compared the garment's colour with a fixed box on the torso, and on our real results it warned on a correct navy crop top (the box reached the dress below it) while missing the actual failure. The relative version asks a sharper question: does the garment area now look more like the new garment, or still like what the model wore before? \ifAppGuard Table~\ref{tab:guardaudit} shows it on all \vAgN{} real generations (median \vAgMs{}~ms per photograph): it warns on both photographs of the skirt on a model in a dress, the failure that scored 11/30 in Section~7.3, and on one uploaded photograph where the garment was a phone screenshot, and on none of the others; no result fails.
+
+\begin{table}[!htbp]
+\centering
+\caption{Output guardrails on the project's real generations ($\triangle$ = warning).}
+\label{tab:guardaudit}
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\input{generated/app_guardrails.tex}
+\end{table}
+\fi
+
+\section{The Seller's Interface}
+\label{sec:ui}
+
+The application is organised like a professional campaign tool: a sidebar with the four tools (Try-on Studio, Post Maker, Market Research, Library) and Help, a top bar with the free-GPU meter, the language switch (English or Hindi) and a Help button, and content that uses the full width of the screen. Every tool follows the same guided flow, ending in a \emph{Review} step that summarises every choice with an Edit link, the expected time and the quota it will use, before anything is created (Figure~\ref{fig:uireview}). A ``?'' button next to every control and section explains what it does. The product step offers 38 sample garments with category tabs and search; the model step filters presets by gender, by what the model wears and by suitability for the chosen garment; a Library page lists every saved photograph, sortable and filterable. The result screen leads with the quality checks of Section~\ref{sec:guardrails} (Figure~\ref{fig:uiresult}). The interface uses Calibri (or its metric-compatible open equivalent, Carlito), meets the accessibility rules of the project (44~px controls, no text below 11~px, keyboard-operable help), and is covered by \vTestsApp{} automated tests.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=\linewidth]{ui-review.png}
+\caption{The Review step of the try-on studio: every choice, its cost and an Edit link, before anything is created.}
+\label{fig:uireview}
+\end{figure}
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=\linewidth]{ui-result.png}
+\caption{The result screen: before/after slider, the quality checks (here a correct warning on the skirt placed on a model in a dress), and the next step to a post.}
+\label{fig:uiresult}
+\end{figure}
+
+\section{The Free GPU Quota}
+
+Hugging Face gives a free account about five minutes of ZeroGPU time a day~\cite{zerogpu} and, in addition, a limit on the number of runs whose value is not published. Neither balance can be queried. Every call must have the Space's declared duration (60~s by default) available before it starts, although a photograph uses only part of it. The application therefore keeps its own ledger of GPU time and computes what is left:
+\begin{align}
+t_\text{left} &= 300\,\text{s} - \sum_{\text{runs in the current 24-hour window}} t_i, \\
+n_\text{time} &= \begin{cases} \left\lfloor \dfrac{t_\text{left} - 60}{\tilde{t}} \right\rfloor + 1 & t_\text{left} \ge 60\,\text{s} \\ 0 & \text{otherwise}\end{cases}, \qquad
+n_\text{left} = \min\big(n_\text{time},\; R - n_\text{used}\big),
+\end{align}
+where $\tilde{t}$ is the median duration of the last ten runs (currently \vPerPhoto{}~s) and $R$ is the run limit. The window starts at the first GPU use, not at midnight. When the Space refuses a call, its message is parsed: a time refusal (``60s requested vs.\ 12s left'') replaces our estimate, and a run-limit refusal teaches $R$. On 26 October the Space refused our ninth photograph after \vUsedAtRefusal{}~s of GPU time, with ``runs limit''; since then $R = \vRunsLimit{}$. Cache hits and test engines are never counted, because they use no GPU.
+
+\section{Security and Configuration}
+
+There is no login. Anyone with a link could spend the free quota, so every route that creates something (try-on, caption, research, featuring) calls \texttt{requirePasscode} first, while routes that only read stay open. API keys for the GPU and the language models live in one \texttt{.env} file on the server and are never sent to the browser. The configuration is parsed and validated with zod on every call, not once at start-up, so a new key takes effect without restarting the server. Photographs are stripped of metadata, and no buyer's personal data is collected anywhere.
+
+\section{Testing}
+
+The application has \vTestsApp{} automated tests that run in about a second without any network access: they cover the orchestration (job sharing, the lock, the error chain), the photograph cleaning, the cache key, storage, the quota arithmetic, the text-AI chain and the caption and research logic. Language models and the GPU are replaced by fake providers passed in as arguments, so tests never spend quota. Two further commands check the outside world without spending quota: \texttt{engine:check} verifies the token, the Space's status and its API contract, and \texttt{llm:check} reports which configured language models still answer.

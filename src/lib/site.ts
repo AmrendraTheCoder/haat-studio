@@ -3,7 +3,7 @@ import path from "node:path";
 import { TEST_ENGINES } from "@/lib/engines";
 import { env } from "@/lib/env";
 import { llmConfigured } from "@/lib/llm";
-import { PRESETS, SAMPLE_GARMENTS } from "@/lib/presets";
+import { ALL_SAMPLES, PRESETS } from "@/lib/presets";
 import type { QuotaStatus } from "@/lib/quota";
 import { enginesFromEnv, readQuota, store } from "@/lib/tryon";
 import type { ResultMeta } from "@/lib/tryon/types";
@@ -51,7 +51,7 @@ export async function readSetup(): Promise<Setup> {
 
   const [presets, samples, quota] = await Promise.all([
     Promise.all(PRESETS.map(async (p) => ((await exists(path.join(pub, "presets", p.file))) ? p.id : null))),
-    Promise.all(SAMPLE_GARMENTS.map(async (s) => ((await exists(path.join(pub, "samples", s.file))) ? s.id : null))),
+    Promise.all(ALL_SAMPLES.map(async (s) => ((await exists(path.join(pub, "samples", s.file))) ? s.id : null))),
     engine.configured ? readQuota().catch(() => null) : null,
   ]);
   return {

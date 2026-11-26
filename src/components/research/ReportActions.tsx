@@ -10,7 +10,7 @@ export function CopyButton({ text, label }: { text: string; label?: string }) {
   return (
     <button
       type="button"
-      className="min-h-11 rounded-full border border-line px-4 py-1 text-xs hover:border-ink print:hidden"
+      className="btn-ghost !px-3 !text-xs print:hidden"
       onClick={async () => {
         await navigator.clipboard?.writeText(text).catch(() => {});
         setDone(true);

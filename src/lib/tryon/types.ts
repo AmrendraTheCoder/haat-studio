@@ -96,6 +96,32 @@ export interface ResultMeta {
   /** Time spent waiting in the Space's queue before the GPU picked it up. */
   queueMs: number;
   prep?: Prep;
+  /** Output guardrails run on the generated image (quality.ts). Absent on results saved before them. */
+  quality?: OutputQuality;
+}
+
+/**
+ * One automatic check on a generated photo. `ok: false` with `severity: "fail"`
+ * means the result should not be shown as finished; `"warn"` means show it with
+ * a note the seller can act on.
+ *  - blank: the image is (almost) one flat colour
+ *  - size: its aspect ratio doesn't match the model photo
+ *  - changed: it is (almost) identical to the model photo, so nothing was tried on
+ *  - colour: the garment area looks more like the old outfit than the new garment
+ *  - person: the model's silhouette moved far from where it was (pose drift proxy)
+ */
+export interface QualityCheck {
+  id: "blank" | "size" | "changed" | "colour" | "person";
+  ok: boolean;
+  severity: "fail" | "warn";
+  value: number;
+  limit: number;
+}
+
+export interface OutputQuality {
+  /** No failing check. Warnings don't block the result. */
+  passed: boolean;
+  checks: QualityCheck[];
 }
 
 /**

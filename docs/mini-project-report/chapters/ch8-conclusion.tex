@@ -1,0 +1,59 @@
+\chapter{Conclusions and Future Work}
+
+\section{Summary of the Project}
+
+The project set out to turn a small seller's single flat garment photograph into an on-model photograph and a trustworthy post at no cost, and to adapt the try-on model to the seller's own garments in a measurable way. We built Haat Studio around FASHN VTON 1.5, an open 972-million-parameter diffusion transformer, served on a free shared GPU. We documented the network layer by layer, reconstructed its unpublished training objective and confirmed it on the released weights, and built a LoRA adaptation pipeline from raw catalogue photographs to a statistically tested comparison. On the content side we built a validated text-AI layer, a research report whose numbers are computed in code, and catalogue-driven engines for pricing, titles, hashtags, positioning and timing.
+
+\section{Conclusions}
+
+\subsection{From the serving system}
+\begin{itemize}
+\item A new photograph takes a median of \vMedTotal{}~s on the free GPU, \vMedGpu{}~s of it running; a repeat request is answered in \vCacheMs{}~ms with no GPU.
+\item The free quota is limited by an unpublished run count (\vRunsLimit{} a day) before GPU time; the application learned it from the provider's refusal.
+\item The skirt failure (11/30) was caused by the choice of model photograph, not by the model; pairing bottoms with a model in separates raised it to 29/30.
+\end{itemize}
+
+\subsection{From the model work}
+\begin{itemize}
+\ifLora\item The adapter trained on the laptop changed the held-out denoising error by \vLcDlRel{}\% (\vLcDlVerdict{}).\fi
+\item The released model's training objective is the rectified-flow velocity $x_1 - \epsilon$ on the straight noise-to-image path: its loss is \vLossRatio{} times lower under this convention than under the reverse.
+\item LoRA adapts \vTrainParamsM{}M parameters (\vLoraPct{}\%) on \vLoraLayers{} layers; the training state falls from \vFullStateGb{}~GB to \vLoraStateGb{}~GB and the shipped change from \vBaseMb{}~MB to \vAdapterMb{}~MB. Running the model costs the same as before.
+\item The human parser, the only non-commercial component, has no effect in the mode the application uses.
+\item Catalogue photographs can be turned into training pairs automatically, but only with guardrails: without them, back views, close-ups and swatches are chosen.
+\end{itemize}
+
+\subsection{From the market work}
+\begin{itemize}
+\item Across \vMkTotalClean{} listings in four categories, discounts of \vMkTeeDisc{}--\vMkKurtaDisc{}\% are the norm and price and discount are at most weakly associated with demand ($|\rho| \le \vMkMaxRho{}$); Amazon demand is concentrated in a few brands, Myntra demand is spread out.
+\item For a kurta-set seller in Jaipur, the engines recommend \rupee\vExBandLo{}--\rupee\vExBandHi{} among \vExComparables{} comparable listings, a \vExMarginLo{}--\vExMarginHi{}\% margin at a \rupee\vExCost{} cost.
+\end{itemize}
+
+\subsection{What this work does not show}
+\ifLora The fine-tuning result comes from a small laptop run at half resolution; it shows the direction of the effect on held-out garments, not its size after a full run.\else It does not show that fine-tuning improves try-on quality; that experiment is specified, automated and pending.\fi It does not show performance on sarees or lehengas, which may be beyond this model. It does not measure what sellers or buyers think of the results.
+
+\subsection{Limitations}
+\begin{itemize}
+\item One real engine today, so the fallback chain has nothing to fall back to yet.
+\item Running jobs live in memory; a server restart loses a job in progress.
+\item The output is about 576~px wide and is enlarged for Instagram.
+\item About \vRunsLimit{} free photographs a day.
+\item Four baseline images, scored by an automated rater.
+\item The catalogue: two categories, one marketplace, ratings as a proxy for sales.
+\item There is no user login; a passcode protects the creating routes.
+\end{itemize}
+
+\section{Future Work}
+
+\begin{enumerate}
+\item \textbf{Scale the adaptation.} Repeat the run of Section~\ref{sec:e6} at full resolution on a 16~GB CUDA GPU with more steps and more pairs (\texttt{ml/run\_lora\_pipeline.sh}); compare $\lambda = 1$ and $\lambda = 2$ and add two blind human raters.
+\item \textbf{Cleaner pairs.} Reject multipack listings and banners in \texttt{build\_pairs.py}; the model guardrails found that four of the twelve generated held-out pairs were not true pairs.
+\item \textbf{Indian garments.} Collect paired photographs of kurtis, sarees and lehengas with sellers' consent, and add saree and lehenga as categories 4 and 5.
+\item \textbf{Serve the adapter.} A copy of FASHN's Space with the adapter merged and the parser removed, added to the application as a second engine (one file).
+\item \textbf{Connect the engines to the post maker,} so that the title, price band and hashtags appear next to the photograph.
+\item \textbf{Regional demand,} if location data becomes available (for example the seller's own sales export), to make the location engine measure demand rather than only use the calendar.
+\item \textbf{Sharper output} with an upscaling stage, and checks that reject blurry or cropped garment photographs before any GPU time.
+\end{enumerate}
+
+\section{Final Remarks}
+
+The most useful lesson of the project was that most of the value around a large generative model lies outside it: in deciding when not to call it, in feeding it the right photograph, in checking what comes back, and in measuring honestly. The pieces that remain open are open because they need data and a GPU, not because the method is missing.

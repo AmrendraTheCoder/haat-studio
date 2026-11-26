@@ -1,0 +1,302 @@
+{
+  "limits": {
+    "blank": 6,
+    "size": 0.08,
+    "changed": 3,
+    "colour": 0,
+    "colourFloor": 15,
+    "person": 45
+  },
+  "results": [
+    {
+      "key": "0183b093",
+      "category": "bottoms",
+      "model": "casual-women",
+      "ms": 68,
+      "passed": true,
+      "checks": {
+        "blank": {
+          "value": 48.31,
+          "ok": true
+        },
+        "changed": {
+          "value": 12.24,
+          "ok": true
+        },
+        "size": {
+          "value": 0,
+          "ok": true
+        },
+        "colour": {
+          "value": -19.45,
+          "ok": true
+        },
+        "person": {
+          "value": 1.86,
+          "ok": true
+        }
+      }
+    },
+    {
+      "key": "2de42185",
+      "category": "tops",
+      "model": "standing-men",
+      "ms": 66,
+      "passed": true,
+      "checks": {
+        "blank": {
+          "value": 46.28,
+          "ok": true
+        },
+        "changed": {
+          "value": 11.57,
+          "ok": true
+        },
+        "size": {
+          "value": 0,
+          "ok": true
+        },
+        "colour": {
+          "value": -33.18,
+          "ok": true
+        },
+        "person": {
+          "value": 1.7,
+          "ok": true
+        }
+      }
+    },
+    {
+      "key": "365beef2",
+      "category": "tops",
+      "model": "standing-women",
+      "ms": 87,
+      "passed": true,
+      "checks": {
+        "blank": {
+          "value": 68.71,
+          "ok": true
+        },
+        "changed": {
+          "value": 14.86,
+          "ok": true
+        },
+        "size": {
+          "value": 0,
+          "ok": true
+        },
+        "colour": {
+          "value": -62.67,
+          "ok": true
+        },
+        "person": {
+          "value": 4.06,
+          "ok": true
+        }
+      }
+    },
+    {
+      "key": "641cdaa8",
+      "category": "tops",
+      "model": "standing-women",
+      "ms": 118,
+      "passed": true,
+      "checks": {
+        "blank": {
+          "value": 71.44,
+          "ok": true
+        },
+        "changed": {
+          "value": 8.82,
+          "ok": true
+        },
+        "size": {
+          "value": 0,
+          "ok": true
+        },
+        "colour": {
+          "value": -10.85,
+          "ok": true
+        },
+        "person": {
+          "value": 3.89,
+          "ok": true
+        }
+      }
+    },
+    {
+      "key": "8a799c4c",
+      "category": "bottoms",
+      "model": "standing-women",
+      "ms": 57,
+      "passed": true,
+      "checks": {
+        "blank": {
+          "value": 72.42,
+          "ok": true
+        },
+        "changed": {
+          "value": 7.76,
+          "ok": true
+        },
+        "size": {
+          "value": 0,
+          "ok": true
+        },
+        "colour": {
+          "value": 14.86,
+          "ok": false
+        },
+        "person": {
+          "value": 3.49,
+          "ok": true
+        }
+      }
+    },
+    {
+      "key": "b4612d04",
+      "category": "one-pieces",
+      "model": "upload:9149b5e3",
+      "ms": 55,
+      "passed": true,
+      "checks": {
+        "blank": {
+          "value": 53.55,
+          "ok": true
+        },
+        "changed": {
+          "value": 11.91,
+          "ok": true
+        },
+        "size": {
+          "value": 0,
+          "ok": true
+        },
+        "colour": {
+          "value": -18.07,
+          "ok": true
+        },
+        "person": {
+          "value": 0.95,
+          "ok": true
+        }
+      }
+    },
+    {
+      "key": "c8734e74",
+      "category": "bottoms",
+      "model": "standing-women",
+      "ms": 61,
+      "passed": true,
+      "checks": {
+        "blank": {
+          "value": 73.93,
+          "ok": true
+        },
+        "changed": {
+          "value": 8.8,
+          "ok": true
+        },
+        "size": {
+          "value": 0,
+          "ok": true
+        },
+        "colour": {
+          "value": 15.31,
+          "ok": false
+        },
+        "person": {
+          "value": 3.48,
+          "ok": true
+        }
+      }
+    },
+    {
+      "key": "ca3a7c3f",
+      "category": "tops",
+      "model": "standing-men",
+      "ms": 49,
+      "passed": true,
+      "checks": {
+        "blank": {
+          "value": 47.27,
+          "ok": true
+        },
+        "changed": {
+          "value": 11.16,
+          "ok": true
+        },
+        "size": {
+          "value": 0,
+          "ok": true
+        },
+        "colour": {
+          "value": -4.8,
+          "ok": true
+        },
+        "person": {
+          "value": 1.88,
+          "ok": true
+        }
+      }
+    },
+    {
+      "key": "cb9eecad",
+      "category": "one-pieces",
+      "model": "upload:a9a9bdb4",
+      "ms": 47,
+      "passed": true,
+      "checks": {
+        "blank": {
+          "value": 66.71,
+          "ok": true
+        },
+        "changed": {
+          "value": 28.45,
+          "ok": true
+        },
+        "size": {
+          "value": 0,
+          "ok": true
+        },
+        "colour": {
+          "value": -6.84,
+          "ok": true
+        },
+        "person": {
+          "value": 2.08,
+          "ok": true
+        }
+      }
+    },
+    {
+      "key": "d53dffc1",
+      "category": "tops",
+      "model": "upload:b2949833",
+      "ms": 43,
+      "passed": true,
+      "checks": {
+        "blank": {
+          "value": 58.52,
+          "ok": true
+        },
+        "changed": {
+          "value": 6.28,
+          "ok": true
+        },
+        "size": {
+          "value": 0,
+          "ok": true
+        },
+        "colour": {
+          "value": 22.47,
+          "ok": false
+        },
+        "person": {
+          "value": 0.84,
+          "ok": true
+        }
+      }
+    }
+  ]
+}

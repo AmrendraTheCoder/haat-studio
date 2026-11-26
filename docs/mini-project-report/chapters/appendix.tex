@@ -1,0 +1,119 @@
+\chapter{Reproducing the Results}
+
+All commands run from the \texttt{haat-studio} folder. The report is rebuilt, with every number and figure read again from the result files, by
+\begin{lstlisting}[language=bash,numbers=none]
+ml/.venv/bin/python docs/mini-project-report/build.py --tests
+\end{lstlisting}
+
+\begin{table}[!htbp]
+\centering
+\caption{Where each result comes from.}
+\label{tab:repro}
+\small
+\begin{tabularx}{\linewidth}{@{}L{42mm}Y@{}}
+\toprule
+\textbf{Result} & \textbf{Command (output file)}\\
+\midrule
+Generation times & made by the application; \texttt{data/results/*/meta.json}\\
+Quota and run limit & made by the application; \texttt{data/gpu-quota.json}\\
+E1--E3 & \texttt{ml/scripts/check\_real\_model.py} (\texttt{ml/runs/real-check/report.json})\\
+E4 & \texttt{ml/scripts/lora\_microrun.py --scale 0.5 --steps 100} (\texttt{ml/runs/microrun/})\\
+E5 & \texttt{ml/scripts/build\_pairs.py --retail <catalogue> --out ml/data/pairs} (\texttt{qc.json}, \texttt{pairs.csv})\\
+Market analysis, engines & \texttt{analysis/market.py --retail <catalogue> --out analysis/results/market.json}\\
+Tests & \texttt{npm test}; \texttt{cd ml \&\& .venv/bin/python -m pytest -q tests}\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{E6, on a CUDA GPU with at least 16~GB}
+\begin{lstlisting}[language=bash,numbers=none]
+cd ml
+python scripts/build_pairs.py --retail <catalogue> --out data/pairs
+python scripts/prepare_data.py --csv data/pairs/pairs.csv --out data/prepared
+python scripts/train_lora.py --data data/prepared --out runs/indian-v1 --steps 2000
+python scripts/evaluate.py --data data/prepared \
+    --lora runs/indian-v1/lora-best.safetensors --out runs/indian-v1/eval
+python scripts/compare_lora.py --run runs/indian-v1 \
+    --out ../docs/mini-project-report/results/lora_comparison.json
+cd .. && ml/.venv/bin/python docs/mini-project-report/build.py
+\end{lstlisting}
+\noindent The last command fills Section~\ref{sec:e6}, the abstract and the conclusions from \texttt{lora\_comparison.json}.
+
+\chapter{Selected Source Code}
+
+\section{The LoRA Layer}
+From \texttt{ml/haat\_ft/lora.py}.
+\begin{lstlisting}[language=python]
+class LoRALinear(nn.Module):
+    def __init__(self, base: nn.Linear, rank: int, alpha: float, dropout: float = 0.0):
+        super().__init__()
+        self.base = base
+        self.base.requires_grad_(False)          # the original layer is frozen
+        self.rank = rank
+        self.scale = alpha / rank
+        # float32 adapters over a bf16 base: tiny updates vanish in bf16
+        self.down = nn.Linear(base.in_features, rank, bias=False, dtype=torch.float32)
+        self.up = nn.Linear(rank, base.out_features, bias=False, dtype=torch.float32)
+        nn.init.kaiming_uniform_(self.down.weight, a=math.sqrt(5))
+        nn.init.zeros_(self.up.weight)           # B = 0: starts as the original model
+
+    def forward(self, x):
+        delta = self.up(self.down(x.to(self.down.weight.dtype))) * self.scale
+        return self.base(x) + delta.to(x.dtype)
+\end{lstlisting}
+
+\section{The Reconstructed Training Loss}
+From \texttt{ml/haat\_ft/flow.py}.
+\begin{lstlisting}[language=python]
+def sample_t(n, device, mu=1.5, std=1.0):
+    return torch.sigmoid(torch.randn(n, device=device) * std - mu)
+
+def flow_targets(image, t, noise=None):
+    """Point on the noise-to-image line at time t, and the velocity along it."""
+    noise = torch.randn_like(image) if noise is None else noise
+    tt = t.view(-1, *([1] * (image.dim() - 1))).to(image.dtype)
+    return (1 - tt) * noise + tt * image, image - noise
+
+# inside flow_loss(): one coin per sample drops ALL conditions together
+keep = torch.rand(b, device=target.device) >= p_uncond
+pred = model(x_t, t, ca_images=batch["ca"], garment_images=batch["garment"],
+             person_poses=batch["person_pose"], garment_poses=batch["garment_pose"],
+             garment_categories=batch["category"], mask=keep)["x"]
+w = batch["weight"] * (1 + (garment_weight - 1) * batch["garment_mask"])
+err = (pred.float() - v.float()) ** 2 * w
+loss = err.sum() / (w.sum() * target.shape[1]).clamp(min=1)
+\end{lstlisting}
+
+\section{Pose Guardrails for a Target Photograph}
+From \texttt{ml/scripts/build\_pairs.py}.
+\begin{lstlisting}[language=python]
+def target_ok(p, category):
+    if p["second_person"] > RULES["max_second_person"]:
+        return False, "more than one person"
+    if not (p["shoulders"] and p["hips"]):
+        return False, "torso not visible"
+    if category in ("bottoms", "one-pieces", "saree") and not p["knees"]:
+        return False, "legs not visible"
+    if p["frontal_ratio"] < RULES["min_shoulder_to_torso"]:
+        return False, "not frontal"
+    if not (p["face"] and p.get("facing_front")):
+        return False, "back view or face cropped"
+    if p["person_height"] < RULES["min_person_height"]:
+        return False, "person too small"
+    return True, ""
+\end{lstlisting}
+
+\section{The Quota Arithmetic}
+From \texttt{src/lib/quota.ts}.
+\begin{lstlisting}[language=java]
+export const REQUEST_SECONDS = 60;   // what each call must have left to start
+
+export function photosFitting(leftSeconds: number, perPhotoSeconds: number,
+                              requestSeconds = REQUEST_SECONDS): number {
+  return leftSeconds >= requestSeconds
+    ? Math.floor((leftSeconds - requestSeconds) / perPhotoSeconds) + 1
+    : 0;
+}
+// photosLeft = min(byTime, runsLimit - runsUsed); runsLimit is learned from
+// Hugging Face's "runs limit" refusal.
+\end{lstlisting}

@@ -32,6 +32,22 @@ class TrainConfig:
     eval_every: int = 200
     save_every: int = 500
     seed: int = 0
+    scale: float = 1.0  # 0.5 = train at 432 x 288 (a quarter of the tokens) to fit an 8 GB machine
+    val_limit: int = 0  # use only the first N val samples for the curve during training (0 = all)
+
+
+def rescale(batch: dict, scale: float) -> dict:
+    """Downscale images, poses and masks of a batch (masks with nearest, images with area)."""
+    if scale == 1.0:
+        return batch
+    out = {}
+    for k, v in batch.items():
+        if v.dim() == 4:
+            mode = "nearest" if k in ("garment_mask", "weight") else "area"
+            out[k] = torch.nn.functional.interpolate(v.float(), scale_factor=scale, mode=mode).to(v.dtype)
+        else:
+            out[k] = v
+    return out
 
 
 def autocast_dtype(device: torch.device):
@@ -57,8 +73,10 @@ def fixed_val_loss(model, loader, device, dtype, cfg, ts=(0.1, 0.3, 0.5, 0.7, 0.
     model.eval()
     gen = torch.Generator(device="cpu").manual_seed(1234)
     total, n = 0.0, 0
-    for batch in loader:
-        batch = {k: v.to(device) for k, v in batch.items()}
+    for i, batch in enumerate(loader):
+        if cfg.val_limit and i >= cfg.val_limit:
+            break
+        batch = rescale({k: v.to(device) for k, v in batch.items()}, cfg.scale)
         b = batch["target"].shape[0]
         for t in ts:
             noise = torch.randn(batch["target"].shape, generator=gen).to(device)
@@ -75,6 +93,9 @@ def train(model, train_set, val_set, out_dir: str, cfg: TrainConfig, device: tor
     torch.manual_seed(cfg.seed)
     names = prepare_model(model, cfg)
     model.to(device).train()
+    if cfg.scale != 1.0:  # the final unpatchify reassembles the image at this size
+        h, w = model.input_shape
+        model.input_shape = (int(h * cfg.scale), int(w * cfg.scale))
     params = list(lora_parameters(model))
     n_train = sum(p.numel() for p in params)
     n_all = sum(p.numel() for p in model.parameters())
@@ -102,7 +123,7 @@ def train(model, train_set, val_set, out_dir: str, cfg: TrainConfig, device: tor
     writer.writerow([0, "", f"{best:.5f}", 0, 0])
     while step < cfg.steps:
         for i, batch in enumerate(train_loader):
-            batch = {k: v.to(device) for k, v in batch.items()}
+            batch = rescale({k: v.to(device) for k, v in batch.items()}, cfg.scale)
             with torch.autocast(device.type, dtype=dtype, enabled=dtype is not None):
                 loss = flow_loss(model, batch, p_uncond=cfg.p_uncond, garment_weight=cfg.garment_weight)
             scaler.scale(loss / cfg.grad_accum).backward()
@@ -132,4 +153,14 @@ def train(model, train_set, val_set, out_dir: str, cfg: TrainConfig, device: tor
             if step >= cfg.steps:
                 break
     log_file.close()
+    # What the report's compute-cost table reads (scripts/compare_lora.py).
+    seconds = time.time() - start
+    json.dump({
+        "trainable_params": n_train, "total_params": n_all, "trainable_percent": round(100 * n_train / n_all, 3),
+        "layers": len(names), "steps": step, "effective_batch": cfg.batch_size * cfg.grad_accum,
+        "train_seconds": round(seconds, 1), "seconds_per_step": round(seconds / max(step, 1), 3),
+        "peak_gpu_gb": round(torch.cuda.max_memory_allocated() / 1e9, 2) if device.type == "cuda" else (round(torch.mps.driver_allocated_memory() / 1e9, 2) if device.type == "mps" else None),
+        "device": torch.cuda.get_device_name(0) if device.type == "cuda" else device.type,
+        "best_val_loss": round(best, 6),
+    }, open(os.path.join(out_dir, "train_summary.json"), "w"), indent=2)
     return best

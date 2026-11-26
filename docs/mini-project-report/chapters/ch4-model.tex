@@ -1,0 +1,125 @@
+\chapter{The Try-On Model, Layer by Layer}
+
+This chapter describes FASHN VTON 1.5~\cite{fashn} as it appears in its released source code (the \texttt{fashn-vton} 1.5.0 package). The network and its weights are FASHN AI's work. Understanding it in this detail was a precondition for everything in Chapter~5: an adapter can only be placed well, and a training objective only reconstructed, once it is clear where the garment's detail enters the person's image.
+
+\section{Pre-processing}
+
+Both photographs are resized, keeping their aspect ratio, and padded to 864$\times$576 pixels. The person's body pose is detected with YOLOX~\cite{yolox} and DWPose~\cite{dwpose} and drawn as a skeleton on a black image, each limb in its own grey level, so that left and right limbs can be told apart. A garment photographed flat receives a blank pose image; a garment worn by someone else receives that person's pose.
+
+The pipeline offers two modes. In \emph{masked} mode a SegFormer human parser~\cite{segformer} labels the clothing region of the person, which is greyed out, and the model fills it. In \emph{segmentation-free} mode, which the hosted Space uses by default and which our application uses, the model sees the whole person and decides itself what to replace. Masked mode cannot make a garment longer than the one it replaces; segmentation-free mode can, but the old outfit can influence the result. Chapter~7 shows a case where this matters.
+
+\section{Tokens: Pixels, Not a Latent Space}
+
+Each image is cut into patches of 12$\times$12 pixels:
+\begin{equation}
+\frac{864}{12} \times \frac{576}{12} = 72 \times 48 = 3{,}456 \text{ patches per image},
+\end{equation}
+and each patch, $12 \times 12 \times 3 = 432$ raw pixel values (plus pose channels), is projected to a token of 1{,}280 numbers by a strided convolution. There is no VAE. Latent-space try-on models first compress the image 8$\times$ in each direction, which blurs small printed text; working on pixels is the reason FASHN VTON reproduces a logo's letters exactly.
+
+\begin{table}[!htbp]
+\centering
+\caption{The two input streams.}
+\label{tab:streams}
+\small
+\begin{tabularx}{\linewidth}{@{}L{25mm}YL{30mm}@{}}
+\toprule
+\textbf{Stream} & \textbf{Channels stacked per pixel} & \textbf{Tokens}\\
+\midrule
+Person & noisy image (3) + person photograph (3) + person pose (1) = 7 & 3{,}456 $\times$ 1{,}280\\
+Garment & garment photograph (3) + garment pose (1) = 4 & 3{,}456 $\times$ 1{,}280\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent The garment stream occupies the place that text occupies in FLUX.1~\cite{flux}: \emph{the garment is the prompt}. Positions are encoded with rotary embeddings~\cite{rope} on three axes of 16, 56 and 56 dimensions, which together make up the 128 dimensions of one attention head. A conditioning vector, the sum of a time-step embedding and a garment-category embedding (0 none, 1 tops, 2 bottoms, 3 one-pieces), adjusts every block through adaptive layer normalisation: per block it produces a scale, a shift and a gate.
+
+\section{The Transformer}
+
+Figure~\ref{fig:mmdit} shows the network and Table~\ref{tab:layers} lists its layers.
+
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}[node distance=4mm]
+\node[box=cA,text width=32mm] (pin) {Person stream\\\scriptsize 7 ch → 3{,}456 tokens};
+\node[box=cD,text width=32mm,right=22mm of pin] (gin) {Garment stream\\\scriptsize 4 ch → 3{,}456 tokens};
+\node[box=cA,text width=32mm,below=of pin] (mix) {4 patch-mixer blocks\\\scriptsize person tokens only};
+\node[box=cB,text width=86mm,below=8mm of mix.south east,anchor=north,xshift=11mm] (dbl) {\textbf{8 double-stream blocks}\\\scriptsize separate weights per stream, \textbf{one joint attention over all 6{,}912 tokens}\\\scriptsize (here a token on the person's chest can read the garment token holding the logo)};
+\node[box=cB,text width=86mm,below=of dbl] (sgl) {\textbf{16 single-stream blocks}\\\scriptsize the two sequences concatenated, shared weights (fused attention + MLP)};
+\node[box=cA,text width=86mm,below=of sgl] (fin) {Final layer: keep the 3{,}456 person tokens → 432 values each\\\scriptsize reassembled into a 864$\times$576$\times$3 velocity image};
+\node[box=black!4,text width=30mm,right=6mm of dbl] (cond) {time step + category\\\scriptsize → adaLN in every block};
+\draw[arr] (pin)--(mix); \draw[arr] (mix.south)--(mix.south|-dbl.north); \draw[arr] (gin.south)--(gin.south|-dbl.north);
+\draw[arr] (dbl)--(sgl); \draw[arr] (sgl)--(fin); \draw[arr,dashed] (cond.west)--(dbl.east); \draw[arr,dashed] (cond.south)|-(sgl.east);
+\end{tikzpicture}
+\caption{The try-on transformer (an MMDiT adapted from FLUX.1). Red blocks are where our LoRA adapters attach (Chapter~5).}
+\label{fig:mmdit}
+\end{figure}
+
+\begin{table}[!htbp]
+\centering
+\caption{Layers of FASHN VTON 1.5 (hidden size 1{,}280, 10 heads of 128, MLP ratio 4).}
+\label{tab:layers}
+\small
+\begin{tabularx}{\linewidth}{@{}L{38mm}L{12mm}Y@{}}
+\toprule
+\textbf{Part} & \textbf{Count} & \textbf{What it does}\\
+\midrule
+Patch embedders & 2 & 12$\times$12 strided convolutions; 7 and 4 input channels to 1{,}280\\
+Time and category embedders & 2 & sinusoidal time embedding and a learned category table, summed\\
+Patch-mixer blocks & 4 & self-attention among person tokens only\\
+Double-stream blocks & 8 & per stream: modulation, QKV, output projection and a 2-layer MLP; one attention over both streams with QK-RMSNorm\\
+Single-stream blocks & 16 & one fused linear layer for QKV and the MLP input, one for the output\\
+Final layer & 1 & modulation and a projection back to 432 pixel values per token\\
+\midrule
+Total parameters & & 971{,}813{,}808 (counted on the released weights)\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The joint attention of the double-stream blocks is the core of the method. Every query from a person token is compared with every key from both streams:
+\begin{equation}
+\operatorname{Attention}(Q, K, V) = \operatorname{softmax}\!\left(\frac{QK^\top}{\sqrt{d}}\right) V, \qquad Q, K, V \in \mathbb{R}^{6912 \times 128} \text{ per head}.
+\end{equation}
+A token on the person's chest can therefore place high attention weight on the garment token that holds the logo and copy what it sees. The garment is not warped or pasted; it is read.
+
+\section{Generation by Rectified Flow}
+
+The model is trained to predict a velocity along the straight line between a noise image $\epsilon$ and the real photograph $x_1$ (Chapter~5 derives this from the sampler). Generation integrates that velocity from noise to image with Euler steps:
+\begin{equation}
+x_{t+\Delta t} = x_t + \Delta t \cdot v_\theta(x_t, t, c), \qquad x_0 = \epsilon \sim \mathcal{N}(0, I).
+\end{equation}
+The 30 time steps are not evenly spaced. A shifted schedule with $\mu = 1.5$ spends more steps near the noise end, where the coarse layout of the image is decided.
+
+\paragraph{Guidance} Every step runs the network on a batch of two: once with the person, garment and pose conditions and once with all of them blanked. The two velocities are combined with classifier-free guidance~\cite{cfg},
+\begin{equation}
+v = v_\varnothing + s\,(v_c - v_\varnothing), \qquad s = 1.5,
+\end{equation}
+which pushes each step towards following the garment more closely. The last step uses the conditional prediction alone, which avoids over-saturated colour at the end. One photograph therefore costs 30 network calls on a batch of two, that is 60 image passes through 972 million parameters.
+
+\paragraph{Why colour stays true} The model has no separate colour-correction stage. Colour is preserved by three properties of the design: the garment's real pixel values enter the network directly (no VAE), guidance pulls each step towards the garment, and the unguided final step prevents over-saturation.
+
+\section{Compute and Memory}
+
+Table~\ref{tab:compute} summarises what the model costs to run. The operation count is our own estimate: about two operations per parameter per token for the linear layers, plus $4 L^2 d$ for attention in each of the 28 attention blocks.
+
+\begin{table}[!htbp]
+\centering
+\caption{Cost of running FASHN VTON 1.5.}
+\label{tab:compute}
+\small
+\begin{tabularx}{\linewidth}{@{}L{60mm}Y@{}}
+\toprule
+\textbf{Quantity} & \textbf{Value}\\
+\midrule
+Weights on disk (bf16) & \vBaseMb{}~MB\\
+GPU memory to run (model card) & about 8~GB\\
+Tokens per pass & 6{,}912\\
+Attention matrix per head & 6{,}912$^2$ $\approx$ 47.8 million entries\\
+Operations per photograph (estimate) & about $1.2 \times 10^{15}$\\
+Hosted GPU (half an RTX Pro 6000), median of \vNRuns{} runs & \vMedTotal{}~s in total, \vMedGpu{}~s running\\
+NVIDIA H100 (model card) & about 5~s\\
+Our laptop (Apple M3, 8~GB) & \vGenSeconds{}~s; memory \vMemLoad{}~GB after loading, \vMemGen{}~GB after generating\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The laptop figure shows why the application uses a hosted GPU: one photograph took \vGenMinutes{} minutes, roughly a hundred times longer than on the free shared GPU. To run the model at all in 8~GB we wrote a loader that keeps the weights in bf16 from the start (\vMemLoad{}~GB after loading, against 3.9~GB with FASHN's own loader) and an attention routine that processes two heads at a time instead of ten. Both reproduce FASHN's output exactly (Chapter~7).

@@ -56,9 +56,10 @@ const NUMBERS = [
 
 const SWATCHES = [
   ["paper", "bg-paper", "Page"],
+  ["paper-glow", "bg-paper-glow", "Cards · inputs"],
   ["ink", "bg-ink", "Text · primary"],
   ["ink-3", "bg-ink-3", "Hints · 5.6:1"],
-  ["accent-strong", "bg-accent-strong", "Payoff moments"],
+  ["accent-strong", "bg-accent-strong", "Primary · 6:1"],
   ["marigold", "bg-marigold", "Heads up"],
   ["good", "bg-good", "Ready · 5.5:1"],
   ["danger", "bg-danger", "Errors · 5.2:1"],
@@ -77,10 +78,10 @@ export default async function DesignPage() {
           </p>
         )}
         <p className="kicker">How it&rsquo;s designed</p>
-        <h1 className="mt-4 font-extrabold leading-[0.9] tracking-[-0.06em]" style={{ fontSize: "var(--text-giant)" }}>
-          designed for a seller
+        <h1 className="mt-4 font-bold tracking-[-0.01em]" style={{ fontSize: "var(--text-display)", lineHeight: 1.04 }}>
+          Designed for a seller
           <br />
-          <span className="text-ink-2">with a phone and an hour.</span>
+          <span className="text-accent-strong">with a phone and an hour.</span>
         </h1>
         <p className="mt-6 max-w-2xl text-lg text-ink-2">
           Who Haat Studio is for, the journey it supports, the rules every screen follows, and what testing changed. The full
@@ -93,7 +94,7 @@ export default async function DesignPage() {
       </section>
 
       <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="who">
-        <h2 id="who" className="text-3xl font-extrabold tracking-tight">
+        <h2 id="who" className="h-section">
           Who it&rsquo;s for
         </h2>
         <p className="mt-2 max-w-2xl text-ink-2">
@@ -114,19 +115,19 @@ export default async function DesignPage() {
             </article>
           ))}
         </div>
-        <p className="mt-6 rounded-2xl bg-ink px-5 py-4 text-lg text-paper">
+        <p className="mt-6 rounded-2xl bg-ink px-6 py-5 text-lg text-paper">
           The job they hire it for: <strong>&ldquo;Help me post this product so it sells — today, without a shoot.&rdquo;</strong>
         </p>
       </section>
 
       <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="journey">
-        <h2 id="journey" className="text-3xl font-extrabold tracking-tight">
+        <h2 id="journey" className="h-section">
           Priya&rsquo;s Monday, start to posted
         </h2>
         <ol className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
           {JOURNEY.map(([stage, does, feels], i) => (
-            <li key={stage} className={`rounded-2xl border p-3 ${stage === "Check" || stage === "Share" ? "border-accent-strong bg-accent-wash" : "border-line bg-paper-glow"}`}>
-              <span className="font-mono text-2xs text-ink-3">{String(i + 1).padStart(2, "0")}</span>
+            <li key={stage} className={`rounded-2xl border p-3 shadow-[var(--shadow-card)] ${stage === "Check" || stage === "Share" ? "border-accent-strong/50 bg-accent-wash" : "border-line bg-paper-glow"}`}>
+              <span className="text-2xs font-semibold text-ink-3 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
               <p className="font-bold">{stage}</p>
               <p className="mt-1 text-xs">{does}</p>
               <p className="mt-2 text-2xs text-ink-2 italic">{feels}</p>
@@ -140,13 +141,13 @@ export default async function DesignPage() {
       </section>
 
       <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="principles">
-        <h2 id="principles" className="text-3xl font-extrabold tracking-tight">
+        <h2 id="principles" className="h-section">
           Eight rules every screen follows
         </h2>
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {PRINCIPLES.map(([title, body], i) => (
             <div key={title} className="card p-4">
-              <span className="font-mono text-2xs text-ink-3">{String(i + 1).padStart(2, "0")}</span>
+              <span className="text-2xs font-semibold text-ink-3 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
               <p className="mt-1 font-bold">{title}</p>
               <p className="mt-1 text-sm text-ink-2">{body}</p>
             </div>
@@ -155,16 +156,16 @@ export default async function DesignPage() {
       </section>
 
       <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="changes">
-        <h2 id="changes" className="text-3xl font-extrabold tracking-tight">
+        <h2 id="changes" className="h-section">
           What testing changed
         </h2>
         <p className="mt-2 max-w-2xl text-ink-2">
           Every flow was walked as a seller would — on a phone-sized screen, with real try-ons and real key presses. Some of what
           broke, and what we did:
         </p>
-        <div className="mt-6 overflow-hidden rounded-2xl border border-line">
+        <div className="card mt-6 overflow-hidden">
           <table className="w-full text-left text-sm">
-            <thead className="bg-paper-3">
+            <thead className="border-b border-line bg-paper-2 text-ink-2">
               <tr>
                 <th scope="col" className="p-3 font-semibold">
                   Found
@@ -187,7 +188,7 @@ export default async function DesignPage() {
       </section>
 
       <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="access">
-        <h2 id="access" className="text-3xl font-extrabold tracking-tight">
+        <h2 id="access" className="h-section">
           Accessible by default
         </h2>
         <p className="mt-2 max-w-2xl text-ink-2">Audited against WCAG 2.1 AA, with 44 px touch targets because sellers are on phones.</p>
@@ -195,7 +196,7 @@ export default async function DesignPage() {
           {NUMBERS.map(([n, label]) => (
             <div key={label} className="card p-5">
               <dt className="sr-only">{label}</dt>
-              <dd className="text-4xl font-extrabold tracking-tight">{n}</dd>
+              <dd className="text-4xl font-bold tracking-tight text-accent-strong">{n}</dd>
               <dd className="mt-1 text-sm text-ink-2">{label}</dd>
             </div>
           ))}
@@ -203,17 +204,17 @@ export default async function DesignPage() {
       </section>
 
       <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="system">
-        <h2 id="system" className="text-3xl font-extrabold tracking-tight">
+        <h2 id="system" className="h-section">
           The look
         </h2>
         <p className="mt-2 max-w-2xl text-ink-2">
-          Cream paper, warm ink, one magenta splash — a craft-market stall, not a tech dashboard. Inter and Geist Mono, bundled so it
-          renders the same offline.
+          Warm white surfaces, warm near-black ink and one brand colour — rani pink — for the main action and the payoff
+          moments. Calibri, with Carlito (its open, metric-compatible twin) bundled so it renders the same offline, and Noto Sans Devanagari for Hindi.
         </p>
-        <ul className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+        <ul className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
           {SWATCHES.map(([name, cls, use]) => (
-            <li key={name} className="overflow-hidden rounded-2xl border border-line">
-              <div className={`h-16 ${cls}`} aria-hidden />
+            <li key={name} className="card overflow-hidden">
+              <div className={`h-16 border-b border-line ${cls}`} aria-hidden />
               <div className="bg-paper-glow p-2.5">
                 <p className="font-mono text-xs font-medium">{name}</p>
                 <p className="text-2xs text-ink-3">{use}</p>
@@ -223,12 +224,12 @@ export default async function DesignPage() {
         </ul>
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <div className="card p-5">
-            <p className="font-extrabold tracking-[-0.05em]" style={{ fontSize: "3rem", lineHeight: 1 }}>
-              your product.
+            <p className="font-bold tracking-[-0.01em]" style={{ fontSize: "3rem", lineHeight: 1 }}>
+              Your product.
             </p>
-            <p className="mt-2 font-mono text-xs text-ink-3">Display · Inter 800 · lowercase · tight</p>
-            <p className="mt-4">Body · Inter 400 · 16 px on phones so text is readable without zooming.</p>
-            <p className="mt-2 font-mono text-xs tracking-wider text-ink-3 uppercase">Labels · Geist Mono · 11 px floor</p>
+            <p className="mt-2 font-mono text-xs text-ink-3">Display · Calibri / Carlito 700 · sentence case</p>
+            <p className="mt-4">Body · Calibri / Carlito 400 · 16 px · scale 12 / 14 / 16 / 20 / 24 / 32 / 40.</p>
+            <p className="kicker mt-2">Kickers · 700 · uppercase · 11 px floor</p>
           </div>
           <div className="card space-y-3 p-5">
             <div className="flex flex-wrap gap-2">
@@ -245,11 +246,11 @@ export default async function DesignPage() {
       </section>
 
       <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <div className="rounded-3xl border border-line bg-paper-3 px-6 py-10">
-          <h2 className="text-2xl font-extrabold tracking-tight">What we still don&rsquo;t know</h2>
+        <div className="rounded-3xl border border-accent-strong/20 bg-accent-wash px-6 py-10">
+          <h2 className="text-2xl font-bold tracking-tight">What we still don&rsquo;t know</h2>
           <ul className="mt-3 list-disc space-y-1.5 pl-5 text-ink-2">
             <li>No real seller has used it yet — the next step is testing with five sellers on their own phones.</li>
-            <li>The interface is English only; a Hindi version is the biggest open improvement.</li>
+            <li>The Hindi wording has not yet been reviewed by a native speaker.</li>
             <li>Screen readers were checked through the code&rsquo;s structure, not yet on a real phone with VoiceOver or TalkBack.</li>
           </ul>
           <div className="mt-6 flex flex-wrap gap-3">

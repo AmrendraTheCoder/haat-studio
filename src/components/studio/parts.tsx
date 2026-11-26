@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import { BeforeAfter } from "@/components/shared/BeforeAfter";
 import { resultUrl } from "@/lib/client/check";
 import { TEST_ENGINES } from "@/lib/engines";
+import { HelpTip } from "@/components/shared/HelpTip";
 import { ACCEPT_ATTR } from "@/lib/limits";
 import { radioKeyDown, rovingTabIndex } from "@/lib/client/roving";
 import { useI18n } from "@/lib/i18n/client";
@@ -14,7 +15,7 @@ import type { View } from "./types";
 
 /* ── Stepper ─────────────────────────────────────────────────────────── */
 
-const STEPS: View[] = ["product", "model", "result"];
+const STEPS: View[] = ["product", "model", "review", "result"];
 
 export function Stepper({
   view,
@@ -32,33 +33,33 @@ export function Stepper({
 }) {
   const { t } = useI18n();
   return (
-    <ol className="flex items-center gap-2" aria-label={t.studio.steps.label}>
+    <ol className="flex items-center gap-1 rounded-2xl border border-line bg-paper-glow p-1.5 shadow-[var(--shadow-card)] sm:gap-2" aria-label={t.studio.steps.label}>
       {STEPS.map((id, i) => {
         const active = id === view;
         const done = !active && complete[id];
         const enabled = reachable[id] && !active && !lockedReason;
         return (
-          <li key={id} className="flex flex-1 items-center gap-2">
+          <li key={id} className={`flex min-w-0 items-center gap-1 sm:flex-1 sm:gap-2 ${active ? "flex-[2_1_auto]" : "flex-1"} last:flex-none`}>
             <button
               type="button"
               disabled={!enabled}
               onClick={() => onGo(id)}
               aria-current={active ? "step" : undefined}
               title={lockedReason ?? (reachable[id] ? undefined : t.studio.steps.finishEarlier)}
-              className={`flex min-h-11 min-w-0 items-center gap-2 rounded-full py-1 pr-3 pl-1.5 text-sm transition-colors ${
-                active ? "bg-ink text-paper" : enabled ? "text-ink hover:bg-paper-2" : "text-ink-3"
+              className={`flex min-h-11 min-w-0 items-center gap-1.5 rounded-xl py-1 pr-2 pl-1.5 text-xs transition-colors sm:gap-2 sm:pr-3 sm:text-sm ${
+                active ? "bg-accent-wash text-ink" : enabled ? "text-ink hover:bg-paper-2" : "text-ink-3"
               } disabled:cursor-default`}
             >
               <span
-                className={`grid size-6 shrink-0 place-items-center rounded-full font-mono text-2xs ${
-                  active ? "bg-paper text-ink" : done ? "bg-ink text-paper" : "border border-line-strong/50"
+                className={`grid size-7 shrink-0 place-items-center rounded-full text-xs font-semibold tabular-nums ${
+                  active ? "bg-accent-strong text-paper-glow" : done ? "bg-good text-paper-glow" : "border border-line-strong/60 text-ink-3"
                 }`}
               >
                 {done ? "✓" : i + 1}
               </span>
-              <span className="truncate font-medium">{t.studio.steps[id]}</span>
+              <span className={`truncate font-semibold ${active ? "" : "sr-only sm:not-sr-only"}`}>{t.studio.steps[id]}</span>
             </button>
-            {i < STEPS.length - 1 && <span className="h-px flex-1 bg-line" aria-hidden />}
+            {i < STEPS.length - 1 && <span className="h-px min-w-2 flex-1 bg-line" aria-hidden />}
           </li>
         );
       })}
@@ -119,8 +120,12 @@ export function Dropzone({
         setOver(false);
         take(e.dataTransfer.files);
       }}
-      className={`group relative overflow-hidden rounded-2xl border-2 border-dashed transition-colors ${
-        over ? "border-accent-strong bg-accent-wash" : previewUrl ? "border-line bg-white" : "border-line-strong/40 bg-paper-glow hover:border-ink"
+      className={`group relative overflow-hidden rounded-2xl border transition-colors ${
+        over
+          ? "border-dashed border-accent-strong bg-accent-wash"
+          : previewUrl
+            ? "border-line bg-paper-glow"
+            : "border-dashed border-line-strong/70 bg-paper-glow hover:border-accent-strong hover:bg-accent-wash/40"
       } ${className}`}
     >
       <input
@@ -140,9 +145,9 @@ export function Dropzone({
         <>
           <img src={previewUrl} alt="" className="pointer-events-none size-full object-contain p-3" />
           <div className="absolute right-2 bottom-2 flex gap-1.5">
-            <span className="pointer-events-none rounded-full bg-ink/80 px-3 py-1 text-xs text-paper">{t.dropzone.replace}</span>
+            <span className="pointer-events-none inline-flex items-center rounded-lg bg-ink/80 px-3 text-xs font-medium text-paper backdrop-blur-sm">{t.dropzone.replace}</span>
             {onClear && (
-              <button type="button" onClick={onClear} className="relative min-h-11 rounded-full bg-paper px-4 py-1 text-xs text-ink shadow ring-1 ring-line">
+              <button type="button" onClick={onClear} className="relative min-h-11 rounded-lg bg-paper-glow px-4 py-1 text-xs font-medium text-ink shadow-[var(--shadow-raised)] ring-1 ring-line hover:bg-paper-2">
                 {t.dropzone.remove}
               </button>
             )}
@@ -151,11 +156,13 @@ export function Dropzone({
       ) : (
         <div className="pointer-events-none grid size-full place-items-center p-4 text-center">
           <div>
-            <svg viewBox="0 0 24 24" className={`mx-auto text-ink-2 ${compact ? "mb-1 size-6" : "mb-3 size-9"}`} fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
-              <path d="M12 16V4m0 0-4 4m4-4 4 4M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <p className={`font-semibold text-ink ${compact ? "text-xs" : ""}`}>{title}</p>
-            <p className={`mt-1 text-ink-3 ${compact ? "text-2xs leading-tight" : "text-xs"}`}>{hint}</p>
+            <span className={`mx-auto grid place-items-center rounded-full bg-accent-wash text-accent-strong ${compact ? "mb-2 size-9" : "mb-4 size-14"}`}>
+              <svg viewBox="0 0 24 24" className={compact ? "size-5" : "size-7"} fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
+                <path d="M12 16V4m0 0-4 4m4-4 4 4M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <p className={`font-semibold text-ink ${compact ? "text-xs" : "text-base"}`}>{title}</p>
+            <p className={`mt-1 text-ink-3 ${compact ? "text-2xs leading-tight" : "text-xs leading-relaxed"}`}>{hint}</p>
           </div>
         </div>
       )}
@@ -191,13 +198,11 @@ export function Choices<T extends string>({
             tabIndex={rovingTabIndex(active, i, value !== null)}
             onKeyDown={radioKeyDown}
             onClick={() => onChange(o.value)}
-            className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 text-center transition-colors ${
-              active ? "border-ink bg-ink text-paper" : "border-line bg-paper-glow text-ink hover:border-ink"
-            }`}
+            className={`option flex min-h-11 flex-col items-center gap-1.5 px-2 py-3.5 text-center ${active ? "text-accent-strong" : ""}`}
           >
             {o.icon}
-            <span className="text-sm font-semibold leading-tight">{o.title}</span>
-            {o.hint && <span className={`text-2xs leading-tight ${active ? "text-paper/70" : "text-ink-3"}`}>{o.hint}</span>}
+            <span className="text-sm font-semibold leading-tight text-ink">{o.title}</span>
+            {o.hint && <span className="text-2xs leading-tight text-ink-3">{o.hint}</span>}
           </button>
         );
       })}
@@ -222,22 +227,36 @@ export const ICONS = {
 
 export function ActionBar({ children, reason }: { children: ReactNode; reason?: string | null }) {
   return (
-    <div className="sticky bottom-0 z-10 -mx-4 mt-8 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+    <div className="sticky bottom-0 z-10 -mx-4 mt-8 border-t border-line bg-paper-glow/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pt-6 sm:pb-0 sm:backdrop-blur-none">
       <div className="flex items-center justify-between gap-3">{children}</div>
-      {reason && <p className="mt-2 text-right text-xs text-ink-3">{reason}</p>}
+      {reason && <p className="mt-2 text-right text-xs leading-relaxed text-ink-3">{reason}</p>}
     </div>
   );
 }
 
 export function Notice({ tone, children }: { tone: "warn" | "error" | "info"; children: ReactNode }) {
   const styles = {
-    warn: "border-marigold/50 bg-marigold-wash",
-    error: "border-danger/40 bg-danger-wash",
-    info: "border-line bg-paper-glow",
+    warn: "border-marigold/60 bg-marigold-wash",
+    error: "border-danger/30 bg-danger-wash",
+    info: "border-line bg-paper-2",
   }[tone];
+  const iconTone = { warn: "text-ink-2", error: "text-danger", info: "text-ink-3" }[tone];
   return (
-    <div role={tone === "error" ? "alert" : "status"} className={`rounded-xl border px-4 py-3 text-sm text-ink ${styles}`}>
-      {children}
+    <div role={tone === "error" ? "alert" : "status"} className={`flex gap-3 rounded-xl border px-4 py-3 text-sm leading-relaxed text-ink ${styles}`}>
+      <svg viewBox="0 0 20 20" className={`mt-0.5 size-4 shrink-0 ${iconTone}`} fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+        {tone === "info" ? (
+          <>
+            <circle cx="10" cy="10" r="7.5" />
+            <path d="M10 9v4.5M10 6.5v.01" strokeLinecap="round" />
+          </>
+        ) : (
+          <>
+            <path d="M10 3 2.5 16.5h15L10 3Z" strokeLinejoin="round" />
+            <path d="M10 8.5v3.5M10 14.3v.01" strokeLinecap="round" />
+          </>
+        )}
+      </svg>
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }
@@ -280,9 +299,11 @@ export function QuotaMeter({ quota }: { quota: QuotaStatus }) {
   // A refusal fills the bar of the limit that was hit, whatever our own count says.
   const hit = (which: "time" | "runs") => quota.refused && quota.limitedBy === which;
   return (
-    <section aria-label={Q.title} className="rounded-2xl border border-line bg-paper-glow p-4 text-sm">
+    <section aria-label={Q.title} className="card p-5 text-sm">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 className="font-semibold">{Q.title}</h2>
+        <h2 className="flex items-center gap-2 font-semibold">
+          {Q.title} <HelpTip topic="quota" />
+        </h2>
         <p className={`font-semibold ${empty ? "text-danger" : low ? "text-ink" : "text-good"}`}>{Q.photosLeft(quota.photosLeft)}</p>
       </div>
       <div className="mt-3 grid gap-2.5 sm:grid-cols-2 sm:gap-4">
@@ -320,7 +341,7 @@ function Bar({ label, value, max }: { label: string; value: number; max: number 
           aria-valuemin={0}
           aria-valuemax={max}
           aria-valuenow={Math.min(value, max)}
-          className="mt-1 h-2 overflow-hidden rounded-full bg-paper-3"
+          className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-paper-3"
         >
           <div className={`h-full rounded-full ${tone}`} style={{ width: `${Math.max(pct, 2)}%` }} />
         </div>
@@ -366,10 +387,10 @@ export function Lightbox({ result, onClose }: { result: ResultMeta; onClose: () 
   return (
     <div ref={dialog} role="dialog" aria-modal="true" aria-label={t.lightbox.label} className="fixed inset-0 z-50 flex flex-col bg-ink/95" onClick={onClose}>
       <div className="flex items-center justify-between gap-3 p-3 text-paper" onClick={(e) => e.stopPropagation()}>
-        <button type="button" onClick={() => setCompare((c) => !c)} className="min-h-11 rounded-full border border-paper/30 px-4 py-1.5 text-sm hover:bg-paper/10">
+        <button type="button" onClick={() => setCompare((c) => !c)} className="min-h-11 rounded-lg border border-paper/30 px-4 py-1.5 text-sm font-medium hover:bg-paper/10">
           {compare ? t.lightbox.resultOnly : t.lightbox.compare}
         </button>
-        <button ref={close} type="button" onClick={onClose} className="min-h-11 rounded-full bg-paper px-4 py-1.5 text-sm font-medium text-ink">
+        <button ref={close} type="button" onClick={onClose} className="btn-light">
           {t.lightbox.close}
         </button>
       </div>
@@ -410,24 +431,24 @@ export function RecentGrid({
 }) {
   const { t, locale } = useI18n();
   return (
-    <section className="mt-16">
+    <section className="mt-16 border-t border-line pt-10">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-2xl font-extrabold tracking-[-0.04em]">{t.recent.title}</h2>
+        <h2 className="text-xl font-semibold tracking-[-0.01em]">{t.recent.title}</h2>
         <p className="text-xs text-ink-3">{disabled ? t.recent.busy : t.recent.note}</p>
       </div>
       {results.length === 0 ? (
-        <p className="mt-4 rounded-2xl border border-dashed border-line-strong/40 p-6 text-center text-sm text-ink-3">{t.recent.empty}</p>
+        <p className="mt-4 rounded-2xl border border-dashed border-line-strong/60 bg-paper-glow p-8 text-center text-sm text-ink-3">{t.recent.empty}</p>
       ) : (
         <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
           {results.map((r) => (
             <button key={r.key} type="button" disabled={disabled} onClick={() => onOpen(r)} className="group text-left disabled:opacity-50" aria-label={t.recent.open(ago(r.createdAt, t, locale))}>
               <div
-                className={`relative aspect-[2/3] overflow-hidden rounded-xl border bg-paper-2 ${r.key === activeKey ? "border-ink ring-2 ring-ink" : "border-line"}`}
+                className={`relative aspect-[2/3] overflow-hidden rounded-xl border bg-paper-2 shadow-[var(--shadow-card)] transition-shadow group-hover:shadow-[var(--shadow-raised)] ${r.key === activeKey ? "border-accent-strong ring-2 ring-accent-strong" : "border-line"}`}
               >
                 <img src={resultUrl(r.key, "result.png")} alt="" loading="lazy" className="size-full object-cover transition-transform group-hover:scale-[1.03]" />
-                <img src={resultUrl(r.key, "garment.jpg")} alt="" loading="lazy" className="absolute right-1.5 bottom-1.5 size-10 rounded-lg border border-line bg-white object-contain p-0.5" />
+                <img src={resultUrl(r.key, "garment.jpg")} alt="" loading="lazy" className="absolute right-1.5 bottom-1.5 size-10 rounded-lg border border-line bg-paper-glow object-contain p-0.5" />
                 {TEST_ENGINES.has(r.engine) && (
-                  <span className="absolute inset-x-0 top-0 bg-marigold py-0.5 text-center font-mono text-2xs text-ink uppercase">{t.recent.testEngine}</span>
+                  <span className="absolute inset-x-0 top-0 bg-marigold py-0.5 text-center text-2xs font-semibold text-ink uppercase">{t.recent.testEngine}</span>
                 )}
                 {featured.includes(r.key) && (
                   <span className="absolute top-1.5 left-1.5 rounded-full bg-accent-strong px-1.5 py-0.5 text-2xs text-paper" title={t.recent.featured}>
@@ -435,7 +456,7 @@ export function RecentGrid({
                   </span>
                 )}
               </div>
-              <p className="mt-1 font-mono text-2xs text-ink-3">{ago(r.createdAt, t, locale)}</p>
+              <p className="mt-1.5 text-2xs text-ink-3">{ago(r.createdAt, t, locale)}</p>
             </button>
           ))}
         </div>

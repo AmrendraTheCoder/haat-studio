@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import "@fontsource-variable/inter";
+import "@fontsource/carlito/400.css";
+import "@fontsource/carlito/700.css";
 import "@fontsource-variable/noto-sans-devanagari";
 import "@fontsource/geist-mono/400.css";
 import "@fontsource/geist-mono/500.css";
@@ -15,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#EFE7D2",
+  themeColor: "#FBFAF8",
   colorScheme: "light",
 };
 
@@ -27,7 +28,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang={locale}>
       {/* Extensions (e.g. colour pickers) add attributes to <body> before React hydrates. */}
-      <body className="min-h-dvh font-sans" suppressHydrationWarning>
+      <body className="min-h-dvh font-sans text-ink antialiased" suppressHydrationWarning>
         <I18nProvider locale={locale}>{children}</I18nProvider>
       </body>
     </html>

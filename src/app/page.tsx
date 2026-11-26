@@ -25,7 +25,7 @@ export default async function Landing() {
       {/* ── Hero ── */}
       <section className="relative">
         <div aria-hidden className="dot-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_70%_40%,black,transparent_70%)]" />
-        <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-4 pt-12 pb-20 sm:px-6 md:pt-20 lg:grid-cols-[1.1fr_1fr] lg:gap-10">
+        <div className="relative site-container grid items-center gap-14 pt-12 pb-20 md:pt-20 lg:grid-cols-[1.1fr_1fr] lg:gap-10">
           <div className="rise">
             <p className="inline-flex max-w-full items-center gap-2 rounded-full border border-line bg-paper-glow px-3 py-1.5 text-xs font-medium text-ink-2 shadow-[var(--shadow-card)]">
               <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-accent-strong" />
@@ -60,7 +60,7 @@ export default async function Landing() {
 
       {/* ── What you get, at a glance ── */}
       <section aria-label={H.how.kicker} className="border-y border-line bg-paper-glow">
-        <ul className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-3 px-4 py-6 text-sm font-medium text-ink-2 sm:grid-cols-3 sm:px-6 lg:grid-cols-6">
+        <ul className="site-container grid grid-cols-2 gap-x-6 gap-y-3 py-6 text-sm font-medium text-ink-2 sm:grid-cols-3 lg:grid-cols-6">
           {H.ticker.map((item) => (
             <li key={item} className="flex items-center gap-2">
               <span className="grid size-6 shrink-0 place-items-center rounded-full bg-accent-wash text-accent-strong">
@@ -82,7 +82,7 @@ export default async function Landing() {
             <div className="grid h-full grid-cols-3 gap-2 p-4">
               {PRESETS.map((p) =>
                 setup.presets.includes(p.id) ? (
-                  <img key={p.id} src={`/presets/${p.file}`} alt={presetLabel(p.id, p.label)} className="size-full rounded-lg object-cover" />
+                  <img key={p.id} src={`/presets/${p.file}`} alt={presetLabel(p.id, p.label)} loading="lazy" decoding="async" className="size-full rounded-lg object-cover" />
                 ) : (
                   <Placeholder key={p.id} title={H.hero.model} className="size-full !p-2" />
                 ),
@@ -101,9 +101,9 @@ export default async function Landing() {
           <ToolCard href={TOOL_HREFS[0]} tool={H.tools.items[0]} n={1}>
             {hero ? (
               <div className="grid h-full grid-cols-[1fr_auto_1.2fr] items-center gap-3 p-5">
-                <img src={resultUrl(hero.key, "garment.jpg")} alt={H.hero.productAlt} className="aspect-square w-full rounded-xl border border-line bg-paper-glow object-contain p-2" />
+                <img src={resultUrl(hero.key, "garment.jpg")} alt={H.hero.productAlt} loading="lazy" decoding="async" className="aspect-square w-full rounded-xl border border-line bg-paper-glow object-contain p-2" />
                 <Arrow />
-                <img src={resultUrl(hero.key, "result.png")} alt={H.examples.resultAlt} className="aspect-[3/4] w-full rounded-xl object-cover shadow-[var(--shadow-raised)]" />
+                <img src={resultUrl(hero.key, "result.png")} alt={H.examples.resultAlt} loading="lazy" decoding="async" className="aspect-[3/4] w-full rounded-xl object-cover shadow-[var(--shadow-raised)]" />
               </div>
             ) : (
               <Placeholder title={H.hero.result} className="m-5 h-[calc(100%-2.5rem)]">
@@ -114,7 +114,7 @@ export default async function Landing() {
           <ToolCard href={TOOL_HREFS[1]} tool={H.tools.items[1]} n={2}>
             {hero ? (
               <figure className="flex h-full flex-col items-center justify-center gap-2 p-5">
-                <img src={resultUrl(hero.key, "post.jpg")} alt={H.tools.postExport} className="min-h-0 flex-1 rounded-lg object-contain shadow-[var(--shadow-raised)]" />
+                <img src={resultUrl(hero.key, "post.jpg")} alt={H.tools.postExport} loading="lazy" decoding="async" className="min-h-0 flex-1 rounded-lg object-contain shadow-[var(--shadow-raised)]" />
                 <figcaption className="text-2xs text-ink-3">{H.tools.postExport}</figcaption>
               </figure>
             ) : (
@@ -139,7 +139,7 @@ export default async function Landing() {
 
       {/* ── Examples ── */}
       <Section id="examples" kicker={H.examples.kicker} title={H.examples.title} aside={H.examples.note}>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+        <div className={`grid grid-cols-2 gap-4 md:grid-cols-3 ${featured.length > 3 ? "xl:grid-cols-6" : ""}`}>
           {featured.length > 0
             ? featured.slice(0, 6).map((r) => <ExampleCard key={r.key} r={r} t={t} />)
             : [0, 1, 2].map((i) => (
@@ -173,7 +173,7 @@ export default async function Landing() {
 
       {/* ── What's next ── */}
       <Section id="next" kicker={H.next.kicker} title={H.next.title}>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
           {ROADMAP.map((status, i) => (
             <div key={i} className={`card p-5 ${status === "now" ? "!border-accent-strong/40 ring-1 ring-accent-strong/20" : ""}`}>
               <div className="flex items-center justify-between gap-2">
@@ -193,7 +193,7 @@ export default async function Landing() {
       </Section>
 
       {/* ── Close ── */}
-      <section className="mx-auto max-w-6xl px-4 pt-8 sm:px-6">
+      <section className="site-container pt-8">
         <div className="relative overflow-hidden rounded-3xl bg-ink px-6 py-16 text-center text-paper sm:py-20">
           <div aria-hidden className="pointer-events-none absolute -top-24 left-1/2 size-[28rem] -translate-x-1/2 rounded-full bg-accent/25 blur-3xl" />
           <h2 className="relative h-section">
@@ -215,7 +215,7 @@ export default async function Landing() {
 function Section({ id, kicker, title, aside, tint = false, children }: { id: string; kicker: string; title: string; aside?: string; tint?: boolean; children: ReactNode }) {
   return (
     <section id={id} className={`scroll-mt-20 py-20 sm:py-24 ${tint ? "border-y border-line bg-paper-2/60" : ""}`}>
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="site-container">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-2xl">
             <p className="kicker">{kicker}</p>
@@ -333,7 +333,7 @@ function SampleThumb({ setup, t }: { setup: Setup; t: Messages }) {
   return (
     <div className="grid h-full grid-cols-3 gap-2 p-4">
       {samples.map((s) => (
-        <img key={s.id} src={`/samples/${s.file}`} alt={t.product.samples[s.id] ?? s.label} className="size-full rounded-lg border border-line bg-paper-glow object-contain p-1.5" />
+        <img key={s.id} src={`/samples/${s.file}`} alt={t.product.samples[s.id] ?? s.label} loading="lazy" decoding="async" className="size-full rounded-lg border border-line bg-paper-glow object-contain p-1.5" />
       ))}
     </div>
   );
@@ -365,11 +365,12 @@ function ExampleCard({ r, t }: { r: ResultMeta; t: Messages }) {
   return (
     <Link href={`/studio?r=${r.key}`} className="group block" aria-label={e.open}>
       <div className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-line bg-paper-2 shadow-[var(--shadow-card)] transition-shadow group-hover:shadow-[var(--shadow-raised)]">
-        <img src={resultUrl(r.key, "result.png")} alt={e.resultAlt} loading="lazy" className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+        <img src={resultUrl(r.key, "result.png")} alt={e.resultAlt} loading="lazy" decoding="async" className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
         <img
           src={resultUrl(r.key, "garment.jpg")}
           alt={e.productAlt}
           loading="lazy"
+          decoding="async"
           className="absolute right-3 bottom-3 size-16 rounded-xl border border-line bg-paper-glow object-contain p-1 shadow-[var(--shadow-raised)]"
         />
       </div>

@@ -11,6 +11,10 @@ export const PHOTO_TYPES = ["flat-lay", "model"] as const;
 export const QUALITY_STEPS = { fast: 20, balanced: 30, best: 50 } as const;
 export type Quality = keyof typeof QUALITY_STEPS;
 
+/** Which model makes the photo: FASHN VTON 1.5 as released, or with the project's LoRA adapter. */
+export const MODEL_CHOICES = ["base", "tuned"] as const;
+export type ModelChoice = (typeof MODEL_CHOICES)[number];
+
 export const settingsSchema = z.object({
   category: z.enum(CATEGORIES),
   photoType: z.enum(PHOTO_TYPES),
@@ -36,6 +40,17 @@ export interface Engine {
   /** False when a required key is missing; the chain skips it and says why. */
   readonly configured: boolean;
   readonly missing?: string;
+  /**
+   * "base" runs FASHN VTON 1.5 as released; "tuned" runs it with the project's LoRA adapter.
+   * The seller picks the model; the studio only tries engines of that variant.
+   */
+  readonly variant?: ModelChoice;
+  /** For tuned engines: which adapter (its run name). Part of the cache key, so a new adapter means new results. */
+  readonly adapter?: string;
+  /** Runs on this computer, not on the shared free GPU: no quota is spent or recorded. */
+  readonly local?: boolean;
+  /** Overrides the studio's timeout for this engine (a laptop needs minutes, not seconds). */
+  readonly timeoutMs?: number;
   /** Resolves to the generated image's bytes, in whatever format the engine returns. */
   run(input: TryOnInput, onEvent: (e: EngineEvent) => void, signal: AbortSignal): Promise<Buffer>;
 }
@@ -98,6 +113,8 @@ export interface ResultMeta {
   prep?: Prep;
   /** Output guardrails run on the generated image (quality.ts). Absent on results saved before them. */
   quality?: OutputQuality;
+  /** Present on results from the LoRA-adapted model: the variant and the adapter's run name. */
+  model?: { variant: ModelChoice; adapter?: string };
 }
 
 /**

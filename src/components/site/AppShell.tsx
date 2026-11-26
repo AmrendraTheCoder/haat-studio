@@ -33,9 +33,10 @@ const TOOLS: { id: ShellSection; href: string }[] = [
 ];
 
 /**
- * The working pages' frame: a sidebar with every tool, a top bar with where you
- * are, today's free GPU, the language and Help. On phones the sidebar becomes a
- * menu drawer.
+ * The working pages' frame: a sidebar with every tool (and the language, in its
+ * footer), a top bar with where you are, today's free GPU and Help. On phones the
+ * sidebar becomes a menu drawer, language included. The top bar holds no language
+ * switch: it's set once, not used on every visit.
  */
 export function AppShell({
   setup,
@@ -55,12 +56,12 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)]">
-      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-paper-glow lg:flex print:hidden">
+      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-paper-glow lg:flex print:hidden" data-testid="sidebar">
         <SideNav active={active} />
       </aside>
 
       <div className="min-w-0">
-        <header className="sticky top-0 z-40 border-b border-line bg-paper-glow/90 backdrop-blur-lg print:hidden">
+        <header className="sticky top-0 z-40 border-b border-line bg-paper-glow/90 backdrop-blur-lg print:hidden" data-testid="topbar">
           <div className="flex h-16 items-center gap-2 px-3 sm:px-6">
             <button
               type="button"
@@ -96,7 +97,6 @@ export function AppShell({
             </nav>
             <div className="ml-auto flex items-center gap-2">
               <StatusChip setup={setup} className="hidden sm:inline-flex" />
-              <LanguageToggle />
               <button type="button" onClick={() => setHelp(true)} className="btn-ghost !gap-1.5 !px-3 shadow-none" aria-haspopup="dialog">
                 {ICONS.help}
                 <span className="hidden sm:inline">{t.shell.help}</span>
@@ -113,7 +113,7 @@ export function AppShell({
 
       {menu && (
         <Drawer side="left" label={t.shell.navLabel} closeLabel={t.shell.closeMenu} onClose={() => setMenu(false)}>
-<SideNav active={active} />
+          <SideNav active={active} />
         </Drawer>
       )}
       {help && (
@@ -135,9 +135,12 @@ export function AppShell({
 
 function SideNav({ active }: { active: ShellSection }) {
   const { t } = useI18n();
+  // Active: tinted row plus a brand bar on the left edge, as in Polaris and Workspace.
   const item = (on: boolean) =>
-    `flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors ${
-      on ? "bg-accent-wash text-accent-strong" : "text-ink-2 hover:bg-paper-2 hover:text-ink"
+    `relative flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm transition-colors ${
+      on
+        ? "bg-accent-wash font-semibold text-accent-strong before:absolute before:inset-y-2.5 before:-left-3 before:w-1 before:rounded-r-full before:bg-accent-strong"
+        : "font-medium text-ink-2 hover:bg-paper-2 hover:text-ink"
     }`;
   return (
     <div className="flex h-full flex-col">
@@ -180,6 +183,9 @@ function SideNav({ active }: { active: ShellSection }) {
           </li>
         </ul>
       </nav>
+      <div className="shrink-0 border-t border-line px-5 py-3">
+        <LanguageToggle tone="compact" />
+      </div>
     </div>
   );
 }
@@ -189,16 +195,20 @@ export function StatusChip({ setup, className = "" }: { setup: Setup; className?
   const ready = setup.engine.configured;
   const test = TEST_ENGINES.has(setup.engine.id);
   const quota = setup.quota;
-  const label = !ready ? t.nav.engine.demo : test ? t.nav.engine.test : quota ? t.quota.chip(quota.photosLeft) : t.nav.engine.ready;
-  // Green while photos remain, amber when generation is off or today's quota is spent.
-  const ok = ready && (!quota || quota.photosLeft > 0);
+  const label = !ready ? t.nav.engine.setup : test ? t.nav.engine.test : quota ? t.quota.chip(quota.photosLeft) : t.nav.engine.ready;
+  // Green while photos remain, amber when today's quota is spent, neutral grey when
+  // generation isn't set up on this server (nothing is wrong for the seller; the rest works).
+  const tone = !ready ? "off" : !quota || quota.photosLeft > 0 ? "ok" : "spent";
+  const hint = ready ? null : t.nav.engine.setupHint(setup.engine.missing ?? "");
   return (
     <span
-      className={`chip ${ok ? "!border-good/30 !bg-good-wash !text-good" : "!border-marigold/60 !bg-marigold-wash !text-ink-2"} ${className}`}
-      title={ready ? setup.engine.label : setup.engine.missing}
+      className={`chip ${tone === "ok" ? "!border-good/30 !bg-good-wash !text-good" : tone === "spent" ? "!border-marigold/60 !bg-marigold-wash !text-ink-2" : "!bg-paper-2 !text-ink-2"} ${className}`}
+      title={hint ?? setup.engine.label}
+      data-testid="engine-status"
     >
-      <span className={`size-1.5 shrink-0 rounded-full ${ok ? "bg-good" : "bg-marigold"}`} />
+      <span className={`size-1.5 shrink-0 rounded-full ${tone === "ok" ? "bg-good" : tone === "spent" ? "bg-marigold" : "bg-ink-3"}`} />
       {label}
+      {hint && <span className="sr-only">. {hint}</span>}
     </span>
   );
 }

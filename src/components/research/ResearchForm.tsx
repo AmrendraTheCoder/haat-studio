@@ -1,7 +1,10 @@
 "use client";
 
+import { PageHeader } from "@/components/shared/PageHeader";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState } from "react";
+import type { MarketOptions } from "@/lib/market/catalogue";
+import { MARKET_ATTRS, type MarketAttr, type MarketType } from "@/lib/market/engines";
 import { HelpTip, type HelpTopic } from "@/components/shared/HelpTip";
 import { PasscodeField } from "@/components/shared/Passcode";
 import { passcodeHeaders } from "@/lib/client/passcode";
@@ -24,14 +27,23 @@ type Form = {
   ages: (typeof AGES)[number][];
   gender: "women" | "men" | "all" | "";
   goal: keyof typeof GOALS | "";
+  /** Optional comparison with real listings: a product type and its attributes (catalogue spellings). */
+  market: { type: MarketType | "" } & Partial<Record<MarketAttr, string>>;
 };
 
-const EMPTY: Form = { shopName: "", product: "", category: "", city: "", channels: ["instagram"], priceMin: "", priceMax: "", costPerPiece: "", ages: [], gender: "", goal: "" };
+const EMPTY: Form = { shopName: "", product: "", category: "", city: "", channels: ["instagram"], priceMin: "", priceMax: "", costPerPiece: "", ages: [], gender: "", goal: "", market: { type: "" } };
+
+/** The answers' `market` field: only a chosen type and the attributes the seller filled in. */
+const marketAnswer = (m: Form["market"]) => {
+  if (!m.type) return undefined;
+  const attrs = Object.fromEntries(Object.entries(m).filter(([k, v]) => k !== "type" && v));
+  return { type: m.type, ...attrs };
+};
 
 const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 const digits = (v: string) => v.replace(/[^\d]/g, "");
 
-export function ResearchForm({ setup }: { setup: Setup }) {
+export function ResearchForm({ setup, market = [] }: { setup: Setup; market?: MarketOptions }) {
   const router = useRouter();
   const { t, locale } = useI18n();
   const Q = t.research;
@@ -47,11 +59,17 @@ export function ResearchForm({ setup }: { setup: Setup }) {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(ANSWERS_KEY);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from browser storage
-      if (saved) setForm({ ...EMPTY, ...(JSON.parse(saved) as Partial<Form>) });
+      if (saved) {
+        const restored = { ...EMPTY, ...(JSON.parse(saved) as Partial<Form>) };
+        // A saved product type the catalogue no longer has is dropped.
+        if (restored.market?.type && !market.some((o) => o.type === restored.market.type)) restored.market = { type: "" };
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from browser storage
+        setForm({ ...restored, market: restored.market ?? { type: "" } });
+      }
     } catch {
       // Start empty.
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- read once on mount; the catalogue options do not change while the page is open
   }, []);
 
   useEffect(() => {
@@ -60,7 +78,7 @@ export function ResearchForm({ setup }: { setup: Setup }) {
     return () => clearInterval(timer);
   }, [state]);
 
-  const parsed = useMemo(() => answersSchema.safeParse({ ...form, costPerPiece: form.costPerPiece || undefined, language: locale }), [form, locale]);
+  const parsed = useMemo(() => answersSchema.safeParse({ ...form, costPerPiece: form.costPerPiece || undefined, market: marketAnswer(form.market), language: locale }), [form, locale]);
   const errors = useMemo(() => {
     const out: Record<string, string> = {};
     if (!parsed.success) for (const i of parsed.error.issues) out[String(i.path[0])] ??= Q.errors[String(i.path[0])] ?? i.message;
@@ -88,6 +106,9 @@ export function ResearchForm({ setup }: { setup: Setup }) {
     [X.rows.age, form.ages.join(", ") || X.none, 4],
     [X.rows.gender, form.gender ? Q.genders[form.gender] : X.none, 4],
     [X.rows.goal, form.goal ? Q.goals[form.goal] : X.none, 5],
+    ...(market.length
+      ? ([[t.market.type, form.market.type ? [market.find((o) => o.type === form.market.type)?.label, ...MARKET_ATTRS.map((k) => form.market[k])].filter(Boolean).join(" · ") : t.market.none, 6]] as [string, string, number][])
+      : []),
   ];
 
   async function submit() {
@@ -126,14 +147,9 @@ export function ResearchForm({ setup }: { setup: Setup }) {
 
   return (
     <main className="app-page">
-      <p className="kicker">{Q.kicker}</p>
-      <div className="mt-2 flex items-center gap-2">
-        <h1 className="h-page sm:text-4xl">{Q.h1}</h1>
-        <HelpTip topic="research" />
-      </div>
-      <p className="mt-3 max-w-2xl text-lg leading-relaxed text-ink-2">{Q.lead}</p>
+      <PageHeader kicker={Q.kicker} title={Q.h1} help={<HelpTip topic="research" />} lead={Q.lead} />
 
-      <div className="mt-5 space-y-3">
+      <div className="space-y-3 empty:hidden">
         {!setup.llm && (
           <p className="rounded-xl border border-marigold/60 bg-marigold-wash px-4 py-3 text-sm leading-relaxed">
             <strong>{Q.aiOffTitle}</strong> {Q.aiOffBody}
@@ -202,6 +218,40 @@ export function ResearchForm({ setup }: { setup: Setup }) {
               </Pick>
             ))}
           </Choice>
+        </Section>
+
+        <Section n={6} title={t.market.formTitle}>
+          {market.length === 0 ? (
+            <p className="text-sm text-ink-3">{t.market.off}</p>
+          ) : (
+            <>
+              <p className="text-sm text-ink-2">{t.market.formLead(market.reduce((n, o) => n + o.listings, 0).toLocaleString("en-IN"))}</p>
+              <Choice label={t.market.type}>
+                <Pick on={!form.market.type} onClick={() => set("market", { type: "" })}>
+                  {t.market.none}
+                </Pick>
+                {market.map((o) => (
+                  <Pick key={o.type} on={form.market.type === o.type} onClick={() => set("market", { type: o.type })}>
+                    {o.label.replace(/ \(.*\)$/, "")}
+                  </Pick>
+                ))}
+              </Choice>
+              {form.market.type && (
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {MARKET_ATTRS.filter((k) => market.find((o) => o.type === form.market.type)?.values[k]?.length).map((k) => (
+                    <MarketSelect
+                      key={k}
+                      label={t.market.attrs[k]}
+                      any={t.market.any}
+                      value={form.market[k] ?? ""}
+                      options={market.find((o) => o.type === form.market.type)!.values[k]!}
+                      onChange={(v) => set("market", { ...form.market, [k]: v || undefined })}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </Section>
       </div>
 
@@ -337,5 +387,24 @@ function Pick({ on, onClick, children }: { on: boolean; onClick: () => void; chi
     >
       {children}
     </button>
+  );
+}
+
+function MarketSelect({ label, any, value, options, onChange }: { label: string; any: string; value: string; options: string[]; onChange: (v: string) => void }) {
+  const id = useId();
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium">
+        {label}
+      </label>
+      <select id={id} className="input min-h-11" value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{any}</option>
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }

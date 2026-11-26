@@ -7,7 +7,7 @@ import { readRecent, readSetup } from "@/lib/site";
 import { store } from "@/lib/tryon";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getMessages()).t.library.title };
+  return { title: (await getMessages()).t.meta.library };
 }
 
 /** Every saved photo on this server, sortable and filterable. Reads only. */

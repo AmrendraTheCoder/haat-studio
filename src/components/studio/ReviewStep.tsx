@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/shared/PageHeader";
 import type { ReactNode } from "react";
 import { HelpTip } from "@/components/shared/HelpTip";
 import { TEST_ENGINES } from "@/lib/engines";
@@ -8,6 +9,7 @@ import { ALL_SAMPLES, PRESETS } from "@/lib/presets";
 import type { Setup } from "@/lib/site";
 import { QUALITY_STEPS } from "@/lib/tryon/types";
 import { STANDARD_SEED, costKind, createBlock, fitFor } from "@/lib/ui/catalogue";
+import { localMinutes } from "./Steps";
 import { ActionBar, QuotaMeter } from "./parts";
 import type { Inputs, View } from "./types";
 
@@ -26,21 +28,18 @@ export function ReviewStep({ inputs, setup, onEdit, onCreate }: { inputs: Inputs
   const fit = fitFor(preset, category);
   const test = TEST_ENGINES.has(setup.engine.id);
   const quota = setup.quota;
-  const block = createBlock({ garment: Boolean(garment), category: Boolean(category), person: Boolean(person), configured: setup.engine.configured });
-  const reason = block === "incomplete" ? t.studio.steps.finishEarlier : block === "off" ? t.model.reasonOff : null;
+  const chosen = setup.models[inputs.model];
+  const block = createBlock({ garment: Boolean(garment), category: Boolean(category), person: Boolean(person), configured: chosen.available });
+  const reason = block === "incomplete" ? t.studio.steps.finishEarlier : block === "off" ? t.tuned.unavailable(chosen.reason ?? "") : null;
 
   const kind = costKind({ test, photosLeft: quota ? quota.photosLeft : null });
-  const cost = kind === "test" ? R.costTest : kind === "unknown" ? R.costUnknown : R.cost(quota?.photosLeft ?? 0);
+  const cost = inputs.model === "tuned" && chosen.local ? t.tuned.local(localMinutes(inputs.quality)) : kind === "test" ? R.costTest : kind === "unknown" ? R.costUnknown : R.cost(quota?.photosLeft ?? 0);
 
   return (
     <div className="rise">
-      <div className="flex items-center gap-2">
-        <h1 className="h-page">{R.h1}</h1>
-        <HelpTip topic="review" />
-      </div>
-      <p className="mt-2 max-w-2xl text-ink-2">{R.lead}</p>
+      <PageHeader title={R.h1} help={<HelpTip topic="review" />} lead={R.lead} />
 
-      <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <section aria-labelledby="review-summary" className="card overflow-hidden">
           <div className="flex items-center gap-4 border-b border-line bg-paper-2/60 p-5">
             <h2 id="review-summary" className="mr-auto text-sm font-semibold">
@@ -71,6 +70,9 @@ export function ReviewStep({ inputs, setup, onEdit, onCreate }: { inputs: Inputs
               ) : (
                 <span className="font-semibold text-danger">{t.model.notFor(t.product.categoryPlural[category])}</span>
               )}
+            </Row>
+            <Row label={t.tuned.label} edit={() => onEdit("model")} editLabel={R.editAria(t.tuned.label)}>
+              {inputs.model === "tuned" ? t.tuned.reviewTuned(chosen.adapter ?? "") : t.tuned.reviewBase}
             </Row>
             <Row label={R.rows.quality} edit={() => onEdit("model")} editLabel={R.editAria(R.rows.quality)}>
               {R.qualityValue(t.model.qualities[inputs.quality].title, QUALITY_STEPS[inputs.quality])}

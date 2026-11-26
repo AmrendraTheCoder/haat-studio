@@ -96,9 +96,12 @@ body {
   background: var(--color-accent-wash);
   color: var(--color-ink);
 }
+/* One focus style everywhere: a brand ring with a white gap, visible on white,
+   on tints and on photos. Keyboard only (:focus-visible), never on click. */
 :focus-visible {
   outline: 2px solid var(--color-accent-strong);
   outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--color-paper-glow);
   border-radius: 6px;
 }
 /* Headings the app moves focus to (so screen readers announce the new step)
@@ -269,9 +272,34 @@ input,
     max-width: 112rem;
   }
 
+  /* Public pages (landing, design): edge to edge with generous gutters, capped
+     only past 1920 px so a 4K screen doesn't stretch a line across the room. */
+  .site-container {
+    @apply mx-auto w-full px-4 sm:px-6 lg:px-10 2xl:px-16;
+    max-width: 120rem;
+  }
+
   /* Page heading inside the tools. */
   .h-page {
     @apply text-2xl font-bold tracking-[-0.005em] sm:text-3xl;
+  }
+
+  /* Title row of a working page (see PageHeader): text left, actions right,
+     stacked on phones; a hairline separates it from the page's content. */
+  .page-header {
+    @apply mb-6 flex flex-col gap-4 border-b border-line pb-5 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:pb-6;
+  }
+
+  /* A titled block inside a page: header strip, then content. */
+  .section-title {
+    @apply text-base font-semibold text-ink;
+  }
+
+  /* "Nothing here yet": icon, one sentence, one way forward. */
+  .empty-state {
+    @apply flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-14 text-center;
+    border-color: var(--color-line-strong);
+    background: var(--color-paper-glow);
   }
   .h-page:lang(hi) { letter-spacing: 0; }
 

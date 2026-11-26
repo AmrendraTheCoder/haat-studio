@@ -11,6 +11,23 @@ const schema = z.object({
   /** Ceiling on one generation, queue included. */
   TRYON_TIMEOUT_MS: z.coerce.number().int().positive().default(240_000),
   /**
+   * The LoRA-tuned model ("Haat-tuned" in the studio). Two ways to run it, listed in TRYON_ENGINES:
+   *   local-lora        on this computer, through ml/scripts/sample.py (needs ml/.venv and ml/weights;
+   *                     about 1–2 min a photo on an 8 GB Mac at half size, seconds on a CUDA GPU)
+   *   fashn-lora-space  a copy of FASHN's Space with the adapter merged in, named by LORA_SPACE
+   */
+  LORA_ADAPTER: z.string().default("ml/runs/laptop-v1/lora-best.safetensors"),
+  ML_PYTHON: z.string().default("ml/.venv/bin/python"),
+  LORA_SPACE: optional(z.string().regex(/^[\w.-]+\/[\w.-]+$/, "LORA_SPACE is owner/space-name")),
+  /** The catalogue the market engines read (analysis/market.py --app-out). Optional: without it the
+   *  research report simply has no "from real listings" section. */
+  MARKET_FILE: z.string().default("data/market/catalogue.json"),
+  /** local-lora generates at this fraction of full size: 0.5 is what the laptop adapter was trained and
+   *  evaluated at, and what fits in 8 GB (full size was killed for lack of memory). The result is
+   *  upsampled back to full size. Use 1 on a CUDA GPU with an adapter trained at full size. */
+  LOCAL_LORA_SCALE: z.coerce.number().positive().max(1).default(0.5),
+  LOCAL_LORA_TIMEOUT_MS: z.coerce.number().int().positive().default(45 * 60_000),
+  /**
    * Where results, the quota ledger and research reports are saved. On Vercel the
    * project folder is read-only, so the default there is /tmp: it works, but it is
    * per-instance and cleared when the instance is recycled (see docs/deploy-vercel.md).

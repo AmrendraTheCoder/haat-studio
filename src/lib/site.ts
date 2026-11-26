@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
 import { llmConfigured } from "@/lib/llm";
 import { ALL_SAMPLES, PRESETS } from "@/lib/presets";
 import type { QuotaStatus } from "@/lib/quota";
-import { enginesFromEnv, readQuota, store } from "@/lib/tryon";
+import { enginesFromEnv, modelAvailability, readQuota, store } from "@/lib/tryon";
 import type { ResultMeta } from "@/lib/tryon/types";
 
 /** Everything the pages need to know about this installation. Pure data, passed to client components. */
@@ -19,8 +19,10 @@ export interface Setup {
   passcodeRequired: boolean;
   /** A text-AI key is set, so captions and research are AI-written, not templates. */
   llm: boolean;
-  /** Free GPU time left today; null in demo mode or on a test engine. */
+  /** Free GPU time left today; null when no shared-GPU engine is set up, or on a test engine. */
   quota: QuotaStatus | null;
+  /** Which try-on AIs the studio can offer: Standard (FASHN as released) and Haat-tuned (LoRA). */
+  models: ReturnType<typeof modelAvailability>;
 }
 
 const exists = (p: string) =>
@@ -62,6 +64,7 @@ export async function readSetup(): Promise<Setup> {
     passcodeRequired,
     llm,
     quota,
+    models: modelAvailability(),
   };
 }
 

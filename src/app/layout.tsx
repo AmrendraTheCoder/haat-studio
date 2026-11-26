@@ -10,7 +10,12 @@ import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getMessages();
-  return { title: { default: t.meta.home, template: "%s · Haat Studio" }, description: t.meta.description };
+  return {
+    title: { default: t.meta.home, template: "%s · Haat Studio" },
+    description: t.meta.description,
+    applicationName: "Haat Studio",
+    appleWebApp: { title: "Haat Studio" },
+  };
 }
 
 export const viewport: Viewport = {

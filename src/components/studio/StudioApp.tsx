@@ -63,7 +63,7 @@ export function StudioApp({
   const { t } = useI18n();
   const [inputs, setInputs] = useState<Inputs>(() => {
     const first = PRESETS.find((p) => setup.presets.includes(p.id));
-    return { garment: null, category: null, photoType: "flat-lay", person: first ? { kind: "preset", id: first.id } : null, quality: "balanced", seed: FIRST_SEED };
+    return { garment: null, category: null, photoType: "flat-lay", person: first ? { kind: "preset", id: first.id } : null, quality: "balanced", seed: FIRST_SEED, model: !setup.models.base.available && setup.models.tuned.available ? "tuned" : "base" };
   });
   const [view, setView] = useState<View>(initialKey ? "result" : "product");
   // A link to a result starts in "working" with an empty log; the effect below re-attaches.
@@ -222,6 +222,7 @@ export function StudioApp({
     if (input.person.kind === "preset") form.set("preset", input.person.id);
     else form.set("person", input.person.file);
     for (const [k, v] of Object.entries(input.settings)) form.set(k, String(v));
+    form.set("model", input.model);
 
     let res: Response;
     try {
@@ -302,6 +303,7 @@ export function StudioApp({
       person,
       quality: r.settings.quality,
       seed: r.settings.seed,
+      model: r.model?.variant ?? "base",
     }));
     return { garment, person: preset ? ({ kind: "preset", id: preset.id } as const) : ({ kind: "upload", file: personFile! } as const) };
   }
@@ -343,12 +345,13 @@ export function StudioApp({
 
   function create() {
     const { garment, category, person } = inputs;
-    if (!garment || !category || !person || !setup.engine.configured) return;
+    if (!garment || !category || !person || !setup.models[inputs.model].available) return;
     const preset = person.kind === "preset" ? PRESETS.find((p) => p.id === person.id) : undefined;
     void submit({
       garment: garment.file,
       person: person.kind === "preset" ? { kind: "preset", id: person.id } : { kind: "upload", file: person.picked.file },
       settings: { category, photoType: inputs.photoType, quality: inputs.quality, seed: inputs.seed },
+      model: inputs.model,
       garmentPreview: garment.url,
       personPreview: preset ? `/presets/${preset.file}` : person.kind === "upload" ? person.picked.url : "",
     });
@@ -396,21 +399,11 @@ export function StudioApp({
         crumbs={[{ label: t.shell.nav.studio, href: "/studio" }, { label: t.studio.steps[view] }]}
       >
       <main className="app-page">
-        {!setup.engine.configured && (
+        {!setup.models.base.available && !setup.models.tuned.available && (
           <div className="mb-6">
             <Notice tone="warn">
-              <strong>{t.studio.demoTitle}</strong>{" "}
-              {setup.engine.label === "misconfigured" ? (
-                t.studio.configProblem(setup.engine.missing ?? "")
-              ) : (
-                <>
-                  {t.studio.demoBody}{" "}
-                  <a className="underline" href="https://huggingface.co/settings/tokens" target="_blank" rel="noreferrer">
-                    huggingface.co/settings/tokens
-                  </a>{" "}
-                  {t.studio.demoBodyEnd}
-                </>
-              )}
+              <strong>{t.tuned.offTitle}</strong>{" "}
+              {setup.engine.label === "misconfigured" ? t.studio.configProblem(setup.engine.missing ?? "") : t.tuned.offBody}
             </Notice>
           </div>
         )}
@@ -462,6 +455,7 @@ export function StudioApp({
                 setInputs((i) => ({ ...i, person: null }));
               }}
               onQuality={(quality) => setInputs((i) => ({ ...i, quality }))}
+              onModel={(model) => setInputs((i) => ({ ...i, model }))}
               onSeed={(seed) => setInputs((i) => ({ ...i, seed }))}
               onBack={() => setView("product")}
               onReview={() => setView("review")}
@@ -480,7 +474,7 @@ export function StudioApp({
               onVariation={(r) => void variation(r)}
               onAnotherModel={(r) => void anotherModel(r)}
               onNewProduct={newProduct}
-              onRetry={lastRequest && setup.engine.configured ? () => void submit(lastRequest) : null}
+              onRetry={lastRequest && setup.models[lastRequest.model].available ? () => void submit(lastRequest) : null}
               onReconnect={run.phase === "error" && run.key ? () => void reconnect(run.key!) : null}
               onGo={go}
             />

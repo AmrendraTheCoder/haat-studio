@@ -3,7 +3,7 @@ import { requirePasscode } from "@/lib/guard";
 import { readPreset, studio } from "@/lib/tryon";
 import { InputError, prepareImage } from "@/lib/tryon/image";
 import { streamJob } from "@/lib/tryon/stream";
-import { settingsSchema } from "@/lib/tryon/types";
+import { MODEL_CHOICES, settingsSchema, type ModelChoice } from "@/lib/tryon/types";
 
 // A cold Space plus a queue can take minutes. Honoured by hosts that read it.
 export const maxDuration = 300;
@@ -15,7 +15,7 @@ const fileBytes = async (value: FormDataEntryValue | null) =>
 
 /**
  * POST multipart: garment (file), preset (id) or person (file), category,
- * photoType, quality, seed.
+ * photoType, quality, seed, and optionally model ("base" | "tuned", default base).
  *
  * Responds with NDJSON — one StreamEvent per line, ending with `done` or
  * `error`. Problems with the request itself come back as a plain 4xx JSON
@@ -41,6 +41,10 @@ export async function POST(request: Request) {
   if (!settings.success) {
     return bad(`Invalid settings: ${settings.error.issues.map((i) => `${i.path.join(".")} ${i.message}`).join(", ")}`);
   }
+
+  const modelRaw = form.get("model") ?? "base";
+  if (!MODEL_CHOICES.includes(modelRaw as ModelChoice)) return bad(`Invalid model: use ${MODEL_CHOICES.join(" or ")}.`);
+  const model = modelRaw as ModelChoice;
 
   const garmentRaw = await fileBytes(form.get("garment"));
   if (!garmentRaw) return bad("Add a photo of the garment.");
@@ -72,6 +76,7 @@ export async function POST(request: Request) {
     personId,
     settings: settings.data,
     prep: { garment: garment.info, person: person.info },
+    model,
   });
   return streamJob(job);
 }

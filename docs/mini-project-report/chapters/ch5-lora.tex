@@ -207,7 +207,12 @@ Inference cost & unchanged & unchanged when merged\\
 \section{How a Photograph Will Be Produced after Integration}
 \label{sec:integration}
 
-Figure~\ref{fig:integration} shows how a request will flow once the adapter is part of the application, and Table~\ref{tab:layers-after} what each layer contributes before and after. The integration needs no change to the orchestration: an engine is one file plus one line in the registry (Section~3.5).
+The adapter is part of the application. In the studio the seller now chooses the \emph{try-on AI}: \emph{Standard} (FASHN VTON 1.5 as released) or \emph{Haat-tuned} (the same network with the adapter of Section~\ref{sec:e6}). Each engine declares which of the two it serves, and \texttt{studio.start()} tries only the engines of the chosen variant; everything else in Chapter~3 (cache, job sharing, the GPU lock, the error chain and the output guardrails) is unchanged. Tuned results are stored under their own cache keys (\texttt{tuned:<adapter>}), so a base photograph is never served for a tuned request, and the cache keys of base requests did not change. Two engines serve the tuned variant:
+\begin{itemize}
+\item \textbf{local-lora} runs the adapter on the seller's own computer through \texttt{ml/scripts/sample.py}, the code the evaluation used, and spends no shared GPU quota. It generates at half resolution, the size the adapter was trained and evaluated at, and upsamples the result to full size: at full size the 8~GB laptop ran out of memory (7.5~GB peak footprint) and the system stopped the process, while at half size one photograph took 54~s of sampling for 20 steps at a 4.8~GB peak.\ifTuned{} Through the whole application path, one Haat-tuned photograph (\vTunedSteps{} steps, adapter \texttt{\vTunedAdapter{}}) took \vTunedSec{}~s from request to saved result and \vTunedPass{} every output guardrail.\fi
+\item \textbf{fashn-lora-space} calls a copy of FASHN's Space with the adapter merged into the weights, set by \texttt{LORA\_SPACE}. It is implemented and tested against a fake Space; the Space itself has not been created, because it needs a GPU-backed Hugging Face account.
+\end{itemize}
+Figure~\ref{fig:integration} shows the request flow with the tuned engine, and Table~\ref{tab:layers-after} what each layer contributes with and without it.
 
 \begin{figure}[!htbp]
 \centering
@@ -217,7 +222,7 @@ Figure~\ref{fig:integration} shows how a request will flow once the adapter is p
 \node[box=cA,text width=26mm,right=of u] (g) {Guards\\\scriptsize passcode, settings,\\model suits the garment?};
 \node[box=cA,text width=26mm,right=of g] (c) {prepareImage\\\scriptsize upright, white, no GPS};
 \node[box=cA,text width=26mm,right=of c] (s) {studio.start\\\scriptsize cache, sharing, lock};
-\node[box=cB,text width=40mm,below=8mm of s] (l) {\textbf{fashn-lora engine (new)}\\\scriptsize our Space: base + merged adapter,\\parser removed, saree/lehenga categories};
+\node[box=cB,text width=40mm,below=8mm of s] (l) {\textbf{Haat-tuned engines (new)}\\\scriptsize local-lora: this computer, half size\\fashn-lora-space: own Space, merged adapter};
 \node[box=cD,text width=34mm,left=6mm of l] (f) {fashn-space engine\\\scriptsize FASHN's Space (fallback)};
 \node[box=cA,text width=26mm,left=6mm of f] (v) {Save + stream\\\scriptsize result, timings};
 \node[box=cC,text width=26mm,left=6mm of v] (e) {Content engines\\\scriptsize price band, title,\\hashtags, calendar};
@@ -233,20 +238,20 @@ Figure~\ref{fig:integration} shows how a request will flow once the adapter is p
 
 \begin{table}[!htbp]
 \centering
-\caption{What each layer of the system contributes now and after integration.}
+\caption{What each layer of the system contributes with the Standard and the Haat-tuned AI.}
 \label{tab:layers-after}
 \small
 \begin{tabularx}{\linewidth}{@{}L{30mm}YY@{}}
 \toprule
-\textbf{Layer} & \textbf{Now (base model)} & \textbf{After integration}\\
+\textbf{Layer} & \textbf{Standard (base model)} & \textbf{Haat-tuned (implemented)}\\
 \midrule
 Input guards & passcode, settings, photo cleaning, model-suitability marks & same, plus garment-photo checks (blur, cut-off garment) before any GPU time\\
-Orchestration & cache, job sharing, GPU lock, error chain & unchanged; the chain gains a second real engine\\
-Try-on network & FASHN VTON 1.5 as released, on FASHN's Space & same network with the merged LoRA adapter on our own Space; categories 0--3 plus saree and lehenga\\
-Licence & human parser loaded although unused & parser removed: the whole pipeline is Apache-2.0\\
-Inference cost & 60 passes, $\sim$\vMedTotal{}~s on the free GPU & identical (a merged adapter adds no computation)\\
-Fallback & none in practice (one real engine) & FASHN's Space if our Space is down or out of quota\\
-Content & captions and research report & plus catalogue-driven price band, title, hashtags, positioning and calendar\\
+Orchestration & cache, job sharing, GPU lock, error chain & unchanged; the seller's choice selects the engines, and tuned results get their own cache keys\\
+Try-on network & FASHN VTON 1.5 as released, on FASHN's Space & same network with the LoRA adapter, on this computer (local-lora) or on an own Space (fashn-lora-space, not yet hosted)\\
+Licence & human parser loaded although unused & planned: parser removed, so the whole pipeline is Apache-2.0\\
+Inference cost & 60 passes, $\sim$\vMedTotal{}~s on the free GPU & local: half size on the laptop, no shared quota\ifTuned{} (\vTunedSec{}~s measured)\fi; hosted with a merged adapter: identical to Standard\\
+Fallback & none in practice (one real engine) & each tuned engine falls back to the next tuned engine; Standard requests are unaffected\\
+Content & captions and research report & the research report adds a price band, title, hashtags and positioning from real listings (Section~\ref{sec:engines-app})\\
 Evaluation & rubric on 4 images & base-vs-adapter comparison with confidence intervals on held-out garments (Section~\ref{sec:e6}), repeated for each new adapter\\
 \bottomrule
 \end{tabularx}

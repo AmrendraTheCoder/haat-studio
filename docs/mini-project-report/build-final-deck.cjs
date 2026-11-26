@@ -100,6 +100,20 @@ const labHex = ([L, a, b]) => {
   const lin = [3.2406 * X - 1.5372 * Y - 0.4986 * Z, -0.9689 * X + 1.8758 * Y + 0.0415 * Z, 0.0557 * X - 0.204 * Y + 1.057 * Z];
   return lin.map((c) => { const v = c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055; return Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, "0"); }).join("").toUpperCase();
 };
+// pptxgenjs gives the slide-number field id 25 and can give a table the id of another shape, so
+// slides with many shapes end up with two shapes sharing an id. PowerPoint then reports the file
+// as damaged. Renumber every shape on every slide and layout: 1 for the shape tree, then 2, 3, ...
+async function uniqueShapeIds(file) {
+  const JSZip = require("jszip");
+  const zip = await JSZip.loadAsync(fs.readFileSync(file));
+  for (const name of Object.keys(zip.files).filter((f) => /^ppt\/(slides|slideLayouts|slideMasters)\/[^/]+\.xml$/.test(f))) {
+    const xml = await zip.file(name).async("string");
+    let next = 1;
+    const fixed = xml.replace(/<p:cNvPr id="\d+"/g, () => `<p:cNvPr id="${next++}"`);
+    if (fixed !== xml) zip.file(name, fixed);
+  }
+  fs.writeFileSync(file, await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
+}
 const rs = (x) => `₹${Number(x).toLocaleString("en-IN")}`;
 const plain = (t) => String(t).replace(/\\,\$\\times\$\\,/g, "×").replace(/\$\\times\$/g, "×").replace(/[{}$\\]/g, "");
 const section = (num, title, sub) => {
@@ -610,31 +624,29 @@ const content = (sec, kick, title) => {
   addSection("Where it stands");
   section("06", "Where it stands", "How a photo is made after integration, what is done, and what comes next");
 
-  // 25 after integration
-  s = content("Where it stands", "After integration", "The adapted model becomes one more engine");
-  const flow2 = [["Upload", "garment + model"], ["Guards", "passcode, settings, model suits garment"], ["Clean", "upright, white, no GPS"], ["studio.start", "cache, sharing, lock"], ["fashn-lora", "base + merged adapter (new)"], ["Checks", "5 guardrails"], ["Post + plan", "engines and caption"]];
+  // 25 in the app: the seller chooses the try-on AI
+  s = content("Where it stands", "Integrated in the app", "The seller now chooses Standard or Haat-tuned");
+  const flow2 = [["Upload", "garment + model"], ["Try-on AI", "Standard or Haat-tuned"], ["Clean", "upright, white, no GPS"], ["studio.start", "cache, sharing, lock"], ["local-lora", "FASHN + our LoRA adapter"], ["Checks", "5 guardrails"], ["Post + plan", "engines and caption"]];
   const fw2 = 1.55, fg2 = (CW - 7 * fw2) / 6;
   flow2.forEach(([hd, sub], i) => {
-    const x = MX + i * (fw2 + fg2), hot = i === 4;
+    const x = MX + i * (fw2 + fg2), hot = i === 4 || i === 1;
     card(s, x, 1.85, fw2, 1.4, hot ? C.accent1 : C.background1, hot ? null : H.accent6);
     text(s, [{ text: hd, options: { bold: true, fontSize: 15, breakLine: true, color: hot ? C.background1 : C.text1 } }, { text: sub, options: { fontSize: 12, color: hot ? C.background1 : C.text2 } }], { x: x + 0.08, y: 1.85, w: fw2 - 0.16, h: 1.4, align: "center", valign: "middle" });
     if (i < 6) arrowR(s, x + fw2 + fg2 / 2 - 0.09, 2.46, C.accent4, 0.18);
   });
-  text(s, "If our Space is down or out of quota, the chain falls back to FASHN's own Space: the seller still gets a photo.", { x: MX, y: 3.4, w: CW, h: 0.4, fontSize: 14, italic: true, color: C.accent2 });
-  s.addTable([th(["", "Now", "After integration"]),
-    [{ text: "Try-on network", options: { bold: true } }, "FASHN VTON 1.5 as released", "same network + merged LoRA adapter; saree and lehenga categories"],
-    [{ text: "Licence", options: { bold: true } }, "non-commercial parser loaded (unused)", "parser removed: whole pipeline Apache-2.0"],
-    [{ text: "Cost per photo", options: { bold: true } }, `60 passes, about ${V.MedTotal} s on the free GPU`, "identical: a merged adapter adds no computation"],
-    [{ text: "Evaluation", options: { bold: true } }, "rubric on 4 images", "base vs adapter on held-out garments, 95% CI"],
-  ], tableOpts({ x: MX, y: 3.95, w: CW, colW: [2.2, 4.3, 5.43], rowH: 0.55, fontSize: 14 }));
-  source(s, "Integration = one engine file in src/lib/tryon/ plus one registry line. Report section 5.9.");
-  s.addNotes("The adapted model is served from our own Space and added as an engine; the cache, the lock, the error chain and the content engines stay exactly as they are. Running cost does not change, because the adapter is merged into the weights.");
+  const tunedSec = V.TunedSec ? `${V.TunedSec} s` : "about a minute";
+  stat(s, tunedSec, "one Haat-tuned photo through the app on the 8 GB laptop, all guardrails passed", MX, 3.5, 3.85, 1.75, C.accent1, 34);
+  stat(s, "4.8 GB", "peak memory at half size, the size the adapter was trained and tested at (full size ran out of memory)", MX + 4.08, 3.5, 3.85, 1.75, C.accent2, 34);
+  stat(s, "0", "free-GPU quota used: the tuned AI runs on the seller's own computer", MX + 8.16, 3.5, CW - 8.16, 1.75, C.text1, 34);
+  text(s, [{ text: "Same rules as Standard: ", options: { bold: true } }, { text: "cache, job sharing, the GPU lock and the five guardrails are unchanged. Tuned photos get their own cache keys and a Haat-tuned badge. A hosted engine (fashn-lora-space) is written and waits for a GPU Space.", options: { color: C.text2 } }], { x: MX, y: 5.5, w: CW, h: 1.2, fontSize: 15 });
+  source(s, "Code: src/lib/tryon/local-lora.ts (calls ml/scripts/sample.py with --lora and --scale 0.5), studio.ts. Report section 5.9.");
+  s.addNotes("This is the integration the project promised. The seller picks Standard or Haat-tuned on the model step. Haat-tuned runs our LoRA adapter on the seller's own laptop through the same script the evaluation used, at the resolution it was tested at, in about a minute, without spending any free GPU quota. Everything else in the pipeline stays exactly the same.");
 
   // 26 done / pending / next
   s = content("Where it stands", "Summary", "Done and measured, still pending, and next");
-  const cols = [["Done and measured", C.accent2, [`${V.MedTotal} s per photo; ${V.CacheMs} ms when saved`, `Training method rebuilt (${V.LossRatio}× proof)`, `${V.LoraLayers} adapters, ${V.StateRatio}× less training memory`, ...(F.ifLora ? [`LoRA: PSNR +${lm.psnr ? lm.psnr.diff.toFixed(2) : V.LcPsnrDiff} dB, pose drift ${V.LcPdRel}%`] : []), "Guardrails with ΔE2000 colour", `${V.MkTotalClean} listings, 5 engines`, `${D.tests.app + D.tests.ml} tests passing`]],
+  const cols = [["Done and measured", C.accent2, [`${V.MedTotal} s per photo; ${V.CacheMs} ms when saved`, `Training method rebuilt (${V.LossRatio}× proof)`, `${V.LoraLayers} adapters, ${V.StateRatio}× less training memory`, ...(F.ifLora ? [`LoRA: PSNR +${lm.psnr ? lm.psnr.diff.toFixed(2) : V.LcPsnrDiff} dB, pose drift ${V.LcPdRel}%`] : []), "Guardrails with ΔE2000 colour", "Haat-tuned AI inside the app", `${V.MkTotalClean} listings, engines in the app`, `${D.tests.app + D.tests.ml} tests passing`]],
     ["Pending", C.accent3, ["Full-resolution training on a CUDA GPU", "Cleaner pairs: drop multipacks and banners", "Human raters for the quality rubric", "More saree and lehenga photos"]],
-    ["Next", C.accent1, ["Serve the adapter as a second engine", "Connect the engines to the post maker", "Regional demand from sellers' own sales", "An open licence and a public demo"]]];
+    ["Next", C.accent1, ["Host the tuned AI on a GPU Space", "Connect the engines to the post maker", "Regional demand from sellers' own sales", "An open licence and a public demo"]]];
   cols.forEach(([hd, col, items], i) => {
     const x = MX + i * 4.08, w = 3.85;
     card(s, x, 1.85, w, 4.9);
@@ -660,5 +672,6 @@ const content = (sec, kick, title) => {
 
   await pres.writeFile({ fileName: OUT });
   await applyTheme(OUT, THEME);
+  await uniqueShapeIds(OUT);
   console.log("wrote", OUT);
 })();

@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/shared/PageHeader";
 import { useId, useState } from "react";
 import { HelpTip } from "@/components/shared/HelpTip";
 import { radioKeyDown, rovingTabIndex } from "@/lib/client/roving";
@@ -9,6 +10,7 @@ import { ALL_SAMPLES, PRESETS, type SampleGarment } from "@/lib/presets";
 import { STANDARD_SEED, bestPresetFor, categoryCounts, filterPresets, filterSamples, fitFor, parseSeed, type CategoryFilter, type GenderFilter, type WearingFilter } from "@/lib/ui/catalogue";
 import type { Setup } from "@/lib/site";
 import { ActionBar, Choices, Dropzone, ICONS, Notice, QuotaMeter } from "./parts";
+import { QUALITY_STEPS, type ModelChoice } from "@/lib/tryon/types";
 import type { Category, Inputs, PersonChoice, PhotoType, Quality } from "./types";
 
 const CATEGORIES: Category[] = ["tops", "bottoms", "one-pieces"];
@@ -47,10 +49,9 @@ export function ProductStep({
 
   return (
     <div className="rise">
-      <h1 className="h-page">{p.h1}</h1>
-      <p className="mt-2 max-w-3xl text-ink-2">{p.lead}</p>
+      <PageHeader title={p.h1} lead={p.lead} />
 
-      <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] xl:gap-8">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] xl:gap-8">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold">{t.help.topics.productPhoto.title}</h2>
@@ -222,6 +223,7 @@ export function ModelStep({
   onPersonFile,
   onClearPerson,
   onQuality,
+  onModel,
   onSeed,
   onBack,
   onReview,
@@ -233,6 +235,7 @@ export function ModelStep({
   onPersonFile: (file: File) => void;
   onClearPerson: () => void;
   onQuality: (q: Quality) => void;
+  onModel: (m: ModelChoice) => void;
   onSeed: (seed: number) => void;
   onBack: () => void;
   onReview: () => void;
@@ -270,8 +273,7 @@ export function ModelStep({
 
   return (
     <div className="rise">
-      <h1 className="h-page">{m.h1}</h1>
-      <p className="mt-2 max-w-2xl text-ink-2">{m.lead}</p>
+      <PageHeader title={m.h1} lead={m.lead} />
 
       {installed.length < PRESETS.length && (
         <div className="mt-4">
@@ -424,6 +426,8 @@ export function ModelStep({
         </div>
       )}
 
+      <ModelPicker setup={setup} value={inputs.model} quality={inputs.quality} onChange={onModel} />
+
       {/* Advanced: quality (refinement steps) and seed — both real request settings. */}
       <div className="card mt-6">
         <div className="flex items-center gap-1 pr-4">
@@ -502,7 +506,16 @@ export function ModelStep({
         </div>
       )}
 
-      <ActionBar reason={reason ?? (!setup.engine.configured ? m.reasonOff : setup.quota?.photosLeft === 0 ? t.quota.likelyRefused : m.expectation)}>
+      <ActionBar
+        reason={
+          reason ??
+          (!setup.models[inputs.model].available
+            ? t.tuned.unavailable(setup.models[inputs.model].reason ?? "")
+            : setup.quota?.photosLeft === 0 && !setup.models[inputs.model].local
+              ? t.quota.likelyRefused
+              : m.expectation)
+        }
+      >
         <button type="button" className="btn-ghost" onClick={onBack}>
           <span aria-hidden>←</span> {t.common.back}
         </button>
@@ -538,5 +551,55 @@ function Segmented<T extends string>({ label, id, value, options, onChange }: { 
         ))}
       </div>
     </div>
+  );
+}
+
+/* ── Which try-on AI: Standard (FASHN as released) or Haat-tuned (LoRA) ── */
+
+/** Minutes for one tuned photo on this project's 8 GB laptop at half size: ~2.7 s a step plus ~30 s to load (measured). */
+export const localMinutes = (q: Quality) => Math.max(1, Math.ceil((QUALITY_STEPS[q] * 2.7 + 30) / 60));
+
+function ModelPicker({ setup, value, quality, onChange }: { setup: Setup; value: ModelChoice; quality: Quality; onChange: (m: ModelChoice) => void }) {
+  const { t } = useI18n();
+  const T = t.tuned;
+  const headingId = useId();
+  const options: ModelChoice[] = ["base", "tuned"];
+  const tuned = setup.models.tuned;
+  return (
+    <section aria-labelledby={headingId} className="card mt-6 p-4 sm:p-5">
+      <h2 id={headingId} className="text-sm font-semibold">
+        {T.label}
+      </h2>
+      <p className="mt-1 text-xs text-ink-3">{T.lead}</p>
+      <div role="radiogroup" aria-labelledby={headingId} className="mt-3 grid gap-2 sm:grid-cols-2">
+        {options.map((o, i) => {
+          const avail = setup.models[o];
+          const active = o === value;
+          return (
+            <button
+              key={o}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              aria-disabled={!avail.available}
+              tabIndex={rovingTabIndex(active, i, true)}
+              onKeyDown={radioKeyDown}
+              onClick={() => avail.available && onChange(o)}
+              className={`option flex min-h-11 flex-col items-start gap-1 px-4 py-3 text-left ${active ? "text-accent-strong" : ""} ${avail.available ? "" : "cursor-not-allowed opacity-60"}`}
+            >
+              <span className="flex items-center gap-2 text-sm font-semibold text-ink">
+                {T.options[o].title}
+                {o === "tuned" && <span className="rounded-full bg-accent/10 px-2 py-0.5 text-2xs font-semibold text-accent-strong">LoRA</span>}
+              </span>
+              <span className="text-xs text-ink-3">{T.options[o].hint}</span>
+              {!avail.available && <span className="text-2xs text-ink-3">{T.unavailable(avail.reason ?? "")}</span>}
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-3 text-xs leading-relaxed text-ink-2">
+        {T.measured} {tuned.available && (tuned.local ? T.local(localMinutes(quality)) : T.hosted)}
+      </p>
+    </section>
   );
 }

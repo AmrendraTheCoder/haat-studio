@@ -1,4 +1,4 @@
-import type { Attempt, ResultMeta, StreamEvent, TryOnSettings } from "@/lib/tryon/types";
+import type { Attempt, ModelChoice, ResultMeta, StreamEvent, TryOnSettings } from "@/lib/tryon/types";
 
 export type Category = TryOnSettings["category"];
 export type PhotoType = TryOnSettings["photoType"];
@@ -23,6 +23,8 @@ export interface Inputs {
   quality: Quality;
   /** Fixed by default so asking twice reuses the saved photo; "another variation" draws a new one. */
   seed: number;
+  /** Which try-on AI: FASHN VTON 1.5 as released, or with the Haat LoRA adapter. */
+  model: ModelChoice;
 }
 
 export type View = "product" | "model" | "review" | "result";
@@ -64,6 +66,7 @@ export interface SubmitInput {
   garment: File;
   person: { kind: "preset"; id: string } | { kind: "upload"; file: File };
   settings: TryOnSettings;
+  model: ModelChoice;
   garmentPreview: string;
   personPreview: string;
 }

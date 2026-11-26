@@ -9,10 +9,12 @@ import { readReport } from "@/lib/research/build";
 import { getMessages } from "@/lib/i18n/server";
 import type { Messages } from "@/lib/i18n/messages";
 import type { EconomicsWarning } from "@/lib/research/schema";
+import type { MarketPlan } from "@/lib/market/engines";
 import { readSetup } from "@/lib/site";
 
-export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getMessages()).t.meta.research };
+export async function generateMetadata({ params }: PageProps<"/research/[id]">): Promise<Metadata> {
+  const [{ t }, report] = await Promise.all([getMessages(), params.then(({ id }) => readReport(id))]);
+  return { title: report ? t.meta.report(report.answers.shopName || report.answers.product) : t.meta.research };
 }
 
 const FORMAT_ICON = { reel: "▶", carousel: "▦", post: "▢", story: "◷" } as const;
@@ -151,6 +153,8 @@ export default async function ReportPage({ params }: PageProps<"/research/[id]">
           <p className="mt-2 text-sm text-ink-2">{f.pricing.reasoning}</p>
         </section>
 
+        {report.market && <MarketSection plan={report.market} t={t} />}
+
         <section className="mt-8">
           <h2 className="text-xl font-semibold tracking-tight">{R.weekPosts}</h2>
           <ol className="card mt-4 divide-y divide-line overflow-hidden">
@@ -228,5 +232,81 @@ function Stat({ label, value, sub, bad }: { label: string; value: string; sub: s
       <dd className={`mt-1 text-2xl font-bold tracking-tight ${bad ? "text-danger" : ""}`}>{value}</dd>
       <dd className="text-xs text-ink-2">{sub}</dd>
     </div>
+  );
+}
+
+/** Price band, title, hashtags and positioning from real listings (src/lib/market/engines.ts). */
+function MarketSection({ plan, t }: { plan: MarketPlan; t: Messages }) {
+  const M = t.market;
+  const p = plan.pricing;
+  const n = (x: number) => x.toLocaleString("en-IN");
+  return (
+    <section aria-labelledby="market-h2" className="mt-8 overflow-hidden rounded-2xl border border-line bg-paper-glow">
+      <div className="border-b border-line bg-paper-2/60 px-5 py-4">
+        <h2 id="market-h2" className="text-xl font-semibold tracking-tight">
+          {M.h2}
+        </h2>
+        <p className="mt-1 text-sm text-ink-2">{M.lead(n(plan.category.listings), plan.category.label)}</p>
+      </div>
+      <div className="grid gap-px bg-line lg:grid-cols-3">
+        <div className="bg-paper-glow p-5">
+          <p className="text-xs font-semibold tracking-wide text-ink-3 uppercase">{M.band}</p>
+          <p className="mt-1 text-3xl font-bold tracking-tight tabular-nums">
+            {inr(p.band[0])}–{inr(p.band[1])}
+          </p>
+          <p className="mt-1 text-sm font-medium text-accent-strong">{M.tier[p.position]}</p>
+          <p className="mt-2 text-xs text-ink-3">{M.comparables(n(p.comparables), n(p.sampleSize))}</p>
+          <p className="mt-3 text-sm text-ink-2">{M.range(inr(p.comparablePrice.p25), inr(p.comparablePrice.median), inr(p.comparablePrice.p75))}</p>
+          {p.marginAtBand && <p className="mt-1 text-sm text-ink-2">{M.margin(p.marginAtBand[0], p.marginAtBand[1])}</p>}
+          {p.floorFor30 && <p className="mt-1 text-sm text-ink-2">{M.floor(inr(p.floorFor30))}</p>}
+          {p.warning && <p className="mt-2 text-sm font-medium text-danger">{M.warning[p.warning]}</p>}
+          {p.categoryMedianDiscount !== null && <p className="mt-3 text-xs text-ink-3">{M.discount(p.categoryMedianDiscount)}</p>}
+        </div>
+        <div className="bg-paper-glow p-5">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-xs font-semibold tracking-wide text-ink-3 uppercase">{M.title}</p>
+            <CopyButton text={plan.seo.title} label={M.copy} />
+          </div>
+          <p className="mt-2 font-semibold">{plan.seo.title}</p>
+          <p className="mt-1 text-xs text-ink-3">{M.chars(plan.seo.chars, plan.seo.benchmarkChars)}</p>
+          {plan.seo.keywordsToConsider.length > 0 && (
+            <>
+              <p className="mt-4 text-xs text-ink-2">{M.consider}</p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {plan.seo.keywordsToConsider.map((k) => (
+                  <span key={k} className="chip">
+                    {k}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+        <div className="bg-paper-glow p-5">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-xs font-semibold tracking-wide text-ink-3 uppercase">{M.hashtags}</p>
+            <CopyButton text={plan.hashtags.join(" ")} label={M.copy} />
+          </div>
+          <p className="mt-2 text-sm leading-relaxed">{plan.hashtags.join(" ")}</p>
+          <p className="mt-4 text-xs font-semibold tracking-wide text-ink-3 uppercase">{M.positioning}</p>
+          <p className="mt-1 text-sm">{plan.positioning.statement}</p>
+          {plan.positioning.underSupplied.length > 0 && (
+            <>
+              <p className="mt-3 text-xs text-ink-2">{M.under}</p>
+              <ul className="mt-1.5 space-y-1 text-sm">
+                {plan.positioning.underSupplied.slice(0, 4).map((u) => (
+                  <li key={`${u.attribute}-${u.value}`} className="flex justify-between gap-3">
+                    <span>
+                      {u.value} <span className="text-ink-3">· {t.market.attrs[u.attribute]}</span>
+                    </span>
+                    <span className="tabular-nums text-good">{M.lift(u.lift)}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }

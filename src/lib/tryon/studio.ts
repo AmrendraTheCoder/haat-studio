@@ -2,7 +2,7 @@ import { TEST_ENGINES } from "@/lib/engines";
 import { formatWait } from "@/lib/wait";
 import { toPng } from "./image";
 import { cacheKey, type ResultStore } from "./store";
-import { EngineError, type Attempt, type Engine, type OutputQuality, type Prep, type ResultMeta, type StreamEvent, type TryOnSettings } from "./types";
+import { EngineError, type Attempt, type Engine, type ModelChoice, type OutputQuality, type Prep, type ResultMeta, type StreamEvent, type TryOnSettings } from "./types";
 
 export interface TryOnRequest {
   /** Both already through `prepareImage`. */
@@ -12,6 +12,24 @@ export interface TryOnRequest {
   settings: TryOnSettings;
   /** What preprocessing changed; replayed to anyone who reconnects. */
   prep?: Prep;
+  /** "base" (default): FASHN VTON 1.5 as released. "tuned": with the LoRA adapter. */
+  model?: ModelChoice;
+}
+
+/** The engines that can serve a model choice, in TRYON_ENGINES order. Test engines serve both. */
+export function enginesFor(all: Engine[], model: ModelChoice = "base"): Engine[] {
+  return all.filter((e) => TEST_ENGINES.has(e.id) || (e.variant ?? "base") === model);
+}
+
+/**
+ * Extra cache-key namespace for a request: test engines get their own key space (their output is
+ * not a try-on), and tuned results get one per adapter, so a base result is never served for a
+ * tuned request or the other way round. Base requests keep the original keys.
+ */
+export function keySpace(engines: Engine[], model: ModelChoice = "base"): string {
+  const test = engines.filter((e) => TEST_ENGINES.has(e.id)).map((e) => e.id);
+  const adapter = model === "tuned" ? engines.find((e) => e.variant === "tuned" && e.configured)?.adapter ?? engines.find((e) => e.variant === "tuned")?.adapter ?? "lora" : "";
+  return [test.length ? `test:${test.join(",")}` : "", adapter ? `tuned:${adapter}` : ""].filter(Boolean).join("|");
 }
 
 export interface Job {
@@ -86,7 +104,13 @@ export function createStudio(opts: StudioOptions): Studio {
     const attempts: Attempt[] = [];
     const input = { garment: req.garment, person: req.person, settings: req.settings };
 
-    for (const engine of opts.engines()) {
+    const chain = enginesFor(opts.engines(), req.model);
+    if (chain.length === 0) {
+      const failed: StreamEvent = { type: "error", message: req.model === "tuned" ? "The tuned model (LoRA) is not set up on this server." : "No try-on engine is set up.", attempts: [] };
+      emit(failed);
+      return failed;
+    }
+    for (const engine of chain) {
       if (!engine.configured) {
         attempts.push({ engine: engine.id, kind: "skipped", message: engine.missing ?? "not configured" });
         continue;
@@ -94,7 +118,8 @@ export function createStudio(opts: StudioOptions): Studio {
 
       const submitted = now();
       let started: number | null = null;
-      const signal = AbortSignal.timeout(opts.timeoutMs);
+      const limit = engine.timeoutMs ?? opts.timeoutMs;
+      const signal = AbortSignal.timeout(limit);
       try {
         const bytes = await engine.run(
           input,
@@ -114,7 +139,7 @@ export function createStudio(opts: StudioOptions): Studio {
           throw new EngineError(`the result failed an automatic check (${failed.join(", ")}): ${failed.includes("blank") ? "the image is blank" : "the photo came back unchanged"}`, "unknown");
         }
         const finished = now();
-        if (started !== null) void opts.usage?.run(engine.id, started, finished - started);
+        if (started !== null && !engine.local) void opts.usage?.run(engine.id, started, finished - started);
         const meta: ResultMeta = {
           key,
           engine: engine.id,
@@ -125,15 +150,18 @@ export function createStudio(opts: StudioOptions): Studio {
           queueMs: (started ?? submitted) - submitted,
           ...(req.prep && { prep: req.prep }),
           ...(quality && { quality }),
+          ...(engine.variant === "tuned" && { model: { variant: "tuned" as const, ...(engine.adapter && { adapter: engine.adapter }) } }),
         };
         await opts.store.save(meta, { "result.png": result, "garment.jpg": req.garment, "person.jpg": req.person });
         const done: StreamEvent = { type: "done", result: meta, cached: false };
         emit(done);
         return done;
       } catch (err) {
-        const e = asEngineError(err, signal, opts.timeoutMs);
-        // A refusal spends nothing; a run that failed on the GPU still spent its time.
-        if (e.kind === "quota") void opts.usage?.refused(engine.id, e.message);
+        const e = asEngineError(err, signal, limit);
+        // A refusal spends nothing; a run that failed on the GPU still spent its time. Local runs spend no quota.
+        if (engine.local) {
+          /* nothing to record */
+        } else if (e.kind === "quota") void opts.usage?.refused(engine.id, e.message);
         else if (started !== null) void opts.usage?.run(engine.id, started, now() - started);
         attempts.push({ engine: engine.id, kind: e.kind, message: e.message, retryAfterSeconds: e.retryAfterSeconds });
         if (e.kind === "input") break;
@@ -160,8 +188,7 @@ export function createStudio(opts: StudioOptions): Studio {
     get: (key) => inflight.get(key),
 
     start(req) {
-      const testEngines = opts.engines().filter((e) => TEST_ENGINES.has(e.id)).map((e) => e.id);
-      const key = cacheKey(req.garment, req.person, req.settings, testEngines.length ? `test:${testEngines.join(",")}` : "");
+      const key = cacheKey(req.garment, req.person, req.settings, keySpace(opts.engines(), req.model));
       const existing = inflight.get(key);
       if (existing) return existing;
 

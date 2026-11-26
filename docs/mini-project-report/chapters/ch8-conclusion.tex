@@ -48,8 +48,8 @@ The project set out to turn a small seller's single flat garment photograph into
 \item \textbf{Scale the adaptation.} Repeat the run of Section~\ref{sec:e6} at full resolution on a 16~GB CUDA GPU with more steps and more pairs (\texttt{ml/run\_lora\_pipeline.sh}); compare $\lambda = 1$ and $\lambda = 2$ and add two blind human raters.
 \item \textbf{Cleaner pairs.} Reject multipack listings and banners in \texttt{build\_pairs.py}; the model guardrails found that four of the twelve generated held-out pairs were not true pairs.
 \item \textbf{Indian garments.} Collect paired photographs of kurtis, sarees and lehengas with sellers' consent, and add saree and lehenga as categories 4 and 5.
-\item \textbf{Serve the adapter.} A copy of FASHN's Space with the adapter merged and the parser removed, added to the application as a second engine (one file).
-\item \textbf{Connect the engines to the post maker,} so that the title, price band and hashtags appear next to the photograph.
+\item \textbf{Host the adapter.} The tuned engine runs on the seller's computer today; a copy of FASHN's Space with the adapter merged and the parser removed would let a deployed site offer it too (the engine, \texttt{fashn-lora-space}, is already written).
+\item \textbf{Connect the engines to the post maker,} so that the title, price band and hashtags from the research report also appear next to the photograph.
 \item \textbf{Regional demand,} if location data becomes available (for example the seller's own sales export), to make the location engine measure demand rather than only use the calendar.
 \item \textbf{Sharper output} with an upscaling stage, and checks that reject blurry or cropped garment photographs before any GPU time.
 \end{enumerate}

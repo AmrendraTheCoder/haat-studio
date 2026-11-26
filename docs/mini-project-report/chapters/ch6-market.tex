@@ -103,6 +103,13 @@ Five engines turn these statistics into advice for one seller. They take the sel
 
 \paragraph{Hooks and description} The first line of a caption is what a buyer sees before ``more''. The rules are: lead with the product and the occasion rather than the brand, put the price in the caption, state one benefit the seller can prove (fabric, fit), and end with the call to action. The description is built from the same attribute facts as the title.
 
+\section{The Engines Inside the Application}
+\label{sec:engines-app}
+
+The engines above run inside the application, not only in the analysis script. \texttt{analysis/market.py --app-out} writes a compact catalogue for the application: per category the statistics of Section~\ref{sec:engines} and a fixed random sample of 6{,}000 listings as numbers only (price, ratings, stars, discount and attribute codes; no titles, brands, links or photographs). The application's \texttt{src/lib/market} is a line-by-line port of the engines with the same quantile function, checked by automated tests against a synthetic catalogue.
+
+The research questionnaire gains an optional step, \emph{Compare with real listings}, where the seller picks the product type (T-shirt, top, saree or kurta set) and its attributes in the catalogue's own spelling. The report then shows a \emph{From real listings} section with the recommended price band, the margin at the seller's cost, the 30\%-margin floor, a listing title built only from the seller's attributes, the demand words the title lacks, the hashtags and the positioning statement. The same numbers are given to the language model with the instruction not to contradict them and to keep its price range inside the comparable listings' interquartile range. For the worked example of Section~\ref{sec:engines}, the application's sample gave a band of \rupee1,449--\rupee1,577 against \rupee1,449--\rupee1,578 from the full catalogue, and Gemini~2.5 Flash, given these numbers, recommended exactly \rupee1,449--\rupee1,577. Without a catalogue file the step is simply switched off.
+
 \section{Guardrails of the Content Side}
 
 \begin{table}[!htbp]

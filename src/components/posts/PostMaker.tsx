@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { cloneElement, useEffect, useId, useMemo, useRef, useState } from "react";
 import { HelpTip, type HelpTopic } from "@/components/shared/HelpTip";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { PasscodeField } from "@/components/shared/Passcode";
 import { resultUrl } from "@/lib/client/check";
 import { passcodeHeaders } from "@/lib/client/passcode";
@@ -222,24 +223,24 @@ export function PostMaker({ result, setup }: { result: ResultMeta; setup: Setup 
 
   return (
     <main className="app-page">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href={`/studio?r=${result.key}`} className="inline-flex min-h-11 items-center rounded-lg text-sm font-medium text-ink-2 hover:text-ink">
-          {T.back}
-        </Link>
-        <span className="kicker">{T.kicker}</span>
-      </div>
-      <h1 className="mt-2 h-page sm:text-4xl">{T.h1}</h1>
-      <p className="mt-2 max-w-2xl text-ink-2">
-        {T.lead}
-      </p>
+      <PageHeader
+        back={
+          <Link href={`/studio?r=${result.key}`} className="inline-flex min-h-11 items-center rounded-lg text-sm font-medium text-ink-2 hover:text-ink">
+            {T.back}
+          </Link>
+        }
+        kicker={T.kicker}
+        title={T.h1}
+        lead={T.lead}
+      />
       {TEST_ENGINES.has(result.engine) && (
-        <p className="mt-4 rounded-xl border border-marigold/60 bg-marigold-wash px-4 py-3 text-sm">{T.testNote}</p>
+        <p className="mb-4 rounded-xl border border-marigold/60 bg-marigold-wash px-4 py-3 text-sm">{T.testNote}</p>
       )}
-      <div className="mt-4">
+      <div className="mb-8 empty:hidden">
         <PasscodeField required={setup.passcodeRequired} />
       </div>
 
-      <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_440px]">
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_440px] 2xl:grid-cols-[minmax(0,1fr)_520px]">
         <div className="lg:sticky lg:top-24">
           <div className="dot-grid grid place-items-center rounded-3xl border border-line bg-paper-2 p-4 sm:p-8">
             {imgError ? (

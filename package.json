@@ -10,6 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "setup": "tsx scripts/setup.ts",
+    "icons": "node scripts/icons.ts",
     "engine:check": "tsx --env-file-if-exists=.env scripts/engine-check.ts",
     "eval": "tsx --env-file-if-exists=.env scripts/eval.ts",
     "start:standalone": "cp -R public .next/standalone/ && cp -R .next/static .next/standalone/.next/ && DATA_DIR=\"${DATA_DIR:-$PWD/data}\" node --env-file-if-exists=.env .next/standalone/server.js",

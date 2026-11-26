@@ -3,10 +3,12 @@ import Link from "next/link";
 import { SiteFooter, SiteNav } from "@/components/site/site";
 import { getMessages } from "@/lib/i18n/server";
 
-export const metadata: Metadata = {
-  title: "How it's designed",
-  description: "Who Haat Studio is for, the journey it supports, the principles behind every screen, and how we tested it.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: (await getMessages()).t.meta.design,
+    description: "Who Haat Studio is for, the journey it supports, the principles behind every screen, and how we tested it.",
+  };
+}
 
 const DOCS = "https://github.com/AmrendraTheCoder/haat-studio/blob/main/docs/ux";
 
@@ -71,7 +73,7 @@ export default async function DesignPage() {
     <main className="overflow-x-clip">
       <SiteNav />
 
-      <section lang="en" className="mx-auto max-w-6xl px-4 pt-14 pb-10 sm:px-6">
+      <section lang="en" className="site-container pt-14 pb-10">
         {locale === "hi" && (
           <p lang="hi" className="mb-6 rounded-xl border border-line bg-paper-glow px-4 py-3 text-sm">
             {t.design.englishOnly}
@@ -93,7 +95,7 @@ export default async function DesignPage() {
         </p>
       </section>
 
-      <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="who">
+      <section lang="en" className="site-container py-10" aria-labelledby="who">
         <h2 id="who" className="h-section">
           Who it&rsquo;s for
         </h2>
@@ -120,7 +122,7 @@ export default async function DesignPage() {
         </p>
       </section>
 
-      <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="journey">
+      <section lang="en" className="site-container py-10" aria-labelledby="journey">
         <h2 id="journey" className="h-section">
           Priya&rsquo;s Monday, start to posted
         </h2>
@@ -140,7 +142,7 @@ export default async function DesignPage() {
         </p>
       </section>
 
-      <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="principles">
+      <section lang="en" className="site-container py-10" aria-labelledby="principles">
         <h2 id="principles" className="h-section">
           Eight rules every screen follows
         </h2>
@@ -155,7 +157,7 @@ export default async function DesignPage() {
         </div>
       </section>
 
-      <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="changes">
+      <section lang="en" className="site-container py-10" aria-labelledby="changes">
         <h2 id="changes" className="h-section">
           What testing changed
         </h2>
@@ -187,7 +189,7 @@ export default async function DesignPage() {
         </div>
       </section>
 
-      <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="access">
+      <section lang="en" className="site-container py-10" aria-labelledby="access">
         <h2 id="access" className="h-section">
           Accessible by default
         </h2>
@@ -203,7 +205,7 @@ export default async function DesignPage() {
         </dl>
       </section>
 
-      <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6" aria-labelledby="system">
+      <section lang="en" className="site-container py-10" aria-labelledby="system">
         <h2 id="system" className="h-section">
           The look
         </h2>
@@ -245,7 +247,7 @@ export default async function DesignPage() {
         </div>
       </section>
 
-      <section lang="en" className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <section lang="en" className="site-container py-10">
         <div className="rounded-3xl border border-accent-strong/20 bg-accent-wash px-6 py-10">
           <h2 className="text-2xl font-bold tracking-tight">What we still don&rsquo;t know</h2>
           <ul className="mt-3 list-disc space-y-1.5 pl-5 text-ink-2">

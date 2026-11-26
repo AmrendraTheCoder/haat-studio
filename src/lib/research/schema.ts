@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MARKET_TYPES, type MarketPlan } from "@/lib/market/engines";
 
 /**
  * Phase 5 — market research. Pure data and validation: imported by the
@@ -47,6 +48,22 @@ export const answersSchema = z
     ages: z.array(z.enum(AGES)).min(1, "Pick at least one age group"),
     gender: z.enum(["women", "men", "all"]),
     goal: z.enum(key(GOALS)),
+    /**
+     * Optional: the product as the listings catalogue describes it, so the report can compare it
+     * with real marketplace listings (price band, title, hashtags, positioning). Values are the
+     * catalogue's own spellings, offered by the form.
+     */
+    market: z
+      .object({
+        type: z.enum(MARKET_TYPES),
+        fabric: z.string().max(40).optional(),
+        neck: z.string().max(40).optional(),
+        sleeve: z.string().max(40).optional(),
+        pattern: z.string().max(40).optional(),
+        fit: z.string().max(40).optional(),
+        colour: z.string().max(40).optional(),
+      })
+      .optional(),
     /** The language the report is written in — the seller's app language when they asked. */
     language: z.enum(["en", "hi"]).default("en"),
   })
@@ -104,6 +121,8 @@ export interface Report {
   via: string;
   economics: Economics;
   moments: Moment[];
+  /** Price band, title, hashtags and positioning from real listings; absent without a catalogue or a product type. */
+  market?: MarketPlan;
 }
 
 export const REPORT_ID = /^[0-9a-f]{12}$/;

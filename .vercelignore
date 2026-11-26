@@ -1,0 +1,9 @@
+# Only the app is deployed. Training code, the report, datasets and local results stay out.
+.env*
+data/
+eval/
+ml/
+retail/
+analysis/
+docs/
+Dockerfile

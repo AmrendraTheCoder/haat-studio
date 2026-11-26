@@ -59,3 +59,7 @@ next-env.d.ts
 /retail/
 # app screenshots contain model photos (see "Don't commit photos")
 /docs/btp-report/figures/ui/
+
+# python bytecode
+__pycache__/
+*.pyc

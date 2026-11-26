@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import Link from "next/link";
 import { connection } from "next/server";
 import { PostMaker } from "@/components/posts/PostMaker";
@@ -11,7 +12,8 @@ import { readRecent, readSetup } from "@/lib/site";
 import { store } from "@/lib/tryon";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getMessages()).t.meta.post };
+  const { t } = await getMessages();
+  return pageMeta({ title: t.meta.post, description: t.meta.descriptions.post, path: "/studio/post" });
 }
 
 /** `/studio/post?r=<key>` — a post built around one saved try-on result. Without one, pick a saved photo. */

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import { connection } from "next/server";
 import { LibraryView } from "@/components/library/LibraryView";
 import { AppShell } from "@/components/site/AppShell";
@@ -7,7 +8,8 @@ import { readRecent, readSetup } from "@/lib/site";
 import { store } from "@/lib/tryon";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getMessages()).t.meta.library };
+  const { t } = await getMessages();
+  return pageMeta({ title: t.meta.library, description: t.meta.descriptions.library, path: "/library", noindex: true });
 }
 
 /** Every saved photo on this server, sortable and filterable. Reads only. */

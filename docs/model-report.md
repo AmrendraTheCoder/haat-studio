@@ -45,7 +45,8 @@ says where it came from.
 | Small enough to run ourselves | 972M parameters, ~2 GB weights in bf16, ~8 GB VRAM |
 
 Alternatives (IDM-VTON, OOTDiffusion, CatVTON, FitDiT, Leffa, Kolors, general image
-editors, paid APIs) and why they lost are in [professor-briefing.md §10](professor-briefing.md).
+editors, paid APIs) and why they lost are compared in the project report, Chapter 2 and Table 2.1
+(`docs/mini-project-report`).
 
 ---
 

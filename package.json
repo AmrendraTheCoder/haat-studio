@@ -1,6 +1,12 @@
 {
   "name": "haat-studio",
   "version": "0.1.0",
+  "license": "Apache-2.0",
+  "description": "Garment photo in, on-model photo out \u2014 part 1 of Haat, an AI assistant for Indian Instagram sellers.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AmrendraTheCoder/haat-studio"
+  },
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -40,7 +46,6 @@
     "typescript": "^5",
     "vitest": "^5.0.3"
   },
-  "description": "Garment photo in, on-model photo out — part 1 of Haat, an AI assistant for Indian Instagram sellers.",
   "type": "module",
   "engines": {
     "node": ">=22"

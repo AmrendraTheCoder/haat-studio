@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/seo";
 import Link from "next/link";
 import { SiteFooter, SiteNav } from "@/components/site/site";
 import { getMessages } from "@/lib/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return {
-    title: (await getMessages()).t.meta.design,
-    description: "Who Haat Studio is for, the journey it supports, the principles behind every screen, and how we tested it.",
-  };
+  const { t } = await getMessages();
+  return pageMeta({ title: t.meta.design, description: t.meta.descriptions.design, path: "/design" });
 }
 
 const DOCS = "https://github.com/AmrendraTheCoder/haat-studio/blob/main/docs/ux";

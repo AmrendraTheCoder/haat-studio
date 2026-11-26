@@ -9,7 +9,35 @@ import type { Messages } from "@/lib/i18n/messages";
 import { getMessages } from "@/lib/i18n/server";
 import { PRESETS, SAMPLE_GARMENTS } from "@/lib/presets";
 import { readFeatured, readSetup, type Setup } from "@/lib/site";
+import { siteUrl } from "@/lib/seo";
 import type { ResultMeta } from "@/lib/tryon/types";
+
+/** Structured data for search engines: what the app is and that it is free. Facts only, no ratings. */
+function structuredData(description: string) {
+  const url = siteUrl();
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "@id": `${url}/#app`,
+        name: "Haat Studio",
+        url,
+        description,
+        applicationCategory: "DesignApplication",
+        operatingSystem: "Web",
+        browserRequirements: "Requires a modern browser",
+        inLanguage: ["en-IN", "hi-IN"],
+        isAccessibleForFree: true,
+        offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
+        featureList: ["Garment-to-model virtual try-on", "Instagram post maker with captions in English, Hinglish or Hindi", "Market research with price bands from real marketplace listings", "SEO listing titles and hashtags"],
+        image: `${url}/opengraph-image.jpg`,
+        author: [{ "@type": "Person", name: "Amrendra Vikram Singh" }, { "@type": "Person", name: "Avirat Kaushik" }],
+      },
+      { "@type": "WebSite", "@id": `${url}/#site`, name: "Haat Studio", url, inLanguage: ["en-IN", "hi-IN"] },
+    ],
+  };
+}
 
 export default async function Landing() {
   await connection();
@@ -20,6 +48,7 @@ export default async function Landing() {
 
   return (
     <main className="overflow-x-clip">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData(t.meta.description)).replace(/</g, "\\u003c") }} />
       <SiteNav />
 
       {/* ── Hero ── */}

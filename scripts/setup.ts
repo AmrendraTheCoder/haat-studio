@@ -7,7 +7,7 @@
 import { mkdir, writeFile, access } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
-import { PRESETS, SAMPLE_GARMENTS } from "../src/lib/presets";
+import { PRESETS, ALL_SAMPLES } from "../src/lib/presets";
 
 const pub = path.join(process.cwd(), "public");
 const exists = (p: string) => access(p).then(() => true, () => false);
@@ -30,7 +30,7 @@ async function fetchTo(url: string, dest: string) {
 
 const jobs = [
   ...PRESETS.map((p) => ({ name: `model  ${p.id}`, url: p.sourceUrl, dest: path.join(pub, "presets", p.file) })),
-  ...SAMPLE_GARMENTS.map((s) => ({ name: `sample ${s.id}`, url: s.sourceUrl, dest: path.join(pub, "samples", s.file) })),
+  ...ALL_SAMPLES.map((s) => ({ name: `sample ${s.id}`, url: s.sourceUrl, dest: path.join(pub, "samples", s.file) })),
 ];
 
 let failed = 0;

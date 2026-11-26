@@ -7,7 +7,7 @@ puts the shop name and ₹ price on it as a ready-to-post image, writes the capt
 plans the week's posts. The whole app works in **English or हिन्दी**, and everything
 runs on free services.
 
-**Live:** [haat-studio-peach.vercel.app](https://haat-studio-peach.vercel.app) (creating photos and reports needs the site's passcode)
+**Live:** [haatstudio.vercel.app](https://haatstudio.vercel.app) (creating photos and reports needs the site's passcode)
 
 | | Feature | What the seller gets |
 |---|---|---|

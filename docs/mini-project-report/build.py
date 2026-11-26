@@ -28,6 +28,7 @@ import re
 import shutil
 import subprocess
 import statistics
+import numpy as np
 
 import matplotlib
 
@@ -174,7 +175,7 @@ ax.bar([i + w / 2 for i in ix], rev, w, color=GREY, label="reversed time convent
 ax.set_yscale("log")
 ax.set_xticks(list(ix), [f"t = {t}" for t in lt["t"]])
 ax.set_ylabel("loss of the pretrained model (log)")
-ax.legend(fontsize=7.5)
+ax.legend(fontsize=7.5, loc="upper center", bbox_to_anchor=(0.5, 1.2), ncol=2)
 save(fig, "recon.pdf")
 
 mr = load("ml/runs/microrun/report.json")
@@ -414,6 +415,10 @@ if mk:
 # ------------------------------------------------------------------ base vs LoRA (after training)
 cmp_ = load("docs/mini-project-report/results/lora_comparison.json")
 V["ifLora"] = cmp_ is not None
+# the public address of the running app: env LIVE_URL, or results/live_url.txt (one line)
+_live = os.environ.get("LIVE_URL") or (open(os.path.join(HERE, "results", "live_url.txt")).read().strip() if os.path.exists(os.path.join(HERE, "results", "live_url.txt")) else "")
+V["LiveUrl"] = _live
+V["ifLive"] = bool(_live)
 if cmp_:
     m = cmp_["metrics"]
     val("LcN", cmp_["n_val_samples"])
@@ -446,6 +451,16 @@ if cmp_:
         val(f"Gr{p}Pose", g_.get("pose_fail", "--"))
         val(f"Gr{p}Colour", g_.get("colour_fail", "--"))
         val(f"Gr{p}Blank", g_.get("blank", 0) + g_.get("unchanged", 0) if g_ else "--")
+    # the earlier per-pixel CIE76 colour measure (limit 20), kept as a column for comparison
+    _ev = os.path.join(R(cmp_.get("eval_dir", "")) if cmp_.get("eval_dir") else R("ml/runs/laptop-v1/eval12"), "eval.csv")
+    if os.path.exists(_ev):
+        import csv as _csv
+        _rows = [r for r in _csv.DictReader(open(_ev)) if r.get("colour_de76")]
+        val("GrOldFail", max(sum(1 for r in _rows if r["model"] == m_ and float(r["colour_de76"]) > 20) for m_ in ("base", "lora")))
+        _good = [float(r["colour_de"]) for r in _rows if r.get("guardrail") == "1"]
+        val("GrGoodMed", f"{med(_good):.1f}" if _good else "--")
+    else:
+        val("GrOldFail", "--"); val("GrGoodMed", "--")
     inf = cmp_.get("inference_seconds", {})
     val("LcSecBase", inf.get("base") or "--")
     val("LcSecLora", inf.get("lora") or "--")
@@ -541,17 +556,54 @@ if ag:
     val("AgWarn", sum(1 for r in rs_ if not all(c["ok"] for c in r["checks"].values())))
     val("AgFail", sum(1 for r in rs_ if not r["passed"]))
     val("AgMs", f"{med([r['ms'] for r in rs_]):.0f}")
-    names_ = {"standing-men": "men's preset", "standing-women": "women's preset", "casual-women": "women's casual preset"}
+    good_ = [r["checks"]["colour"]["value"] for r in rs_ if r["checks"]["colour"]["ok"]]
+    val("AgGoodMin", f"{min(good_):.1f}"); val("AgGoodMax", f"{max(good_):.1f}")
+    shot_ = next((r for r in rs_ if not r["checks"]["colour"]["ok"] and r["checks"]["colour"].get("garmentVsOld", 0) >= 8), None)
+    val("AgShotNew", f"{shot_['checks']['colour']['value']:.1f}" if shot_ else "--")
+    val("AgShotOld", f"{shot_['checks']['colour']['toOld']:.1f}" if shot_ else "--")
+    alike_ = [r["checks"]["colour"]["garmentVsOld"] for r in rs_ if r["checks"]["colour"].get("garmentVsOld", 99) < 8]
+    val("AgSkirtAlike", f"{min(alike_):.1f}" if alike_ else "--")
+    names_ = {"standing-men": "men's", "standing-women": "women's", "casual-women": "women's casual"}
     lines = []
     for r in sorted(rs_, key=lambda r: (r["category"], r["key"])):
         c = r["checks"]
         cell = lambda k, nd=1: (f"{c[k]['value']:.{nd}f}" + ("" if c[k]["ok"] else r"\,$\triangle$"))  # noqa: E731
-        who = names_.get(r["model"], "uploaded photo" if r["model"].startswith("upload") else r["model"])
-        lines.append(f"{r['key']} & {r['category']} & {tex(who)} & {cell('blank')} & {cell('changed')} & {cell('size', 2)} & {cell('colour')} & {cell('person')} & {'pass' if r['passed'] else 'fail'}\\\\")
-    head = (r"\begin{tabular}{@{}lllrrrrrl@{}}" "\n" r"\toprule" "\n"
-            r"\textbf{Result} & \textbf{Category} & \textbf{Model photo} & \textbf{blank} & \textbf{changed} & \textbf{size} & \textbf{colour} & \textbf{person} & \textbf{Outcome}\\" "\n"
+        who = names_.get(r["model"], "upload" if r["model"].startswith("upload") else r["model"])
+        cc = c["colour"]
+        lines.append(f"{r['key']} & {r['category']} & {tex(who)} & {cell('blank')} & {cell('changed')} & {cell('size', 2)} & {cell('colour')} & {cc.get('toOld', 0):.1f} & {cc.get('garmentVsOld', 0):.1f} & {cell('person')} & {'pass' if r['passed'] else 'fail'}\\\\")
+    head = (r"\begin{tabular}{@{}lllrrrrrrrl@{}}" "\n" r"\toprule" "\n"
+            r" & & & & & & \multicolumn{3}{c}{\textbf{colour} ($D$, $\Delta E_{00}$)} & & \\ \cmidrule(lr){7-9}" "\n"
+            r"\textbf{Result} & \textbf{Category} & \textbf{Model} & \textbf{blank} & \textbf{changed} & \textbf{size} & \textbf{to garment} & \textbf{to old} & \textbf{alike} & \textbf{person} & \textbf{Outcome}\\" "\n"
             r"\midrule" "\n")
     open(os.path.join(GEN, "app_guardrails.tex"), "w").write(head + "\n".join(lines) + "\n" + r"\bottomrule" + "\n" + r"\end{tabular}" + "\n")
+
+    # palette figure: one good result and the ones that warn on colour
+    import cv2 as _cv2  # noqa: E402
+
+    def _lab2rgb(a):
+        return _cv2.cvtColor(a.astype(np.float32), _cv2.COLOR_Lab2RGB)
+    pick = [r for r in rs_ if not r["checks"]["colour"]["ok"]]
+    goods = sorted([r for r in rs_ if r["checks"]["colour"]["ok"] and "palettes" in r], key=lambda r: r["checks"]["colour"]["value"])
+    pick = ([goods[len(goods) // 2]] if goods else []) + pick
+    pick = [r for r in pick if "palettes" in r][:4]
+    if pick:
+        fig, axs = plt.subplots(len(pick), 1, figsize=(6.2, 0.95 * len(pick) + 0.3))
+        axs = np.atleast_1d(axs)
+        for ax, r in zip(axs, pick):
+            ax.set_xlim(0, 3.45); ax.set_ylim(0, 1); ax.axis("off")
+            for j, part in enumerate(("garment", "old", "result")):
+                x = j * 1.15
+                for sw_ in r["palettes"][part]:
+                    rgb = np.clip(_lab2rgb(np.array([[sw_["lab"]]], dtype=float))[0, 0], 0, 1)
+                    ax.add_patch(plt.Rectangle((x, 0.08), sw_["share"], 0.55, color=rgb, ec="#555555", lw=0.4))
+                    x += sw_["share"]
+                ax.text(j * 1.15, 0.72, {"garment": "garment", "old": "old outfit (model photo)", "result": "result, garment area"}[part], fontsize=7, color="#333333")
+            cc = r["checks"]["colour"]
+            why = "ok" if cc["ok"] else ("garment and old outfit alike: look at it" if cc.get("garmentVsOld", 99) < 8 else "closer to the old outfit")
+            ax.set_title(f"{r['key']}  {r['category']}   D to garment {cc['value']:.1f},  to old {cc.get('toOld', 0):.1f},  garment vs old {cc.get('garmentVsOld', 0):.1f}   ({why})", fontsize=7.2, loc="left", pad=1)
+        fig.tight_layout(h_pad=0.6)
+        fig.savefig(os.path.join(FIG, "palettes.png"), dpi=220)
+        save(fig, "palettes.pdf")
 
 # ------------------------------------------------------------------ images, values, compile
 for src, dst in (("docs/btp-report/figures/baseline-sheet.jpg", "baseline-sheet.jpg"), ("docs/btp-report/figures/skirt-on-separates.jpg", "skirt.jpg"),
@@ -565,7 +617,7 @@ for src, dst in (("docs/btp-report/figures/baseline-sheet.jpg", "baseline-sheet.
 
 with open(os.path.join(GEN, "values.tex"), "w") as f:
     f.write("% generated by build.py: do not edit\n")
-    for k in ("ifPairs", "ifMarket", "ifExample", "ifLora", "ifAppGuard", "ifModelGuard"):
+    for k in ("ifPairs", "ifMarket", "ifExample", "ifLora", "ifAppGuard", "ifModelGuard", "ifLive"):
         f.write(f"\\newif\\{k}\\{k[2:]}{'true' if V.get(k) else 'false'}\n")
     for k, v in V.items():
         if not k.startswith("if"):

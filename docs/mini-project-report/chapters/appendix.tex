@@ -1,6 +1,6 @@
 \chapter{Reproducing the Results}
 
-All commands run from the \texttt{haat-studio} folder. The report is rebuilt, with every number and figure read again from the result files, by
+The source code is at \url{https://github.com/AmrendraTheCoder/haat-studio}\ifLive{} and the running application at \url{\vLiveUrl}\fi. All commands run from the \texttt{haat-studio} folder. The report is rebuilt, with every number and figure read again from the result files, by
 \begin{lstlisting}[language=bash,numbers=none]
 ml/.venv/bin/python docs/mini-project-report/build.py --tests
 \end{lstlisting}
@@ -37,7 +37,7 @@ python scripts/compare_lora.py --run runs/indian-v1 \
     --out ../docs/mini-project-report/results/lora_comparison.json
 cd .. && ml/.venv/bin/python docs/mini-project-report/build.py
 \end{lstlisting}
-\noindent The last command fills Section~\ref{sec:e6}, the abstract and the conclusions from \texttt{lora\_comparison.json}.
+\noindent The last command fills Section~\ref{sec:e6}, the abstract and the conclusions from \texttt{lora\_\allowbreak comparison.json}.
 
 \chapter{Selected Source Code}
 

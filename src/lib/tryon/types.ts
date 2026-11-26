@@ -116,6 +116,8 @@ export interface QualityCheck {
   severity: "fail" | "warn";
   value: number;
   limit: number;
+  /** extra measurements behind the verdict (colour: distance to the old outfit, garment vs old outfit) */
+  detail?: Record<string, number>;
 }
 
 export interface OutputQuality {

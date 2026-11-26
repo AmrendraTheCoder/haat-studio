@@ -291,7 +291,7 @@ PSNR (dB) ↑ & \vLcPsnrN{} & \vLcPsnrBase{} & \vLcPsnrLora{} & \vLcPsnrDiff{} \
 SSIM ↑ & \vLcSsimN{} & \vLcSsimBase{} & \vLcSsimLora{} & \vLcSsimDiff{} \vLcSsimCi{} & \vLcSsimWin{}\% & \vLcSsimP{}\\
 Garment L1 ↓ & \vLcGlN{} & \vLcGlBase{} & \vLcGlLora{} & \vLcGlDiff{} \vLcGlCi{} & \vLcGlWin{}\% & \vLcGlP{}\\
 Pose drift ↓ & \vLcPdN{} & \vLcPdBase{} & \vLcPdLora{} & \vLcPdDiff{} \vLcPdCi{} & \vLcPdWin{}\% & \vLcPdP{}\\
-Colour $\Delta E$ ↓ & \vLcCdN{} & \vLcCdBase{} & \vLcCdLora{} & \vLcCdDiff{} \vLcCdCi{} & \vLcCdWin{}\% & \vLcCdP{}\\
+Colour $D$ ($\Delta E_{00}$) ↓ & \vLcCdN{} & \vLcCdBase{} & \vLcCdLora{} & \vLcCdDiff{} \vLcCdCi{} & \vLcCdWin{}\% & \vLcCdP{}\\
 Seconds per image & & \vLcSecBase{} & \vLcSecLora{} & & & \\
 \bottomrule
 \end{tabularx}
@@ -299,7 +299,7 @@ Seconds per image & & \vLcSecBase{} & \vLcSecLora{} & & & \\
 
 \ifModelGuard\noindent\textbf{Model guardrails.} Of the generated held-out outputs, \vGrBasePass{} of \vGrBaseN{} from the base model (\vGrBaseRate{}\%) and \vGrLoraPass{} of \vGrLoraN{} with the adapter (\vGrLoraRate{}\%) passed every guardrail; pose failures \vGrBasePose{} → \vGrLoraPose{}, colour failures \vGrBaseColour{} → \vGrLoraColour{}, blank or unchanged outputs \vGrBaseBlank{} → \vGrLoraBlank{}.\par\medskip\fi
 
-\noindent Applying the claim rule of Section~5.7: denoising error, \textbf{\vLcDlVerdict{}} (\vLcDlRel{}\%); PSNR, \textbf{\vLcPsnrVerdict{}}; SSIM, \textbf{\vLcSsimVerdict{}}; garment L1, \textbf{\vLcGlVerdict{}}; pose drift, \textbf{\vLcPdVerdict{}} (\vLcPdRel{}\%); colour $\Delta E$, \textbf{\vLcCdVerdict{}}.
+\noindent Applying the claim rule of Section~5.7: denoising error, \textbf{\vLcDlVerdict{}} (\vLcDlRel{}\%); PSNR, \textbf{\vLcPsnrVerdict{}}; SSIM, \textbf{\vLcSsimVerdict{}}; garment L1, \textbf{\vLcGlVerdict{}}; pose drift, \textbf{\vLcPdVerdict{}} (\vLcPdRel{}\%); garment colour $D$, \textbf{\vLcCdVerdict{}} (\vLcCdBase{} → \vLcCdLora{}, both well inside the same-shade limit of 12).
 
 \begin{figure}[!htbp]
 \centering
@@ -312,7 +312,7 @@ Seconds per image & & \vLcSecBase{} & \vLcSecLora{} & & & \\
 
 \IfFileExists{generated/fig/lora_strips.jpg}{\begin{figure}[!htbp]\centering\includegraphics[width=\linewidth]{lora_strips.jpg}\caption{Held-out garments. In each row: person input (with the old garment region), garment, real photograph, base model, base + LoRA.}\label{fig:e6strips}\end{figure}}{}
 
-\paragraph{What the model guardrails found} Both models fail the colour guardrail on the same garments, which points at the data rather than the model. Inspecting those held-out pairs shows that four of them are not true pairs: in three, the listing is a multipack and the ``garment'' photograph shows two different garments (a red and a black vest, a red and a blue T-shirt, a purple and a black T-shirt), and in one it is a marketing banner with no garment at all. No model can reproduce the real photograph from such inputs. The pose and image rules of Section~\ref{sec:pairs} do not catch these cases; rejecting multipack listings (``pack of'', ``combo'' in the title, or more than one garment silhouette in the photograph) and text-heavy banners is the next improvement to the pair builder, and the training pairs very likely contain the same kind of noise, so a cleaner dataset should help the adapter further.
+\paragraph{What the model guardrails found} Every colour failure is on a held-out pair that is not a true pair, and both models pass every guardrail on all of the true pairs. Inspecting the \vGrLoraColour{} failing pairs shows the reason: one is a two-vest multipack whose ``garment'' photograph shows a red and a black vest while the real photograph shows only the red one; in another the listing's product photograph is a purple T-shirt but its model photograph shows a different, black one; and the third ``product photograph'' is an Amazon marketing banner with no garment at all. No model can reproduce the real photograph from such inputs. The earlier colour measure, the mean per-pixel CIE76 difference with a limit of 20, failed \vGrOldFail{} of the \vGrBaseN{} outputs for each model, correct ones included, because a fold or a sleeve displaced by a few pixels counts as a colour error pixel by pixel; the palette distance in CIEDE2000 separates the correct outputs (median $D = $~\vGrGoodMed{}) from the broken pairs. The pose and image rules of Section~\ref{sec:pairs} do not catch multipacks and banners; rejecting them (``pack of'' or ``combo'' in the title, more than one garment silhouette, text-heavy images) is the next improvement to the pair builder, and the training pairs very likely contain the same noise, so a cleaner dataset should help the adapter further.
 
 \paragraph{How to read this result} The run is small by the standards of the field: a few hundred pairs, half resolution, and an hour of training on a laptop GPU. A difference whose interval excludes zero is a real effect on these held-out garments, but it does not yet say how large the gain would be at full resolution, on Indian garments, or after a full training run. Those remain the next step (Chapter~8).
 \else

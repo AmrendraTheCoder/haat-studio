@@ -9,7 +9,7 @@ The chapter has two halves. Sections~\ref{sec:llm}--\ref{sec:research} describe 
 \section{One Validated Function for All Text AI}
 \label{sec:llm}
 
-Every call to a language model in the application goes through one function, \texttt{completeJSON(schema, request)}. It receives a prompt and a zod schema that describes the exact shape the answer must have, and tries the providers listed in \texttt{LLM\_CHAIN} in order:
+Every call to a language model in the application goes through one function, \texttt{completeJSON(\allowbreak schema, request)}. It receives a prompt and a zod schema that describes the exact shape the answer must have, and tries the providers listed in \texttt{LLM\_CHAIN} in order:
 
 \begin{enumerate}
 \item skip a provider whose API key is not set;

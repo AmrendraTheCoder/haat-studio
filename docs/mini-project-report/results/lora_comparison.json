@@ -78,16 +78,16 @@
       "n": 12
     },
     "colour_de": {
-      "base": 28.4525,
-      "lora": 26.8242,
-      "diff": -1.6283,
+      "base": 5.7192,
+      "lora": 5.3508,
+      "diff": -0.3683,
       "ci95": [
-        -4.9133,
-        2.215
+        -1.6317,
+        1.2692
       ],
-      "relative_percent": -5.72,
-      "lora_better_share": 0.833,
-      "wilcoxon_p": 0.2334,
+      "relative_percent": -6.44,
+      "lora_better_share": 0.75,
+      "wilcoxon_p": 0.0923,
       "higher_is_better": false,
       "verdict": "no clear change",
       "n": 12
@@ -167,28 +167,28 @@
   "guardrails": {
     "limits": {
       "pose_drift": 0.05,
-      "colour_de": 20.0,
+      "colour_de": 12.0,
       "blank_std": 6.0,
       "unchanged_mad": 3.0
     },
     "models": {
       "base": {
         "n": 12,
-        "pass": 5,
+        "pass": 10,
         "blank": 0,
         "unchanged": 0,
         "pose_fail": 0,
-        "colour_fail": 7,
-        "pass_rate": 0.417
+        "colour_fail": 2,
+        "pass_rate": 0.833
       },
       "lora": {
         "n": 12,
-        "pass": 5,
+        "pass": 9,
         "blank": 0,
         "unchanged": 0,
         "pose_fail": 0,
-        "colour_fail": 7,
-        "pass_rate": 0.417
+        "colour_fail": 3,
+        "pass_rate": 0.75
       }
     }
   },

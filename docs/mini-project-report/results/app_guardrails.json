@@ -3,16 +3,96 @@
     "blank": 6,
     "size": 0.08,
     "changed": 3,
-    "colour": 0,
-    "colourFloor": 15,
+    "colour": 12,
+    "alike": 8,
     "person": 45
   },
   "results": [
     {
+      "palettes": {
+        "garment": [
+          {
+            "lab": [
+              92.5,
+              -1.1,
+              3.6
+            ],
+            "share": 0.651
+          },
+          {
+            "lab": [
+              86.3,
+              -1.2,
+              6.9
+            ],
+            "share": 0.289
+          },
+          {
+            "lab": [
+              77.4,
+              -0.4,
+              9.8
+            ],
+            "share": 0.06
+          }
+        ],
+        "old": [
+          {
+            "lab": [
+              59.9,
+              12.4,
+              22.3
+            ],
+            "share": 0.566
+          },
+          {
+            "lab": [
+              21.1,
+              -3.6,
+              -11.6
+            ],
+            "share": 0.247
+          },
+          {
+            "lab": [
+              39.3,
+              -4.7,
+              -7.8
+            ],
+            "share": 0.187
+          }
+        ],
+        "result": [
+          {
+            "lab": [
+              90,
+              -1.2,
+              4.6
+            ],
+            "share": 0.682
+          },
+          {
+            "lab": [
+              52.1,
+              16.5,
+              24.5
+            ],
+            "share": 0.226
+          },
+          {
+            "lab": [
+              64.9,
+              4.5,
+              13.6
+            ],
+            "share": 0.092
+          }
+        ]
+      },
       "key": "0183b093",
       "category": "bottoms",
       "model": "casual-women",
-      "ms": 68,
+      "ms": 62,
       "passed": true,
       "checks": {
         "blank": {
@@ -28,8 +108,10 @@
           "ok": true
         },
         "colour": {
-          "value": -19.45,
-          "ok": true
+          "value": 1.76,
+          "ok": true,
+          "toOld": 14.31,
+          "garmentVsOld": 19.79
         },
         "person": {
           "value": 1.86,
@@ -38,10 +120,74 @@
       }
     },
     {
+      "palettes": {
+        "garment": [
+          {
+            "lab": [
+              8.9,
+              0,
+              0
+            ],
+            "share": 0.854
+          },
+          {
+            "lab": [
+              91.1,
+              0,
+              0
+            ],
+            "share": 0.146
+          }
+        ],
+        "old": [
+          {
+            "lab": [
+              49.9,
+              -5.5,
+              -9.9
+            ],
+            "share": 0.394
+          },
+          {
+            "lab": [
+              27.1,
+              -3.8,
+              -3.3
+            ],
+            "share": 0.353
+          },
+          {
+            "lab": [
+              62.9,
+              8.8,
+              15.6
+            ],
+            "share": 0.253
+          }
+        ],
+        "result": [
+          {
+            "lab": [
+              4.8,
+              -1.4,
+              0
+            ],
+            "share": 0.863
+          },
+          {
+            "lab": [
+              34.4,
+              -0.7,
+              1.1
+            ],
+            "share": 0.138
+          }
+        ]
+      },
       "key": "2de42185",
       "category": "tops",
       "model": "standing-men",
-      "ms": 66,
+      "ms": 78,
       "passed": true,
       "checks": {
         "blank": {
@@ -57,8 +203,10 @@
           "ok": true
         },
         "colour": {
-          "value": -33.18,
-          "ok": true
+          "value": 5.57,
+          "ok": true,
+          "toOld": 12.3,
+          "garmentVsOld": 9.75
         },
         "person": {
           "value": 1.7,
@@ -67,10 +215,66 @@
       }
     },
     {
+      "palettes": {
+        "garment": [
+          {
+            "lab": [
+              8.9,
+              0,
+              0
+            ],
+            "share": 0.854
+          },
+          {
+            "lab": [
+              91.1,
+              0,
+              0
+            ],
+            "share": 0.146
+          }
+        ],
+        "old": [
+          {
+            "lab": [
+              86.3,
+              3,
+              4.8
+            ],
+            "share": 0.731
+          },
+          {
+            "lab": [
+              67.1,
+              6.3,
+              16.3
+            ],
+            "share": 0.269
+          }
+        ],
+        "result": [
+          {
+            "lab": [
+              7.9,
+              -2.1,
+              -1.5
+            ],
+            "share": 0.875
+          },
+          {
+            "lab": [
+              41.9,
+              0.2,
+              3.7
+            ],
+            "share": 0.125
+          }
+        ]
+      },
       "key": "365beef2",
       "category": "tops",
       "model": "standing-women",
-      "ms": 87,
+      "ms": 76,
       "passed": true,
       "checks": {
         "blank": {
@@ -86,8 +290,10 @@
           "ok": true
         },
         "colour": {
-          "value": -62.67,
-          "ok": true
+          "value": 5.71,
+          "ok": true,
+          "toOld": 18.09,
+          "garmentVsOld": 24.96
         },
         "person": {
           "value": 4.06,
@@ -96,10 +302,82 @@
       }
     },
     {
+      "palettes": {
+        "garment": [
+          {
+            "lab": [
+              15.6,
+              2.2,
+              -7.8
+            ],
+            "share": 0.724
+          },
+          {
+            "lab": [
+              88.2,
+              -0.4,
+              0.9
+            ],
+            "share": 0.175
+          },
+          {
+            "lab": [
+              61.4,
+              -0.1,
+              0.8
+            ],
+            "share": 0.1
+          }
+        ],
+        "old": [
+          {
+            "lab": [
+              86.3,
+              3,
+              4.8
+            ],
+            "share": 0.731
+          },
+          {
+            "lab": [
+              67.1,
+              6.3,
+              16.3
+            ],
+            "share": 0.269
+          }
+        ],
+        "result": [
+          {
+            "lab": [
+              15.8,
+              2.9,
+              -10
+            ],
+            "share": 0.603
+          },
+          {
+            "lab": [
+              87.8,
+              2.4,
+              1.3
+            ],
+            "share": 0.284
+          },
+          {
+            "lab": [
+              61,
+              5.4,
+              12.3
+            ],
+            "share": 0.113
+          }
+        ]
+      },
       "key": "641cdaa8",
       "category": "tops",
       "model": "standing-women",
-      "ms": 118,
+      "ms": 50,
       "passed": true,
       "checks": {
         "blank": {
@@ -115,8 +393,10 @@
           "ok": true
         },
         "colour": {
-          "value": -10.85,
-          "ok": true
+          "value": 2.94,
+          "ok": true,
+          "toOld": 3.33,
+          "garmentVsOld": 23.62
         },
         "person": {
           "value": 3.89,
@@ -125,10 +405,90 @@
       }
     },
     {
+      "palettes": {
+        "garment": [
+          {
+            "lab": [
+              92.5,
+              -1.1,
+              3.6
+            ],
+            "share": 0.651
+          },
+          {
+            "lab": [
+              86.3,
+              -1.2,
+              6.9
+            ],
+            "share": 0.289
+          },
+          {
+            "lab": [
+              77.4,
+              -0.4,
+              9.8
+            ],
+            "share": 0.06
+          }
+        ],
+        "old": [
+          {
+            "lab": [
+              83.8,
+              2.9,
+              7
+            ],
+            "share": 0.568
+          },
+          {
+            "lab": [
+              73.1,
+              6.3,
+              13.7
+            ],
+            "share": 0.258
+          },
+          {
+            "lab": [
+              64.4,
+              10,
+              20.8
+            ],
+            "share": 0.174
+          }
+        ],
+        "result": [
+          {
+            "lab": [
+              85.6,
+              0.4,
+              6
+            ],
+            "share": 0.466
+          },
+          {
+            "lab": [
+              64.1,
+              15,
+              21.2
+            ],
+            "share": 0.345
+          },
+          {
+            "lab": [
+              29.6,
+              -9.3,
+              11.4
+            ],
+            "share": 0.189
+          }
+        ]
+      },
       "key": "8a799c4c",
       "category": "bottoms",
       "model": "standing-women",
-      "ms": 57,
+      "ms": 41,
       "passed": true,
       "checks": {
         "blank": {
@@ -144,8 +504,10 @@
           "ok": true
         },
         "colour": {
-          "value": 14.86,
-          "ok": false
+          "value": 3.33,
+          "ok": false,
+          "toOld": 4.78,
+          "garmentVsOld": 6.4
         },
         "person": {
           "value": 3.49,
@@ -154,10 +516,90 @@
       }
     },
     {
+      "palettes": {
+        "garment": [
+          {
+            "lab": [
+              72.5,
+              -1.7,
+              -3.5
+            ],
+            "share": 0.491
+          },
+          {
+            "lab": [
+              42.2,
+              9.8,
+              10.7
+            ],
+            "share": 0.297
+          },
+          {
+            "lab": [
+              39.5,
+              -16,
+              -13.5
+            ],
+            "share": 0.212
+          }
+        ],
+        "old": [
+          {
+            "lab": [
+              76.3,
+              4.2,
+              7.7
+            ],
+            "share": 0.562
+          },
+          {
+            "lab": [
+              31.1,
+              42.6,
+              16.5
+            ],
+            "share": 0.244
+          },
+          {
+            "lab": [
+              29,
+              4.8,
+              3.9
+            ],
+            "share": 0.194
+          }
+        ],
+        "result": [
+          {
+            "lab": [
+              74.8,
+              -0.7,
+              -4.1
+            ],
+            "share": 0.364
+          },
+          {
+            "lab": [
+              37.4,
+              -16.8,
+              -14.3
+            ],
+            "share": 0.364
+          },
+          {
+            "lab": [
+              36.3,
+              7,
+              6.1
+            ],
+            "share": 0.273
+          }
+        ]
+      },
       "key": "b4612d04",
       "category": "one-pieces",
       "model": "upload:9149b5e3",
-      "ms": 55,
+      "ms": 37,
       "passed": true,
       "checks": {
         "blank": {
@@ -173,8 +615,10 @@
           "ok": true
         },
         "colour": {
-          "value": -18.07,
-          "ok": true
+          "value": 2.39,
+          "ok": true,
+          "toOld": 11.89,
+          "garmentVsOld": 14.89
         },
         "person": {
           "value": 0.95,
@@ -183,10 +627,90 @@
       }
     },
     {
+      "palettes": {
+        "garment": [
+          {
+            "lab": [
+              92.5,
+              -1.1,
+              3.6
+            ],
+            "share": 0.651
+          },
+          {
+            "lab": [
+              86.3,
+              -1.2,
+              6.9
+            ],
+            "share": 0.289
+          },
+          {
+            "lab": [
+              77.4,
+              -0.4,
+              9.8
+            ],
+            "share": 0.06
+          }
+        ],
+        "old": [
+          {
+            "lab": [
+              83.8,
+              2.9,
+              7
+            ],
+            "share": 0.568
+          },
+          {
+            "lab": [
+              73.1,
+              6.3,
+              13.7
+            ],
+            "share": 0.258
+          },
+          {
+            "lab": [
+              64.4,
+              10,
+              20.8
+            ],
+            "share": 0.174
+          }
+        ],
+        "result": [
+          {
+            "lab": [
+              62.2,
+              14.4,
+              32
+            ],
+            "share": 0.471
+          },
+          {
+            "lab": [
+              86.7,
+              -0.7,
+              6.9
+            ],
+            "share": 0.387
+          },
+          {
+            "lab": [
+              28.9,
+              -9.2,
+              15.5
+            ],
+            "share": 0.142
+          }
+        ]
+      },
       "key": "c8734e74",
       "category": "bottoms",
       "model": "standing-women",
-      "ms": 61,
+      "ms": 42,
       "passed": true,
       "checks": {
         "blank": {
@@ -202,8 +726,10 @@
           "ok": true
         },
         "colour": {
-          "value": 15.31,
-          "ok": false
+          "value": 2.6,
+          "ok": false,
+          "toOld": 6.56,
+          "garmentVsOld": 6.4
         },
         "person": {
           "value": 3.48,
@@ -212,10 +738,82 @@
       }
     },
     {
+      "palettes": {
+        "garment": [
+          {
+            "lab": [
+              21.2,
+              2.1,
+              -2.4
+            ],
+            "share": 0.538
+          },
+          {
+            "lab": [
+              60.1,
+              -0.9,
+              4.9
+            ],
+            "share": 0.462
+          }
+        ],
+        "old": [
+          {
+            "lab": [
+              49.9,
+              -5.5,
+              -9.9
+            ],
+            "share": 0.394
+          },
+          {
+            "lab": [
+              27.1,
+              -3.8,
+              -3.3
+            ],
+            "share": 0.353
+          },
+          {
+            "lab": [
+              62.9,
+              8.8,
+              15.6
+            ],
+            "share": 0.253
+          }
+        ],
+        "result": [
+          {
+            "lab": [
+              4.6,
+              -0.9,
+              -2
+            ],
+            "share": 0.5
+          },
+          {
+            "lab": [
+              57.8,
+              -5.7,
+              4.8
+            ],
+            "share": 0.256
+          },
+          {
+            "lab": [
+              31.8,
+              -2.5,
+              0.7
+            ],
+            "share": 0.244
+          }
+        ]
+      },
       "key": "ca3a7c3f",
       "category": "tops",
       "model": "standing-men",
-      "ms": 49,
+      "ms": 29,
       "passed": true,
       "checks": {
         "blank": {
@@ -231,8 +829,10 @@
           "ok": true
         },
         "colour": {
-          "value": -4.8,
-          "ok": true
+          "value": 6.49,
+          "ok": true,
+          "toOld": 11.27,
+          "garmentVsOld": 10.6
         },
         "person": {
           "value": 1.88,
@@ -241,10 +841,82 @@
       }
     },
     {
+      "palettes": {
+        "garment": [
+          {
+            "lab": [
+              79.7,
+              -1.4,
+              7
+            ],
+            "share": 0.451
+          },
+          {
+            "lab": [
+              45.5,
+              2.7,
+              2.6
+            ],
+            "share": 0.301
+          },
+          {
+            "lab": [
+              12.1,
+              32.4,
+              -29.5
+            ],
+            "share": 0.248
+          }
+        ],
+        "old": [
+          {
+            "lab": [
+              69.9,
+              16.1,
+              -22.5
+            ],
+            "share": 0.626
+          },
+          {
+            "lab": [
+              69.1,
+              12,
+              11.8
+            ],
+            "share": 0.374
+          }
+        ],
+        "result": [
+          {
+            "lab": [
+              79.5,
+              5.5,
+              7.9
+            ],
+            "share": 0.636
+          },
+          {
+            "lab": [
+              52.9,
+              6,
+              6.1
+            ],
+            "share": 0.288
+          },
+          {
+            "lab": [
+              14.1,
+              9.2,
+              -5.8
+            ],
+            "share": 0.076
+          }
+        ]
+      },
       "key": "cb9eecad",
       "category": "one-pieces",
       "model": "upload:a9a9bdb4",
-      "ms": 47,
+      "ms": 44,
       "passed": true,
       "checks": {
         "blank": {
@@ -260,8 +932,10 @@
           "ok": true
         },
         "colour": {
-          "value": -6.84,
-          "ok": true
+          "value": 9.74,
+          "ok": true,
+          "toOld": 15.91,
+          "garmentVsOld": 18.42
         },
         "person": {
           "value": 2.08,
@@ -270,10 +944,74 @@
       }
     },
     {
+      "palettes": {
+        "garment": [
+          {
+            "lab": [
+              16.6,
+              -6.5,
+              -4.1
+            ],
+            "share": 0.378
+          },
+          {
+            "lab": [
+              66.5,
+              1.5,
+              8.7
+            ],
+            "share": 0.366
+          },
+          {
+            "lab": [
+              42.9,
+              -0.6,
+              7.5
+            ],
+            "share": 0.256
+          }
+        ],
+        "old": [
+          {
+            "lab": [
+              66.3,
+              0,
+              17.8
+            ],
+            "share": 0.878
+          },
+          {
+            "lab": [
+              17.2,
+              0.8,
+              -4.4
+            ],
+            "share": 0.122
+          }
+        ],
+        "result": [
+          {
+            "lab": [
+              66.2,
+              -0.2,
+              18
+            ],
+            "share": 0.878
+          },
+          {
+            "lab": [
+              16.9,
+              0.8,
+              -4.2
+            ],
+            "share": 0.122
+          }
+        ]
+      },
       "key": "d53dffc1",
       "category": "tops",
       "model": "upload:b2949833",
-      "ms": 43,
+      "ms": 31,
       "passed": true,
       "checks": {
         "blank": {
@@ -289,8 +1027,10 @@
           "ok": true
         },
         "colour": {
-          "value": 22.47,
-          "ok": false
+          "value": 9.04,
+          "ok": false,
+          "toOld": 0.26,
+          "garmentVsOld": 8.99
         },
         "person": {
           "value": 0.84,

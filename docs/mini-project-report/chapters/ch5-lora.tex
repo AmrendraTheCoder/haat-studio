@@ -6,6 +6,7 @@ FASHN VTON 1.5 was trained mostly on Western garments. Kurtis, sarees, lehengas 
 
 \begin{figure}[!htbp]
 \centering
+\begin{adjustbox}{max width=\linewidth,center}
 \begin{tikzpicture}[node distance=4mm]
 \node[box=cD,text width=30mm] (cat) {Retail catalogue\\\scriptsize listings + photos};
 \node[box=cB,text width=30mm,right=of cat] (bp) {build\_pairs.py\\\scriptsize pose + image guardrails};
@@ -19,6 +20,7 @@ FASHN VTON 1.5 was trained mostly on Western garments. Kurtis, sarees, lehengas 
 \node[note,below=1mm of tr] {lora-best.safetensors};
 \node[note,below=1mm of cp,xshift=-4mm] {lora\_comparison.json};
 \end{tikzpicture}
+\end{adjustbox}
 \caption{The adaptation pipeline, from catalogue to claimed result. Every arrow is a script in \texttt{ml/scripts}.}
 \label{fig:lorapipe}
 \end{figure}
@@ -54,14 +56,14 @@ with $A$ initialised randomly and $B$ at zero, so that before training the adapt
 \caption{Placement of the LoRA adapters ($r = 16$). Trainable parameters of one adapter: $r\,(d_\text{in} + d_\text{out})$.}
 \label{tab:loralayers}
 \small
-\begin{tabularx}{\linewidth}{@{}L{33mm}YL{14mm}R{0mm}r@{}}
+\begin{tabularx}{\linewidth}{@{}L{28mm}YL{17mm}r@{}}
 \toprule
-\textbf{Blocks} & \textbf{Layers wrapped (each stream)} & \textbf{Adapters} & & \textbf{Parameters}\\
+\textbf{Blocks} & \textbf{Layers wrapped (each stream)} & \textbf{Adapters} & \textbf{Parameters}\\
 \midrule
-8 double-stream & QKV 1280→3840, output 1280→1280, MLP 1280→5120, MLP 5120→1280; person and garment stream & 8 × 8 = 64 & & 5{,}242{,}880\\
-16 single-stream & fused \texttt{linear1} 1280→8960, \texttt{linear2} 6400→1280 & 16 × 2 = 32 & & 4{,}587{,}520\\
+8 double-stream & QKV 1280→3840, output 1280→1280, MLP 1280→5120, MLP 5120→1280; person and garment stream & 8 × 8 = 64 & 5{,}242{,}880\\
+16 single-stream & fused \texttt{linear1} 1280→8960, \texttt{linear2} 6400→1280 & 16 × 2 = 32 & 4{,}587{,}520\\
 \midrule
-Total & & \vLoraLayers{} & & \vTrainParams{}\\
+Total & \vLoraLayers{} & \vTrainParams{}\\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -75,7 +77,7 @@ Three decisions are specific to this model:
 \item \textbf{One adapter on the fused layer.} In single-stream blocks one linear layer computes both the attention inputs and the MLP input, so one adapter covers both.
 \end{enumerate}
 
-\paragraph{New garment categories} The category embedding has four rows. \texttt{extend\_categories} adds rows, for example saree as category~4 and lehenga as category~5, each initialised as a copy of ``one-pieces'', so that existing categories are unchanged (another automated test) and the new one starts from the nearest known behaviour.
+\paragraph{New garment categories} The category embedding has four rows. The function \texttt{extend\_\allowbreak categories} adds rows, for example saree as category~4 and lehenga as category~5, each initialised as a copy of ``one-pieces'', so that existing categories are unchanged (another automated test) and the new one starts from the nearest known behaviour.
 
 \section{Running the Model in 8~GB}
 
@@ -165,7 +167,7 @@ The base model and the adapted model are run on every validation pair with the s
 \item \textbf{SSIM}~\cite{ssim} over the unpadded image (higher is better);
 \item \textbf{garment L1}: the mean absolute error on the garment's pixels only, the number a seller cares about (lower is better);
 \item generation time for each model;
-\item \textbf{model guardrails} (\texttt{guardrail\_eval.py}): \emph{pose drift}, the mean distance between the body keypoints of the output and of the real photograph found by FASHN's own pose estimator, as a fraction of the image diagonal; \emph{garment colour error}, the CIE76 $\Delta E$ between output and real photograph on the garment's pixels; and blank or unchanged outputs. An output passes the guardrail when it is neither blank nor unchanged, its pose drift is at most 0.05 and its colour error at most 20; the pass rate of each model is reported.
+\item \textbf{model guardrails} (\texttt{guardrail\_eval.py}): \emph{pose drift}, the mean distance between the body keypoints of the output and of the real photograph found by FASHN's own pose estimator, as a fraction of the image diagonal; \emph{garment colour error}, the CIEDE2000 palette distance $D$ ($k_L = 2$, Section~\ref{sec:colour}) between the garment's pixels in the output and in the real photograph; and blank or unchanged outputs. Palettes are used instead of pixel-by-pixel differences, which punish a fold that moved by a few pixels even when every colour is right. An output passes the guardrail when it is neither blank nor unchanged, its pose drift is at most 0.05 and its colour error at most 12, the ``same shade'' limit of Table~\ref{tab:tolerance}; the pass rate of each model is reported.
 \end{itemize}
 For each metric \texttt{compare\_lora.py} computes the paired difference (adapter minus base), its 95\% bootstrap confidence interval over 10{,}000 resamples of the validation garments~\cite{bootstrap}, the share of garments on which the adapter is better, and a two-sided Wilcoxon signed-rank test~\cite{wilcoxon} (exact for up to 25 garments).
 
@@ -209,6 +211,7 @@ Figure~\ref{fig:integration} shows how a request will flow once the adapter is p
 
 \begin{figure}[!htbp]
 \centering
+\begin{adjustbox}{max width=\linewidth,center}
 \begin{tikzpicture}[node distance=3.6mm]
 \node[box,text width=26mm] (u) {Seller uploads\\\scriptsize garment + model};
 \node[box=cA,text width=26mm,right=of u] (g) {Guards\\\scriptsize passcode, settings,\\model suits the garment?};
@@ -223,6 +226,7 @@ Figure~\ref{fig:integration} shows how a request will flow once the adapter is p
 \draw[arr] (u)--(g); \draw[arr] (g)--(c); \draw[arr] (c)--(s); \draw[arr] (s)--(l); \draw[arr] (l)--node[above,font=\scriptsize]{fails}(f); \draw[arr] (f)--(v); \draw[arr] (v)--(e); \draw[arr] (e)--(cap); \draw[arr] (cap)--(post);
 \draw[arr,dashed] (l.south) |- ++(0,-4mm) -| (v.south);
 \end{tikzpicture}
+\end{adjustbox}
 \caption{The request path after integration. The adapted model is tried first; FASHN's own Space remains the fallback; the content engines turn the result into a post.}
 \label{fig:integration}
 \end{figure}
